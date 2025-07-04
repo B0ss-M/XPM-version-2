@@ -1,5 +1,6 @@
 import os
 import glob
+import logging
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 
@@ -155,6 +156,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         if not self.groups:
             messagebox.showwarning("No Groups", "No groups defined.", parent=self)
             return
+        logging.info("MultiSampleBuilderWindow.build starting")
         options = self.options_cls(
             loop_one_shots=self.master.loop_one_shots_var.get(),
             analyze_scw=self.master.analyze_scw_var.get(),
@@ -167,6 +169,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         builder = self.builder_cls(self.master.folder_path.get(), self.master, options)
         mode = self.map_var.get()
         for name, files in self.groups.items():
+            logging.info("Building group '%s' with %d file(s)", name, len(files))
             notes = self.generate_notes(len(files), mode)
             builder._create_xpm(name, files, self.master.folder_path.get(), 'multi-sample', midi_notes=notes)
         messagebox.showinfo("Done", "Instruments created.", parent=self)

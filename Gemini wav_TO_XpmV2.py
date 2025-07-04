@@ -380,7 +380,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
             try:
                 tree = ET.parse(xpm_path)
                 root = tree.getroot()
-            except ET.ParseError as e:
+            except Exception as e:
                 rel = os.path.relpath(xpm_path, folder)
                 logging.error(f"Error scanning {xpm_path}: {e}")
                 self.tree.insert(
@@ -393,9 +393,6 @@ class ExpansionDoctorWindow(tk.Toplevel):
                     'valid': False,
                     'missing': [],
                 }
-                continue
-            except Exception as e:
-                logging.error(f"Error scanning {xpm_path}: {e}")
                 continue
 
             missing = set()
@@ -978,6 +975,7 @@ class InstrumentBuilder:
         return True
 
     def create_instruments(self, mode='multi-sample'):
+        logging.info("create_instruments starting with mode %s", mode)
         if not self.validate_options():
             return
         created_xpms, created_count, error_count = [], 0, 0
@@ -1042,6 +1040,7 @@ class InstrumentBuilder:
             
     def _create_xpm(self, program_name, sample_files, output_folder, mode, midi_notes=None):
         """Creates a single XPM file from a group of samples using robust XML construction."""
+        logging.info("_create_xpm building '%s' with %d sample(s)", program_name, len(sample_files))
         try:
             sample_infos = []
             start_note = 60
@@ -1243,6 +1242,7 @@ class InstrumentBuilder:
 
     def process_previews_only(self):
         """Generates audio previews for all existing XPM files in the folder."""
+        logging.info("process_previews_only starting")
         self.app.status_text.set("Generating previews...")
         self.app.progress.config(mode='indeterminate')
         self.app.progress.start()
@@ -1379,7 +1379,9 @@ class App(tk.Tk):
         self.setup_logging()
 
     def setup_logging(self):
-        log_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        log_format = logging.Formatter(
+            "%(asctime)s - %(levelname)s - %(funcName)s - %(message)s"
+        )
         text_handler = TextHandler(self.log_text)
         text_handler.setFormatter(log_format)
         root_logger = logging.getLogger()
