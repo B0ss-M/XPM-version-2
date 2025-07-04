@@ -52,7 +52,7 @@ class TextHandler(logging.Handler):
 from firmware_profiles import (
     get_pad_settings,
     get_program_parameters as fw_program_parameters,
-    ADVANCED_INSTRUMENT_PARAMS,
+    clone_advanced_instrument,
 )
 
 
@@ -1081,16 +1081,25 @@ class InstrumentBuilder:
         return fw_program_parameters(firmware, num_keygroups)
 
     def build_instrument_element(self, parent, num, low, high):
-        instrument = ET.SubElement(parent, 'Instrument', {'number': str(num)})
         engine = get_pad_settings(self.options.firmware_version).get('engine')
-        if engine == 'advanced' and ADVANCED_INSTRUMENT_PARAMS:
-            params = ADVANCED_INSTRUMENT_PARAMS.copy()
-            params.update({
+        if engine == 'advanced':
+            instrument = clone_advanced_instrument()
+            if instrument is None:
+                instrument = ET.Element('Instrument')
+            instrument.attrib['number'] = str(num)
+            for tag, value in {
                 'Polyphony': str(self.options.polyphony),
                 'LowNote': str(low),
                 'HighNote': str(high),
-            })
+            }.items():
+                elem = instrument.find(tag)
+                if elem is None:
+                    ET.SubElement(instrument, tag).text = value
+                else:
+                    elem.text = value
+            parent.append(instrument)
         else:
+            instrument = ET.SubElement(parent, 'Instrument', {'number': str(num)})
             params = {
                 'Polyphony': str(self.options.polyphony),
                 'LowNote': str(low),
@@ -1114,8 +1123,8 @@ class InstrumentBuilder:
                 'FilterRelease': '0.0',
                 'FilterEnvAmount': '0.0',
             }
-        for key, val in params.items():
-            ET.SubElement(instrument, key).text = val
+            for key, val in params.items():
+                ET.SubElement(instrument, key).text = val
         return instrument
 
     def add_layer_parameters(self, layer_element, sample_info, vel_start, vel_end):

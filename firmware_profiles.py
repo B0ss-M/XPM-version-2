@@ -64,30 +64,37 @@ def _load_advanced_params():
 
 ADVANCED_PROGRAM_PARAMS = _load_advanced_params()
 
-# Extract default instrument parameter values from the reference XPM. Only
-# capture simple text elements so they can be merged directly with the
-# dictionary used in InstrumentBuilder.
-def _load_advanced_instrument_params():
+# Extract a full Instrument element from the reference XPM as a template. The
+# template is stripped of layer data so that custom layers can be inserted.
+def _load_advanced_instrument_template():
     import os
     import xml.etree.ElementTree as ET
 
     path = os.path.join(os.path.dirname(__file__), 'Advanced keygroup.xpm')
     if not os.path.exists(path):
-        return {}
+        return None
 
     root = ET.parse(path).getroot()
     inst = root.find('.//Instrument')
-    params = {}
     if inst is None:
-        return params
+        return None
 
-    for child in inst:
-        if len(list(child)) == 0:
-            params[child.tag] = child.text or ''
-    return params
+    inst_copy = ET.fromstring(ET.tostring(inst))
+    layers = inst_copy.find('Layers')
+    if layers is not None:
+        inst_copy.remove(layers)
+    return inst_copy
 
 
-ADVANCED_INSTRUMENT_PARAMS = _load_advanced_instrument_params()
+ADVANCED_INSTRUMENT_TEMPLATE = _load_advanced_instrument_template()
+
+def clone_advanced_instrument():
+    """Return a deep copy of the advanced instrument template."""
+    import xml.etree.ElementTree as ET
+
+    if ADVANCED_INSTRUMENT_TEMPLATE is None:
+        return None
+    return ET.fromstring(ET.tostring(ADVANCED_INSTRUMENT_TEMPLATE))
 
 # Some older firmware do not support the newer LFO/aftertouch parameters.
 LEGACY_REMOVE_KEYS = {
