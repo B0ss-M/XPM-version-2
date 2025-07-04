@@ -64,6 +64,31 @@ def _load_advanced_params():
 
 ADVANCED_PROGRAM_PARAMS = _load_advanced_params()
 
+# Extract default instrument parameter values from the reference XPM. Only
+# capture simple text elements so they can be merged directly with the
+# dictionary used in InstrumentBuilder.
+def _load_advanced_instrument_params():
+    import os
+    import xml.etree.ElementTree as ET
+
+    path = os.path.join(os.path.dirname(__file__), 'Advanced keygroup.xpm')
+    if not os.path.exists(path):
+        return {}
+
+    root = ET.parse(path).getroot()
+    inst = root.find('.//Instrument')
+    params = {}
+    if inst is None:
+        return params
+
+    for child in inst:
+        if len(list(child)) == 0:
+            params[child.tag] = child.text or ''
+    return params
+
+
+ADVANCED_INSTRUMENT_PARAMS = _load_advanced_instrument_params()
+
 # Some older firmware do not support the newer LFO/aftertouch parameters.
 LEGACY_REMOVE_KEYS = {
     '2.3.0.0': ['KeygroupWheelToLfo2', 'KeygroupAftertouchToFilter2'],
