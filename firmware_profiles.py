@@ -36,6 +36,34 @@ DEFAULT_PROGRAM_PARAMS = {
     'HarmoniserMix': '0.5',
 }
 
+# Automatically load advanced-engine defaults from the reference XPM.
+def _load_advanced_params():
+    """Parse 'Advanced keygroup.xpm' to build a dictionary of program-level
+    parameters. Only simple text elements are captured so the resulting
+    dictionary can be merged directly with DEFAULT_PROGRAM_PARAMS."""
+    import os
+    import xml.etree.ElementTree as ET
+
+    path = os.path.join(os.path.dirname(__file__), 'Advanced keygroup.xpm')
+    if not os.path.exists(path):
+        return {}
+
+    root = ET.parse(path).getroot()
+    program = root.find('Program')
+    advanced = {}
+    if program is None:
+        return advanced
+
+    for child in program:
+        if child.tag in {'ProgramName', 'ProgramPads-v2.10', 'Instruments', 'Version'}:
+            continue
+        if len(list(child)) == 0:
+            advanced[child.tag] = child.text or ''
+    return advanced
+
+
+ADVANCED_PROGRAM_PARAMS = _load_advanced_params()
+
 # Some older firmware do not support the newer LFO/aftertouch parameters.
 LEGACY_REMOVE_KEYS = {
     '2.3.0.0': ['KeygroupWheelToLfo2', 'KeygroupAftertouchToFilter2'],
@@ -49,7 +77,11 @@ def get_pad_settings(firmware: str):
 
 def get_program_parameters(firmware: str, num_keygroups: int) -> dict:
     """Return program parameter dictionary customized per firmware."""
-    params = DEFAULT_PROGRAM_PARAMS.copy()
+    engine = PAD_SETTINGS.get(firmware, PAD_SETTINGS['3.5.0']).get('engine')
+    if engine == 'advanced' and ADVANCED_PROGRAM_PARAMS:
+        params = ADVANCED_PROGRAM_PARAMS.copy()
+    else:
+        params = DEFAULT_PROGRAM_PARAMS.copy()
     params['KeygroupNumKeygroups'] = str(num_keygroups)
     for key in LEGACY_REMOVE_KEYS.get(firmware, []):
         params.pop(key, None)
