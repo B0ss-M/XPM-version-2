@@ -1729,3 +1729,920 @@
 2025-07-04 12:54:20,686 - INFO - Application started. Version 22.4.
 2025-07-04 13:07:39,243 - INFO - Application started. Version 22.4.
 2025-07-04 13:08:01,095 - INFO - Selected folder: /Volumes/MPC SSD/Expansions/Edirol-Brass Section vol.2
+2025-07-04 13:24:37,308 - INFO - Application started. Version 22.4.
+2025-07-04 13:25:05,496 - INFO - Selected folder: /Volumes/MPC SSD/Expansions/Edirol-Brass Section vol.2
+2025-07-04 13:30:26,669 - INFO - Selected folder: /Volumes/MPC SSD/Expansions/EMU Factory/vintage pro
+2025-07-04 13:30:28,712 - INFO - Generated preview for _99 Brass.xpm
+2025-07-04 13:30:28,766 - INFO - Generated preview for 1st3 2ndPerc.xpm
+2025-07-04 13:30:28,778 - INFO - Generated preview for 1st3 3rdPerc.xpm
+2025-07-04 13:30:28,791 - INFO - Generated preview for 1st3FullDist.xpm
+2025-07-04 13:30:28,819 - INFO - Generated preview for 1st3HiDrBr.xpm
+2025-07-04 13:30:28,830 - INFO - Generated preview for 1st4 Vib.xpm
+2025-07-04 13:30:28,844 - INFO - Generated preview for 1st4VFullDis.xpm
+2025-07-04 13:30:28,857 - INFO - Generated preview for 1st4Vib2Perc.xpm
+2025-07-04 13:30:28,872 - INFO - Generated preview for 1st4Vib3Perc.xpm
+2025-07-04 13:30:28,923 - INFO - Generated preview for Airscopix.xpm
+2025-07-04 13:30:28,937 - INFO - Generated preview for All Out.xpm
+2025-07-04 13:30:28,974 - INFO - Generated preview for AnaClav.xpm
+2025-07-04 13:30:28,988 - INFO - Generated preview for Analog FM.xpm
+2025-07-04 13:30:29,003 - INFO - Generated preview for Analogic.xpm
+2025-07-04 13:30:29,020 - INFO - Generated preview for AOR Ballad.xpm
+2025-07-04 13:30:29,076 - INFO - Generated preview for B-3 OvrDrive.xpm
+2025-07-04 13:30:29,088 - INFO - Generated preview for Back at U.xpm
+2025-07-04 13:30:29,125 - INFO - Generated preview for BigTronChoir.xpm
+2025-07-04 13:30:29,139 - INFO - Generated preview for BrashCombo.xpm
+2025-07-04 13:30:29,177 - INFO - Generated preview for Buzzy Clav.xpm
+2025-07-04 13:30:29,190 - INFO - Generated preview for Canada.xpm
+2025-07-04 13:30:29,215 - INFO - Generated preview for Chorus Dyno.xpm
+2025-07-04 13:30:29,228 - INFO - Generated preview for Classic EP.xpm
+2025-07-04 13:30:29,243 - INFO - Generated preview for ClassicCP.xpm
+2025-07-04 13:30:29,253 - INFO - Generated preview for Clav 1.xpm
+2025-07-04 13:30:29,270 - INFO - Generated preview for Clav 2.xpm
+2025-07-04 13:30:29,287 - INFO - Generated preview for Clav 3.xpm
+2025-07-04 13:30:29,302 - INFO - Generated preview for Clav Flanger.xpm
+2025-07-04 13:30:29,320 - INFO - Generated preview for Clav Freak.xpm
+2025-07-04 13:30:29,336 - INFO - Generated preview for Clav Wah 1.xpm
+2025-07-04 13:30:29,354 - INFO - Generated preview for Clav Wah 2.xpm
+2025-07-04 13:30:29,369 - INFO - Generated preview for Clav1_2.xpm
+2025-07-04 13:30:29,387 - INFO - Generated preview for Clavicle.xpm
+2025-07-04 13:30:29,402 - INFO - Generated preview for Clavinet.xpm
+2025-07-04 13:30:29,420 - INFO - Generated preview for Clavitzer.xpm
+2025-07-04 13:30:29,438 - INFO - Generated preview for Clicky.xpm
+2025-07-04 13:30:29,452 - INFO - Generated preview for ComboTrem.xpm
+2025-07-04 13:30:29,507 - INFO - Generated preview for Comp.xpm
+2025-07-04 13:30:29,523 - INFO - Generated preview for CP 70.xpm
+2025-07-04 13:30:29,560 - INFO - Generated preview for CP Layer.xpm
+2025-07-04 13:30:29,572 - INFO - Generated preview for CP Light.xpm
+2025-07-04 13:30:29,609 - INFO - Generated preview for CP Pad.xpm
+2025-07-04 13:30:29,623 - INFO - Generated preview for CP Seventy.xpm
+2025-07-04 13:30:29,660 - INFO - Generated preview for CP Tight.xpm
+2025-07-04 13:30:29,671 - INFO - Generated preview for CP Uptown.xpm
+2025-07-04 13:30:29,687 - INFO - Generated preview for Dr_ Please.xpm
+2025-07-04 13:30:29,710 - INFO - Generated preview for Dynamic FM.xpm
+2025-07-04 13:30:29,726 - INFO - Generated preview for Dyno Piano.xpm
+2025-07-04 13:30:29,737 - INFO - Generated preview for Dyno Soft.xpm
+2025-07-04 13:30:29,757 - INFO - Generated preview for Dyno Vox.xpm
+2025-07-04 13:30:29,778 - INFO - Generated preview for DynoChorus.xpm
+2025-07-04 13:30:29,825 - INFO - Generated preview for DynoOdd.xpm
+2025-07-04 13:30:29,839 - INFO - Generated preview for DynoStcase.xpm
+2025-07-04 13:30:29,875 - INFO - Generated preview for EP Silver.xpm
+2025-07-04 13:30:29,890 - INFO - Generated preview for Far Away.xpm
+2025-07-04 13:30:29,925 - INFO - Generated preview for Flute String.xpm
+2025-07-04 13:30:29,936 - INFO - Generated preview for FM Delicate.xpm
+2025-07-04 13:30:29,976 - INFO - Generated preview for FM Flanger.xpm
+2025-07-04 13:30:29,988 - INFO - Generated preview for FM Phase.xpm
+2025-07-04 13:30:30,002 - INFO - Generated preview for FM SimpleEP.xpm
+2025-07-04 13:30:30,026 - INFO - Generated preview for FM Tines.xpm
+2025-07-04 13:30:30,038 - INFO - Generated preview for FunkMaster.xpm
+2025-07-04 13:30:30,055 - INFO - Generated preview for FusionMover.xpm
+2025-07-04 13:30:30,070 - INFO - Generated preview for Grindo.xpm
+2025-07-04 13:30:30,086 - INFO - Generated preview for Heavy Dyno.xpm
+2025-07-04 13:30:30,106 - INFO - Generated preview for Jazz Pro.xpm
+2025-07-04 13:30:30,138 - INFO - Generated preview for Jazz_n Jimmy.xpm
+2025-07-04 13:30:30,150 - INFO - Generated preview for Klav Mav.xpm
+2025-07-04 13:30:30,189 - INFO - Generated preview for Kloid_s Jam.xpm
+2025-07-04 13:30:30,201 - INFO - Generated preview for Light Aahs.xpm
+2025-07-04 13:30:30,238 - INFO - Generated preview for Lullaby.xpm
+2025-07-04 13:30:30,252 - INFO - Generated preview for Mama_s Wurly.xpm
+2025-07-04 13:30:30,290 - INFO - Generated preview for MarshMello.xpm
+2025-07-04 13:30:30,304 - INFO - Generated preview for Mello EP1.xpm
+2025-07-04 13:30:30,320 - INFO - Generated preview for Mello EP2.xpm
+2025-07-04 13:30:30,337 - INFO - Generated preview for Mello Tines.xpm
+2025-07-04 13:30:30,352 - INFO - Generated preview for MelloCombo.xpm
+2025-07-04 13:30:30,369 - INFO - Generated preview for Mellow Pop.xpm
+2025-07-04 13:30:30,390 - INFO - Generated preview for MetalBars.xpm
+2025-07-04 13:30:30,442 - INFO - Generated preview for MetalBarsXfd.xpm
+2025-07-04 13:30:30,455 - INFO - Generated preview for Mini Snap.xpm
+2025-07-04 13:30:30,494 - INFO - Generated preview for Monster Clav.xpm
+2025-07-04 13:30:30,505 - INFO - Generated preview for OB EP.xpm
+2025-07-04 13:30:30,518 - INFO - Generated preview for OB Glider.xpm
+2025-07-04 13:30:30,543 - INFO - Generated preview for OB Tine EP.xpm
+2025-07-04 13:30:30,556 - INFO - Generated preview for OB-Xa.xpm
+2025-07-04 13:30:30,567 - INFO - Generated preview for OBX Organ.xpm
+2025-07-04 13:30:30,587 - INFO - Generated preview for P5Hrpsichrd.xpm
+2025-07-04 13:30:30,606 - INFO - Generated preview for Perc Three.xpm
+2025-07-04 13:30:30,620 - INFO - Generated preview for Phase Clav3.xpm
+2025-07-04 13:30:30,636 - INFO - Generated preview for PhaseClav.xpm
+2025-07-04 13:30:30,681 - INFO - Generated preview for PhaseClav2.xpm
+2025-07-04 13:30:30,704 - INFO - Generated preview for Pipe Organ.xpm
+2025-07-04 13:30:30,716 - INFO - Generated preview for PlasticOrg.xpm
+2025-07-04 13:30:30,734 - INFO - Generated preview for PortaVib.xpm
+2025-07-04 13:30:30,752 - INFO - Generated preview for PortaVibSt.xpm
+2025-07-04 13:30:30,771 - INFO - Generated preview for Real CP.xpm
+2025-07-04 13:30:30,787 - INFO - Generated preview for Rock CP.xpm
+2025-07-04 13:30:30,802 - INFO - Generated preview for SEM.xpm
+2025-07-04 13:30:30,819 - INFO - Generated preview for Sentinels.xpm
+2025-07-04 13:30:30,834 - INFO - Generated preview for Shimmer.xpm
+2025-07-04 13:30:30,860 - INFO - Generated preview for Six Out.xpm
+2025-07-04 13:30:30,873 - INFO - Generated preview for Smooth.xpm
+2025-07-04 13:30:30,910 - INFO - Generated preview for Stage CP.xpm
+2025-07-04 13:30:30,925 - INFO - Generated preview for Stereo EP.xpm
+2025-07-04 13:30:30,959 - INFO - Generated preview for StereoClav 2.xpm
+2025-07-04 13:30:30,972 - INFO - Generated preview for String EP.xpm
+2025-07-04 13:30:31,011 - INFO - Generated preview for StudioDyno1.xpm
+2025-07-04 13:30:31,027 - INFO - Generated preview for StudioDyno2.xpm
+2025-07-04 13:30:31,037 - INFO - Generated preview for Synth Stack.xpm
+2025-07-04 13:30:31,053 - INFO - Generated preview for SynthClav.xpm
+2025-07-04 13:30:31,069 - INFO - Generated preview for TaurusPedals.xpm
+2025-07-04 13:30:31,085 - INFO - Generated preview for Thick Brass.xpm
+2025-07-04 13:30:31,103 - INFO - Generated preview for ThinClav.xpm
+2025-07-04 13:30:31,120 - INFO - Generated preview for Toyo.xpm
+2025-07-04 13:30:31,135 - INFO - Generated preview for Tron Brass.xpm
+2025-07-04 13:30:31,172 - INFO - Generated preview for Tron Violins.xpm
+2025-07-04 13:30:31,185 - INFO - Generated preview for TwoClavs.xpm
+2025-07-04 13:30:31,224 - INFO - Generated preview for Vintage CP.xpm
+2025-07-04 13:30:31,236 - INFO - Generated preview for Vintage.xpm
+2025-07-04 13:30:31,251 - INFO - Generated preview for WakTclav.xpm
+2025-07-04 13:30:31,274 - INFO - Generated preview for Wurlilayer.xpm
+2025-07-04 13:30:31,325 - INFO - Generated preview for Wurly.xpm
+2025-07-04 13:30:31,340 - INFO - Generated preview for BeginAgain.xpm
+2025-07-04 13:30:31,376 - INFO - Generated preview for Clavsichord.xpm
+2025-07-04 13:30:31,390 - INFO - Generated preview for Electra.xpm
+2025-07-04 13:30:31,406 - INFO - Generated preview for Lite Dyno.xpm
+2025-07-04 13:30:31,424 - INFO - Generated preview for Old Red Top.xpm
+2025-07-04 13:30:31,435 - INFO - Generated preview for 10101.xpm
+2025-07-04 13:30:31,474 - INFO - Generated preview for 80zFuzzPad.xpm
+2025-07-04 13:30:31,487 - INFO - Generated preview for AirCommand.xpm
+2025-07-04 13:30:31,527 - INFO - Generated preview for AnalogBell.xpm
+2025-07-04 13:30:31,539 - INFO - Generated preview for Angel Eyes.xpm
+2025-07-04 13:30:31,551 - INFO - Generated preview for ArmyOJunos.xpm
+2025-07-04 13:30:31,580 - INFO - Generated preview for Arp Axxe.xpm
+2025-07-04 13:30:31,591 - INFO - Generated preview for Arp Octs.xpm
+2025-07-04 13:30:31,603 - INFO - Generated preview for ArpClarinet.xpm
+2025-07-04 13:30:31,618 - INFO - Generated preview for Big ARP.xpm
+2025-07-04 13:30:31,637 - INFO - Generated preview for Big Mini.xpm
+2025-07-04 13:30:31,654 - INFO - Generated preview for BigSoloSqr.xpm
+2025-07-04 13:30:31,669 - INFO - Generated preview for Chimelope.xpm
+2025-07-04 13:30:31,684 - INFO - Generated preview for D Fiftease.xpm
+2025-07-04 13:30:31,704 - INFO - Generated preview for Deep Sky.xpm
+2025-07-04 13:30:31,729 - INFO - Generated preview for Distant.xpm
+2025-07-04 13:30:31,738 - INFO - Generated preview for E-MU Modular.xpm
+2025-07-04 13:30:31,753 - INFO - Generated preview for Ex-plorer.xpm
+2025-07-04 13:30:31,790 - INFO - Generated preview for FiltrBrass1.xpm
+2025-07-04 13:30:31,803 - INFO - Generated preview for FiltrBrass2.xpm
+2025-07-04 13:30:31,818 - INFO - Generated preview for Frank Stein.xpm
+2025-07-04 13:30:31,840 - INFO - Generated preview for Full Body.xpm
+2025-07-04 13:30:31,854 - INFO - Generated preview for Funky Junk.xpm
+2025-07-04 13:30:31,868 - INFO - Generated preview for FuzzBell.xpm
+2025-07-04 13:30:31,886 - INFO - Generated preview for Glass Pipe.xpm
+2025-07-04 13:30:31,903 - INFO - Generated preview for Glass Rim.xpm
+2025-07-04 13:30:31,918 - INFO - Generated preview for GrowlySynth.xpm
+2025-07-04 13:30:31,943 - INFO - Generated preview for Huge SEM.xpm
+2025-07-04 13:30:31,956 - INFO - Generated preview for Ice Eyes.xpm
+2025-07-04 13:30:31,994 - INFO - Generated preview for Juno _ DX.xpm
+2025-07-04 13:30:32,006 - INFO - Generated preview for Juno Pulse.xpm
+2025-07-04 13:30:32,018 - INFO - Generated preview for Juno.xpm
+2025-07-04 13:30:32,035 - INFO - Generated preview for JunoOctSplit.xpm
+2025-07-04 13:30:32,053 - INFO - Generated preview for JunoOvrDrive.xpm
+2025-07-04 13:30:32,068 - INFO - Generated preview for JX Oct Split.xpm
+2025-07-04 13:30:32,085 - INFO - Generated preview for KotoRize.xpm
+2025-07-04 13:30:32,101 - INFO - Generated preview for Late 80z 2.xpm
+2025-07-04 13:30:32,118 - INFO - Generated preview for Late 80z.xpm
+2025-07-04 13:30:32,137 - INFO - Generated preview for Little.xpm
+2025-07-04 13:30:32,152 - INFO - Generated preview for Lush.xpm
+2025-07-04 13:30:32,167 - INFO - Generated preview for M12.xpm
+2025-07-04 13:30:32,186 - INFO - Generated preview for Mean.xpm
+2025-07-04 13:30:32,203 - INFO - Generated preview for Megasync.xpm
+2025-07-04 13:30:32,219 - INFO - Generated preview for Merlot.xpm
+2025-07-04 13:30:32,237 - INFO - Generated preview for Metasynth1.xpm
+2025-07-04 13:30:32,254 - INFO - Generated preview for Metasynth2.xpm
+2025-07-04 13:30:32,270 - INFO - Generated preview for Mini Soul.xpm
+2025-07-04 13:30:32,286 - INFO - Generated preview for MiniSaw Octs.xpm
+2025-07-04 13:30:32,303 - INFO - Generated preview for Modular Octs.xpm
+2025-07-04 13:30:32,320 - INFO - Generated preview for MoogShrtPuls.xpm
+2025-07-04 13:30:32,336 - INFO - Generated preview for Morpheus.xpm
+2025-07-04 13:30:32,352 - INFO - Generated preview for Muddy Sync.xpm
+2025-07-04 13:30:32,407 - INFO - Generated preview for Nephilim.xpm
+2025-07-04 13:30:32,421 - INFO - Generated preview for NightTime.xpm
+2025-07-04 13:30:32,435 - INFO - Generated preview for NoteOffChime.xpm
+2025-07-04 13:30:32,451 - INFO - Generated preview for Now _ Zen.xpm
+2025-07-04 13:30:32,469 - INFO - Generated preview for Nunzio.xpm
+2025-07-04 13:30:32,485 - INFO - Generated preview for OB Glider2.xpm
+2025-07-04 13:30:32,502 - INFO - Generated preview for OB Lead.xpm
+2025-07-04 13:30:32,559 - INFO - Generated preview for OB Pulser.xpm
+2025-07-04 13:30:32,570 - INFO - Generated preview for OB Saw Octs.xpm
+2025-07-04 13:30:32,609 - INFO - Generated preview for OBeast Sync.xpm
+2025-07-04 13:30:32,622 - INFO - Generated preview for OBSEMFuzz1.xpm
+2025-07-04 13:30:32,659 - INFO - Generated preview for OBSEMFuzz2.xpm
+2025-07-04 13:30:32,673 - INFO - Generated preview for OBX SyncMono.xpm
+2025-07-04 13:30:32,711 - INFO - Generated preview for Odd Lead.xpm
+2025-07-04 13:30:32,724 - INFO - Generated preview for Oh Boy.xpm
+2025-07-04 13:30:32,761 - INFO - Generated preview for OverDrive101.xpm
+2025-07-04 13:30:32,773 - INFO - Generated preview for P10.xpm
+2025-07-04 13:30:32,782 - INFO - Generated preview for P5 PolySync.xpm
+2025-07-04 13:30:32,802 - INFO - Generated preview for P5 Sync 1.xpm
+2025-07-04 13:30:32,819 - INFO - Generated preview for P5 Sync 2.xpm
+2025-07-04 13:30:32,871 - INFO - Generated preview for Perc Rouge.xpm
+2025-07-04 13:30:32,884 - INFO - Generated preview for Phase1Alert.xpm
+2025-07-04 13:30:32,902 - INFO - Generated preview for Poly ARP.xpm
+2025-07-04 13:30:32,920 - INFO - Generated preview for Poly Mono.xpm
+2025-07-04 13:30:32,935 - INFO - Generated preview for PortaLead.xpm
+2025-07-04 13:30:32,953 - INFO - Generated preview for Power Juno.xpm
+2025-07-04 13:30:32,969 - INFO - Generated preview for Power Mini.xpm
+2025-07-04 13:30:33,022 - INFO - Generated preview for Profit Loss.xpm
+2025-07-04 13:30:33,036 - INFO - Generated preview for ProFive Octs.xpm
+2025-07-04 13:30:33,076 - INFO - Generated preview for ProphetPiano.xpm
+2025-07-04 13:30:33,090 - INFO - Generated preview for Pulse.xpm
+2025-07-04 13:30:33,127 - INFO - Generated preview for PulseFlanger.xpm
+2025-07-04 13:30:33,141 - INFO - Generated preview for Random OB.xpm
+2025-07-04 13:30:33,150 - INFO - Generated preview for Regbit.xpm
+2025-07-04 13:30:33,171 - INFO - Generated preview for RhaspyClickr.xpm
+2025-07-04 13:30:33,185 - INFO - Generated preview for Robot ca1960.xpm
+2025-07-04 13:30:33,237 - INFO - Generated preview for Rogue.xpm
+2025-07-04 13:30:33,249 - INFO - Generated preview for RogueSawOcts.xpm
+2025-07-04 13:30:33,271 - INFO - Generated preview for Round Mini.xpm
+2025-07-04 13:30:33,287 - INFO - Generated preview for Runner.xpm
+2025-07-04 13:30:33,305 - INFO - Generated preview for Sawphony.xpm
+2025-07-04 13:30:33,340 - INFO - Generated preview for SawsOfOld.xpm
+2025-07-04 13:30:33,353 - INFO - Generated preview for SEM Bat Fuzz.xpm
+2025-07-04 13:30:33,368 - INFO - Generated preview for Shade Pad.xpm
+2025-07-04 13:30:33,385 - INFO - Generated preview for Sin Brass.xpm
+2025-07-04 13:30:33,401 - INFO - Generated preview for Skware!!.xpm
+2025-07-04 13:30:33,419 - INFO - Generated preview for Sneaker Flap.xpm
+2025-07-04 13:30:33,447 - INFO - Generated preview for Soft_Round.xpm
+2025-07-04 13:30:33,458 - INFO - Generated preview for Sonic Six.xpm
+2025-07-04 13:30:33,470 - INFO - Generated preview for Spike.xpm
+2025-07-04 13:30:33,485 - INFO - Generated preview for Squawky OB.xpm
+2025-07-04 13:30:33,502 - INFO - Generated preview for Stabber.xpm
+2025-07-04 13:30:33,518 - INFO - Generated preview for Stinger.xpm
+2025-07-04 13:30:33,537 - INFO - Generated preview for Synphonix 1.xpm
+2025-07-04 13:30:33,553 - INFO - Generated preview for Synphonix 2.xpm
+2025-07-04 13:30:33,570 - INFO - Generated preview for Synth Ringer.xpm
+2025-07-04 13:30:33,591 - INFO - Generated preview for Syrupy JP.xpm
+2025-07-04 13:30:33,606 - INFO - Generated preview for SySaPhUs.xpm
+2025-07-04 13:30:33,643 - INFO - Generated preview for ThinPotent.xpm
+2025-07-04 13:30:33,654 - INFO - Generated preview for Total Recall.xpm
+2025-07-04 13:30:33,669 - INFO - Generated preview for TouchRez.xpm
+2025-07-04 13:30:33,695 - INFO - Generated preview for Vin Syn.xpm
+2025-07-04 13:30:33,736 - INFO - Generated preview for VS Ghost.xpm
+2025-07-04 13:30:33,758 - INFO - Generated preview for Wall O Saws.xpm
+2025-07-04 13:30:33,796 - INFO - Generated preview for Weild 5ths.xpm
+2025-07-04 13:30:33,811 - INFO - Generated preview for WickedSquare.xpm
+2025-07-04 13:30:33,821 - INFO - Generated preview for Wide OB.xpm
+2025-07-04 13:30:33,835 - INFO - Generated preview for X Tron.xpm
+2025-07-04 13:30:33,852 - INFO - Generated preview for Zawi.xpm
+2025-07-04 13:30:33,869 - INFO - Generated preview for Enchanted.xpm
+2025-07-04 13:30:33,886 - INFO - Generated preview for JupyPad.xpm
+2025-07-04 13:30:33,902 - INFO - Generated preview for Mucho Octs.xpm
+2025-07-04 13:30:33,955 - INFO - Generated preview for P10 SkySweep.xpm
+2025-07-04 13:30:33,967 - INFO - Generated preview for Raspy.xpm
+2025-07-04 13:30:33,985 - INFO - Generated preview for 80sStackBass.xpm
+2025-07-04 13:30:34,002 - INFO - Generated preview for Analog Harp.xpm
+2025-07-04 13:30:34,018 - INFO - Generated preview for Angel Eyes (2).xpm
+2025-07-04 13:30:34,044 - INFO - Generated preview for B3 EP.xpm
+2025-07-04 13:30:34,054 - INFO - Generated preview for Beat Row 1.xpm
+2025-07-04 13:30:34,110 - INFO - Generated preview for Beat Row 2.xpm
+2025-07-04 13:30:34,121 - INFO - Generated preview for Beauteous.xpm
+2025-07-04 13:30:34,135 - INFO - Generated preview for Believe.xpm
+2025-07-04 13:30:34,157 - INFO - Generated preview for Big M12.xpm
+2025-07-04 13:30:34,170 - INFO - Generated preview for Big Pad.xpm
+2025-07-04 13:30:34,185 - INFO - Generated preview for Big Swell 2.xpm
+2025-07-04 13:30:34,203 - INFO - Generated preview for Big Swell.xpm
+2025-07-04 13:30:34,218 - INFO - Generated preview for Brassitude.xpm
+2025-07-04 13:30:34,257 - INFO - Generated preview for BrassKicker.xpm
+2025-07-04 13:30:34,270 - INFO - Generated preview for BreathBlow 2.xpm
+2025-07-04 13:30:34,287 - INFO - Generated preview for C P R.xpm
+2025-07-04 13:30:34,303 - INFO - Generated preview for Celli Sect.xpm
+2025-07-04 13:30:34,318 - INFO - Generated preview for Chiffer.xpm
+2025-07-04 13:30:34,358 - INFO - Generated preview for Clav.xpm
+2025-07-04 13:30:34,373 - INFO - Generated preview for ClosetCleanR.xpm
+2025-07-04 13:30:34,410 - INFO - Generated preview for Cluttex.xpm
+2025-07-04 13:30:34,423 - INFO - Generated preview for Coronation.xpm
+2025-07-04 13:30:34,439 - INFO - Generated preview for CP Stage.xpm
+2025-07-04 13:30:34,464 - INFO - Generated preview for CP Strings.xpm
+2025-07-04 13:30:34,474 - INFO - Generated preview for Dark Satyr.xpm
+2025-07-04 13:30:34,486 - INFO - Generated preview for DX Style.xpm
+2025-07-04 13:30:34,503 - INFO - Generated preview for Dyn Logic.xpm
+2025-07-04 13:30:34,526 - INFO - Generated preview for Dyno B to B.xpm
+2025-07-04 13:30:34,536 - INFO - Generated preview for E2 Brass.xpm
+2025-07-04 13:30:34,553 - INFO - Generated preview for El Effo Sr_.xpm
+2025-07-04 13:30:34,570 - INFO - Generated preview for ElegantBrass.xpm
+2025-07-04 13:30:34,586 - INFO - Generated preview for Elka _ Mtron.xpm
+2025-07-04 13:30:34,603 - INFO - Generated preview for Elka Combo.xpm
+2025-07-04 13:30:34,619 - INFO - Generated preview for Ensemble.xpm
+2025-07-04 13:30:34,643 - INFO - Generated preview for EPJunoTron.xpm
+2025-07-04 13:30:34,673 - INFO - Generated preview for Fem Strings.xpm
+2025-07-04 13:30:34,687 - INFO - Generated preview for Filtron.xpm
+2025-07-04 13:30:34,703 - INFO - Generated preview for Flooting.xpm
+2025-07-04 13:30:34,719 - INFO - Generated preview for Flute Bed.xpm
+2025-07-04 13:30:34,774 - INFO - Generated preview for Flute Sect.xpm
+2025-07-04 13:30:34,787 - INFO - Generated preview for Flute_String.xpm
+2025-07-04 13:30:34,824 - INFO - Generated preview for FM Strings.xpm
+2025-07-04 13:30:34,836 - INFO - Generated preview for FullTrnBrass.xpm
+2025-07-04 13:30:34,853 - INFO - Generated preview for Funkersize.xpm
+2025-07-04 13:30:34,876 - INFO - Generated preview for Ghost Vox.xpm
+2025-07-04 13:30:34,886 - INFO - Generated preview for Grainy.xpm
+2025-07-04 13:30:34,901 - INFO - Generated preview for GrimFemVox.xpm
+2025-07-04 13:30:34,919 - INFO - Generated preview for GtrStrings.xpm
+2025-07-04 13:30:34,936 - INFO - Generated preview for Gymnosticks.xpm
+2025-07-04 13:30:34,976 - INFO - Generated preview for HarshSwell.xpm
+2025-07-04 13:30:34,989 - INFO - Generated preview for Horizons.xpm
+2025-07-04 13:30:35,027 - INFO - Generated preview for HugeOB Brass.xpm
+2025-07-04 13:30:35,040 - INFO - Generated preview for Its The Pitz.xpm
+2025-07-04 13:30:35,051 - INFO - Generated preview for Juno P5.xpm
+2025-07-04 13:30:35,068 - INFO - Generated preview for Latin.xpm
+2025-07-04 13:30:35,085 - INFO - Generated preview for Liquid 1.xpm
+2025-07-04 13:30:35,101 - INFO - Generated preview for Liquid 2.xpm
+2025-07-04 13:30:35,118 - INFO - Generated preview for Liquid 3.xpm
+2025-07-04 13:30:35,137 - INFO - Generated preview for LoFi Flute.xpm
+2025-07-04 13:30:35,153 - INFO - Generated preview for Lunar 2.xpm
+2025-07-04 13:30:35,168 - INFO - Generated preview for Lunar.xpm
+2025-07-04 13:30:35,185 - INFO - Generated preview for Lush (2).xpm
+2025-07-04 13:30:35,240 - INFO - Generated preview for Lush70_sFade.xpm
+2025-07-04 13:30:35,250 - INFO - Generated preview for M12 Skyline.xpm
+2025-07-04 13:30:35,268 - INFO - Generated preview for MachineHeart.xpm
+2025-07-04 13:30:35,289 - INFO - Generated preview for Many Junos.xpm
+2025-07-04 13:30:35,340 - INFO - Generated preview for Matches.xpm
+2025-07-04 13:30:35,352 - INFO - Generated preview for MemMoogStrng.xpm
+2025-07-04 13:30:35,391 - INFO - Generated preview for Moon Flute.xpm
+2025-07-04 13:30:35,405 - INFO - Generated preview for Muffled.xpm
+2025-07-04 13:30:35,442 - INFO - Generated preview for Old Time1.xpm
+2025-07-04 13:30:35,455 - INFO - Generated preview for Old Time2.xpm
+2025-07-04 13:30:35,492 - INFO - Generated preview for Old Time3.xpm
+2025-07-04 13:30:35,506 - INFO - Generated preview for Organ Synth.xpm
+2025-07-04 13:30:35,518 - INFO - Generated preview for Pipey.xpm
+2025-07-04 13:30:35,535 - INFO - Generated preview for Poly Pad.xpm
+2025-07-04 13:30:35,552 - INFO - Generated preview for PreSamplers.xpm
+2025-07-04 13:30:35,568 - INFO - Generated preview for Produkshun.xpm
+2025-07-04 13:30:35,585 - INFO - Generated preview for ProfitMargin.xpm
+2025-07-04 13:30:35,600 - INFO - Generated preview for PulseMadness.xpm
+2025-07-04 13:30:35,619 - INFO - Generated preview for Q PulseKlock.xpm
+2025-07-04 13:30:35,635 - INFO - Generated preview for QuietSaws.xpm
+2025-07-04 13:30:35,652 - INFO - Generated preview for Raindance.xpm
+2025-07-04 13:30:35,669 - INFO - Generated preview for Reedy.xpm
+2025-07-04 13:30:35,685 - INFO - Generated preview for Rich Brass.xpm
+2025-07-04 13:30:35,700 - INFO - Generated preview for RoboJive.xpm
+2025-07-04 13:30:35,718 - INFO - Generated preview for Rogue Mini.xpm
+2025-07-04 13:30:35,737 - INFO - Generated preview for Sepiatone.xpm
+2025-07-04 13:30:35,751 - INFO - Generated preview for Slippery.xpm
+2025-07-04 13:30:35,769 - INFO - Generated preview for SlitherPad.xpm
+2025-07-04 13:30:35,786 - INFO - Generated preview for Smooth_Wide.xpm
+2025-07-04 13:30:35,801 - INFO - Generated preview for SnowBound.xpm
+2025-07-04 13:30:35,818 - INFO - Generated preview for SoftFlutes.xpm
+2025-07-04 13:30:35,834 - INFO - Generated preview for Solina.xpm
+2025-07-04 13:30:35,853 - INFO - Generated preview for Spinner.xpm
+2025-07-04 13:30:35,870 - INFO - Generated preview for StereoMtron.xpm
+2025-07-04 13:30:35,886 - INFO - Generated preview for Str _ Brass.xpm
+2025-07-04 13:30:35,902 - INFO - Generated preview for String Box.xpm
+2025-07-04 13:30:35,918 - INFO - Generated preview for String Cheez.xpm
+2025-07-04 13:30:35,935 - INFO - Generated preview for String Fever.xpm
+2025-07-04 13:30:35,952 - INFO - Generated preview for String Flute.xpm
+2025-07-04 13:30:35,968 - INFO - Generated preview for String Vox.xpm
+2025-07-04 13:30:35,985 - INFO - Generated preview for SuperElka.xpm
+2025-07-04 13:30:36,000 - INFO - Generated preview for SynStr+SynBs.xpm
+2025-07-04 13:30:36,055 - INFO - Generated preview for TalkBox Pro.xpm
+2025-07-04 13:30:36,068 - INFO - Generated preview for TarusStngVox.xpm
+2025-07-04 13:30:36,084 - INFO - Generated preview for Taurus_Strng.xpm
+2025-07-04 13:30:36,102 - INFO - Generated preview for Thin Lad.xpm
+2025-07-04 13:30:36,118 - INFO - Generated preview for ThroatEnergy.xpm
+2025-07-04 13:30:36,159 - INFO - Generated preview for Tri Res.xpm
+2025-07-04 13:30:36,169 - INFO - Generated preview for Tron Flute.xpm
+2025-07-04 13:30:36,187 - INFO - Generated preview for TronMalesSt.xpm
+2025-07-04 13:30:36,208 - INFO - Generated preview for TronVoxStrng.xpm
+2025-07-04 13:30:36,222 - INFO - Generated preview for TV Stack.xpm
+2025-07-04 13:30:36,258 - INFO - Generated preview for VeloBows.xpm
+2025-07-04 13:30:36,271 - INFO - Generated preview for VS Ghost (2).xpm
+2025-07-04 13:30:36,309 - INFO - Generated preview for WindyBrass.xpm
+2025-07-04 13:30:36,325 - INFO - Generated preview for Wurli _ Roti.xpm
+2025-07-04 13:30:36,338 - INFO - Generated preview for Wurly B.xpm
+2025-07-04 13:30:36,359 - INFO - Generated preview for ChifferPad.xpm
+2025-07-04 13:30:36,373 - INFO - Generated preview for F-Hrns.xpm
+2025-07-04 13:30:36,384 - INFO - Generated preview for iBubble.xpm
+2025-07-04 13:30:36,402 - INFO - Generated preview for O_D_.xpm
+2025-07-04 13:30:36,419 - INFO - Generated preview for Sentinels2.xpm
+2025-07-04 13:30:36,435 - INFO - Generated preview for 303 Saws.xpm
+2025-07-04 13:30:36,451 - INFO - Generated preview for 303 Squares.xpm
+2025-07-04 13:30:36,471 - INFO - Generated preview for 808.xpm
+2025-07-04 13:30:36,484 - INFO - Generated preview for 8bit Blocks.xpm
+2025-07-04 13:30:36,504 - INFO - Generated preview for 909.xpm
+2025-07-04 13:30:36,519 - INFO - Generated preview for A Sine.xpm
+2025-07-04 13:30:36,534 - INFO - Generated preview for Acid Rain.xpm
+2025-07-04 13:30:36,575 - INFO - Generated preview for Acoustic 2.xpm
+2025-07-04 13:30:36,589 - INFO - Generated preview for Acoustic GM.xpm
+2025-07-04 13:30:36,622 - INFO - Generated preview for Air Strike.xpm
+2025-07-04 13:30:36,635 - INFO - Generated preview for AirGuitar.xpm
+2025-07-04 13:30:36,651 - INFO - Generated preview for All Cymbals.xpm
+2025-07-04 13:30:36,669 - INFO - Generated preview for All Hats.xpm
+2025-07-04 13:30:36,685 - INFO - Generated preview for All Kicks.xpm
+2025-07-04 13:30:36,732 - INFO - Generated preview for All Snares.xpm
+2025-07-04 13:30:36,773 - INFO - Generated preview for All Toms.xpm
+2025-07-04 13:30:36,786 - INFO - Generated preview for Arnold 1.xpm
+2025-07-04 13:30:36,824 - INFO - Generated preview for Arp Snap.xpm
+2025-07-04 13:30:36,842 - INFO - Generated preview for B Boy.xpm
+2025-07-04 13:30:36,851 - INFO - Generated preview for Bagg.xpm
+2025-07-04 13:30:36,872 - INFO - Generated preview for Beef Cake.xpm
+2025-07-04 13:30:36,885 - INFO - Generated preview for Big FM Bass.xpm
+2025-07-04 13:30:36,902 - INFO - Generated preview for Big Taurus.xpm
+2025-07-04 13:30:36,938 - INFO - Generated preview for BigSnap.xpm
+2025-07-04 13:30:36,948 - INFO - Generated preview for Bottom 101.xpm
+2025-07-04 13:30:36,988 - INFO - Generated preview for Bounce.xpm
+2025-07-04 13:30:37,001 - INFO - Generated preview for BowCircuit.xpm
+2025-07-04 13:30:37,043 - INFO - Generated preview for BrightMoment.xpm
+2025-07-04 13:30:37,053 - INFO - Generated preview for Chill Room.xpm
+2025-07-04 13:30:37,067 - INFO - Generated preview for Classic.xpm
+2025-07-04 13:30:37,089 - INFO - Generated preview for Clav Guitar.xpm
+2025-07-04 13:30:37,141 - INFO - Generated preview for Congas.xpm
+2025-07-04 13:30:37,154 - INFO - Generated preview for Deep End 1.xpm
+2025-07-04 13:30:37,167 - INFO - Generated preview for Deep End 2.xpm
+2025-07-04 13:30:37,200 - INFO - Generated preview for Double Kit.xpm
+2025-07-04 13:30:37,243 - INFO - Generated preview for Downtown.xpm
+2025-07-04 13:30:37,258 - INFO - Generated preview for Dreamland.xpm
+2025-07-04 13:30:37,268 - INFO - Generated preview for Drifter.xpm
+2025-07-04 13:30:37,287 - INFO - Generated preview for DropBeatBglu.xpm
+2025-07-04 13:30:37,304 - INFO - Generated preview for DrumPitchy.xpm
+2025-07-04 13:30:37,355 - INFO - Generated preview for DrumRoller.xpm
+2025-07-04 13:30:37,373 - INFO - Generated preview for El GM Kit 1.xpm
+2025-07-04 13:30:37,410 - INFO - Generated preview for El GM Kit 2.xpm
+2025-07-04 13:30:37,425 - INFO - Generated preview for Electronic 1.xpm
+2025-07-04 13:30:37,461 - INFO - Generated preview for Electronic 2.xpm
+2025-07-04 13:30:37,474 - INFO - Generated preview for Electronic 3.xpm
+2025-07-04 13:30:37,511 - INFO - Generated preview for Electronic 4.xpm
+2025-07-04 13:30:37,525 - INFO - Generated preview for Electronic 5.xpm
+2025-07-04 13:30:37,559 - INFO - Generated preview for EMU 2 Live!.xpm
+2025-07-04 13:30:37,572 - INFO - Generated preview for Evil Saws.xpm
+2025-07-04 13:30:37,584 - INFO - Generated preview for Evolution.xpm
+2025-07-04 13:30:37,610 - INFO - Generated preview for Expressive.xpm
+2025-07-04 13:30:37,624 - INFO - Generated preview for FastRock.xpm
+2025-07-04 13:30:37,634 - INFO - Generated preview for Few ChoreMen.xpm
+2025-07-04 13:30:37,651 - INFO - Generated preview for Finger.xpm
+2025-07-04 13:30:37,670 - INFO - Generated preview for Flashback.xpm
+2025-07-04 13:30:37,685 - INFO - Generated preview for Fusion.xpm
+2025-07-04 13:30:37,703 - INFO - Generated preview for GorgeousCrzy.xpm
+2025-07-04 13:30:37,719 - INFO - Generated preview for Hackettism.xpm
+2025-07-04 13:30:37,735 - INFO - Generated preview for HardRepeat.xpm
+2025-07-04 13:30:37,751 - INFO - Generated preview for HarmonicTone.xpm
+2025-07-04 13:30:37,773 - INFO - Generated preview for HighBoy.xpm
+2025-07-04 13:30:37,820 - INFO - Generated preview for HiPassCmputr.xpm
+2025-07-04 13:30:37,832 - INFO - Generated preview for Hit It.xpm
+2025-07-04 13:30:37,854 - INFO - Generated preview for Hold Up.xpm
+2025-07-04 13:30:37,866 - INFO - Generated preview for Hummer.xpm
+2025-07-04 13:30:37,925 - INFO - Generated preview for InTheAir.xpm
+2025-07-04 13:30:37,939 - INFO - Generated preview for Jazz.xpm
+2025-07-04 13:30:37,974 - INFO - Generated preview for Jazzy.xpm
+2025-07-04 13:30:37,986 - INFO - Generated preview for Khord.xpm
+2025-07-04 13:30:38,002 - INFO - Generated preview for LayerBass.xpm
+2025-07-04 13:30:38,019 - INFO - Generated preview for Log Funk.xpm
+2025-07-04 13:30:38,075 - INFO - Generated preview for Loopy Gruv.xpm
+2025-07-04 13:30:38,087 - INFO - Generated preview for Mini Snap 2.xpm
+2025-07-04 13:30:38,102 - INFO - Generated preview for MinorFinale.xpm
+2025-07-04 13:30:38,119 - INFO - Generated preview for MinorHorns.xpm
+2025-07-04 13:30:38,137 - INFO - Generated preview for Misc.xpm
+2025-07-04 13:30:38,151 - INFO - Generated preview for MonoMe.xpm
+2025-07-04 13:30:38,166 - INFO - Generated preview for MonoMe2.xpm
+2025-07-04 13:30:38,185 - INFO - Generated preview for MS20 #2.xpm
+2025-07-04 13:30:38,202 - INFO - Generated preview for MS20.xpm
+2025-07-04 13:30:38,220 - INFO - Generated preview for MurkySweep.xpm
+2025-07-04 13:30:38,236 - INFO - Generated preview for NeoLatinRock.xpm
+2025-07-04 13:30:38,250 - INFO - Generated preview for Nepatunism.xpm
+2025-07-04 13:30:38,275 - INFO - Generated preview for NickleMix.xpm
+2025-07-04 13:30:38,285 - INFO - Generated preview for NoZ.xpm
+2025-07-04 13:30:38,303 - INFO - Generated preview for NuRocker.xpm
+2025-07-04 13:30:38,318 - INFO - Generated preview for Phatt Taurus.xpm
+2025-07-04 13:30:38,336 - INFO - Generated preview for Picote.xpm
+2025-07-04 13:30:38,389 - INFO - Generated preview for Reggae.xpm
+2025-07-04 13:30:38,402 - INFO - Generated preview for RockFunk.xpm
+2025-07-04 13:30:38,419 - INFO - Generated preview for Shakers.xpm
+2025-07-04 13:30:38,436 - INFO - Generated preview for Shuffle.xpm
+2025-07-04 13:30:38,452 - INFO - Generated preview for SK-1.xpm
+2025-07-04 13:30:38,489 - INFO - Generated preview for Snaps.xpm
+2025-07-04 13:30:38,502 - INFO - Generated preview for So Lo Pro.xpm
+2025-07-04 13:30:38,519 - INFO - Generated preview for Soft Fuzz.xpm
+2025-07-04 13:30:38,539 - INFO - Generated preview for Soul Power.xpm
+2025-07-04 13:30:38,590 - INFO - Generated preview for SP1200.xpm
+2025-07-04 13:30:38,604 - INFO - Generated preview for SpaceMuffin.xpm
+2025-07-04 13:30:38,618 - INFO - Generated preview for Sparkle.xpm
+2025-07-04 13:30:38,641 - INFO - Generated preview for Spy vs Spy.xpm
+2025-07-04 13:30:38,655 - INFO - Generated preview for SquareThumpr.xpm
+2025-07-04 13:30:38,701 - INFO - Generated preview for Stadium.xpm
+2025-07-04 13:30:38,718 - INFO - Generated preview for Steeely 1.xpm
+2025-07-04 13:30:38,736 - INFO - Generated preview for Steeely 2.xpm
+2025-07-04 13:30:38,751 - INFO - Generated preview for Taurnado.xpm
+2025-07-04 13:30:38,768 - INFO - Generated preview for Teardrop.xpm
+2025-07-04 13:30:38,805 - INFO - Generated preview for The Garden.xpm
+2025-07-04 13:30:38,816 - INFO - Generated preview for The Pulse.xpm
+2025-07-04 13:30:38,855 - INFO - Generated preview for ThiklySettld.xpm
+2025-07-04 13:30:38,868 - INFO - Generated preview for Tracker.xpm
+2025-07-04 13:30:38,886 - INFO - Generated preview for Tribal Toms.xpm
+2025-07-04 13:30:38,902 - INFO - Generated preview for TS Mini.xpm
+2025-07-04 13:30:38,922 - INFO - Generated preview for VintagePhase.xpm
+2025-07-04 13:30:38,958 - INFO - Generated preview for VintSynBass1.xpm
+2025-07-04 13:30:38,969 - INFO - Generated preview for Wacka 1.xpm
+2025-07-04 13:30:38,983 - INFO - Generated preview for Wacka 2.xpm
+2025-07-04 13:30:39,000 - INFO - Generated preview for Warm SEM.xpm
+2025-07-04 13:30:39,019 - INFO - Generated preview for Wide _ Deep.xpm
+2025-07-04 13:30:39,033 - INFO - Generated preview for ZipTripper.xpm
+2025-07-04 13:30:39,051 - INFO - Generated preview for Arpy Bass.xpm
+2025-07-04 13:30:39,067 - INFO - Generated preview for DragonBreath.xpm
+2025-07-04 13:30:39,085 - INFO - Generated preview for FatFingers.xpm
+2025-07-04 13:30:39,107 - INFO - Generated preview for Lil Popper.xpm
+2025-07-04 13:30:39,118 - INFO - Generated preview for Pilot.xpm
+2025-07-04 13:33:36,045 - INFO - Selected folder: /Volumes/MPC SSD/Expansions/YahamaCS6x/CS6x PF1_1shots
+2025-07-04 13:33:47,507 - INFO - Validation successful for LOFI-BigBeat.xpm.
+2025-07-04 13:33:47,589 - INFO - Validation successful for LOFI-BigBeat.xpm.
+2025-07-04 13:33:47,597 - INFO - Validation successful for LOFI-Soundtrack.xpm.
+2025-07-04 13:33:47,603 - INFO - Validation successful for LOFI-Soundtrack.xpm.
+2025-07-04 13:33:47,618 - ERROR - XPM validation error for GT-Nylonspher.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:47,618 - ERROR - XPM validation error for GT-Nylonspher.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:47,821 - WARNING - Post-creation validation failed for GT-Nylonspher.xpm
+2025-07-04 13:33:47,823 - WARNING - Post-creation validation failed for GT-Nylonspher.xpm
+2025-07-04 13:33:47,851 - INFO - Validation successful for SQ-Electron.xpm.
+2025-07-04 13:33:47,851 - INFO - Validation successful for SQ-Electron.xpm.
+2025-07-04 13:33:48,054 - INFO - Validation successful for LD-DJ Finger.xpm.
+2025-07-04 13:33:48,060 - INFO - Validation successful for LD-DJ Finger.xpm.
+2025-07-04 13:33:48,117 - ERROR - XPM validation error for PF-AceFlair.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:48,118 - ERROR - XPM validation error for PF-AceFlair.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:48,118 - WARNING - Post-creation validation failed for PF-AceFlair.xpm
+2025-07-04 13:33:48,119 - WARNING - Post-creation validation failed for PF-AceFlair.xpm
+2025-07-04 13:33:48,146 - ERROR - XPM validation error for SQ-Rhythlog.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:48,147 - ERROR - XPM validation error for SQ-Rhythlog.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:48,154 - WARNING - Post-creation validation failed for SQ-Rhythlog.xpm
+2025-07-04 13:33:48,155 - WARNING - Post-creation validation failed for SQ-Rhythlog.xpm
+2025-07-04 13:33:48,167 - INFO - Validation successful for LOFI-RnB.xpm.
+2025-07-04 13:33:48,167 - INFO - Validation successful for LOFI-RnB.xpm.
+2025-07-04 13:33:48,184 - ERROR - XPM validation error for SQ-DreamGruv.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:48,184 - ERROR - XPM validation error for SQ-DreamGruv.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:48,374 - WARNING - Post-creation validation failed for SQ-DreamGruv.xpm
+2025-07-04 13:33:48,375 - WARNING - Post-creation validation failed for SQ-DreamGruv.xpm
+2025-07-04 13:33:48,402 - ERROR - XPM validation error for LOFI-HeavyMetal.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:48,402 - ERROR - XPM validation error for LOFI-HeavyMetal.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:48,592 - WARNING - Post-creation validation failed for LOFI-HeavyMetal.xpm
+2025-07-04 13:33:48,593 - WARNING - Post-creation validation failed for LOFI-HeavyMetal.xpm
+2025-07-04 13:33:48,620 - INFO - Validation successful for BA-Toro2000.xpm.
+2025-07-04 13:33:48,621 - INFO - Validation successful for BA-Toro2000.xpm.
+2025-07-04 13:33:48,730 - INFO - Validation successful for FX-AppleLip.xpm.
+2025-07-04 13:33:48,741 - INFO - Validation successful for FX-AppleLip.xpm.
+2025-07-04 13:33:48,745 - INFO - Validation successful for BA-DrumAndBazz.xpm.
+2025-07-04 13:33:48,760 - INFO - Validation successful for BA-DrumAndBazz.xpm.
+2025-07-04 13:33:48,773 - INFO - Validation successful for SC-Oktavian.xpm.
+2025-07-04 13:33:48,966 - INFO - Validation successful for SC-Oktavian.xpm.
+2025-07-04 13:33:48,980 - INFO - Validation successful for SC-Tranzer.xpm.
+2025-07-04 13:33:48,981 - INFO - Validation successful for SC-Tranzer.xpm.
+2025-07-04 13:33:48,996 - INFO - Validation successful for SQ-Del Mare.xpm.
+2025-07-04 13:33:48,996 - INFO - Validation successful for SQ-Del Mare.xpm.
+2025-07-04 13:33:49,011 - INFO - Validation successful for LOFI-Trance.xpm.
+2025-07-04 13:33:49,012 - INFO - Validation successful for LOFI-Trance.xpm.
+2025-07-04 13:33:49,224 - INFO - Validation successful for LOFI-Ambientz.xpm.
+2025-07-04 13:33:49,230 - INFO - Validation successful for LOFI-Ambientz.xpm.
+2025-07-04 13:33:49,239 - INFO - Validation successful for SQ-FinalWorm.xpm.
+2025-07-04 13:33:49,245 - INFO - Validation successful for SQ-FinalWorm.xpm.
+2025-07-04 13:33:49,248 - INFO - Validation successful for LOFI-Reggae.xpm.
+2025-07-04 13:33:49,261 - INFO - Validation successful for LOFI-Reggae.xpm.
+2025-07-04 13:33:49,292 - INFO - Validation successful for FX-Enterprise.xpm.
+2025-07-04 13:33:49,293 - INFO - Validation successful for FX-Enterprise.xpm.
+2025-07-04 13:33:49,491 - ERROR - XPM validation error for BA-BassMenu.xpm: no element found: line 1, column 0
+2025-07-04 13:33:49,491 - WARNING - Post-creation validation failed for BA-BassMenu.xpm
+2025-07-04 13:33:49,492 - INFO - Validation successful for BA-BassMenu.xpm.
+2025-07-04 13:33:49,503 - INFO - Validation successful for SC-Pizzi2000.xpm.
+2025-07-04 13:33:49,511 - INFO - Validation successful for SC-Pizzi2000.xpm.
+2025-07-04 13:33:49,522 - INFO - Validation successful for PF-ChoirPiano.xpm.
+2025-07-04 13:33:49,714 - INFO - Validation successful for PF-ChoirPiano.xpm.
+2025-07-04 13:33:49,717 - INFO - Validation successful for LD-Megahook.xpm.
+2025-07-04 13:33:49,728 - INFO - Validation successful for LD-Megahook.xpm.
+2025-07-04 13:33:49,744 - INFO - Validation successful for SQ-Melomatic.xpm.
+2025-07-04 13:33:49,744 - INFO - Validation successful for SQ-Melomatic.xpm.
+2025-07-04 13:33:49,764 - INFO - Validation successful for LOFI-FunkRock.xpm.
+2025-07-04 13:33:49,765 - INFO - Validation successful for LOFI-FunkRock.xpm.
+2025-07-04 13:33:49,780 - INFO - Validation successful for PF-Minor.xpm.
+2025-07-04 13:33:49,780 - INFO - Validation successful for PF-Minor.xpm.
+2025-07-04 13:33:49,800 - INFO - Validation successful for LOFI-Sax.xpm.
+2025-07-04 13:33:49,801 - INFO - Validation successful for LOFI-Sax.xpm.
+2025-07-04 13:33:50,001 - INFO - Validation successful for LOFI-Ballad1.xpm.
+2025-07-04 13:33:50,008 - INFO - Validation successful for LOFI-Ballad1.xpm.
+2025-07-04 13:33:50,012 - INFO - Validation successful for BA-HouseMenu.xpm.
+2025-07-04 13:33:50,026 - INFO - Validation successful for BA-HouseMenu.xpm.
+2025-07-04 13:33:50,034 - INFO - Validation successful for LD-PozitiveSP.xpm.
+2025-07-04 13:33:50,231 - INFO - Validation successful for LD-PozitiveSP.xpm.
+2025-07-04 13:33:50,255 - ERROR - XPM validation error for LOFI-BritishRockOrg.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:50,255 - ERROR - XPM validation error for LOFI-BritishRockOrg.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:50,255 - WARNING - Post-creation validation failed for LOFI-BritishRockOrg.xpm
+2025-07-04 13:33:50,256 - WARNING - Post-creation validation failed for LOFI-BritishRockOrg.xpm
+2025-07-04 13:33:50,270 - ERROR - XPM validation error for EN-SmallOrch.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:50,271 - ERROR - XPM validation error for EN-SmallOrch.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:50,471 - WARNING - Post-creation validation failed for EN-SmallOrch.xpm
+2025-07-04 13:33:50,473 - WARNING - Post-creation validation failed for EN-SmallOrch.xpm
+2025-07-04 13:33:50,500 - INFO - Validation successful for LD-TranxTron.xpm.
+2025-07-04 13:33:50,501 - INFO - Validation successful for LD-TranxTron.xpm.
+2025-07-04 13:33:50,518 - INFO - Validation successful for LOFI-Ballad2.xpm.
+2025-07-04 13:33:50,518 - INFO - Validation successful for LOFI-Ballad2.xpm.
+2025-07-04 13:33:50,721 - INFO - Validation successful for PF-Chartz.xpm.
+2025-07-04 13:33:50,729 - INFO - Validation successful for PF-Chartz.xpm.
+2025-07-04 13:33:50,742 - INFO - Validation successful for FX-Mythology.xpm.
+2025-07-04 13:33:50,744 - INFO - Validation successful for FX-Mythology.xpm.
+2025-07-04 13:33:50,766 - INFO - Validation successful for PD-Emotion.xpm.
+2025-07-04 13:33:50,767 - INFO - Validation successful for PD-Emotion.xpm.
+2025-07-04 13:33:50,978 - INFO - Validation successful for SC-Whirl.xpm.
+2025-07-04 13:33:50,979 - INFO - Validation successful for SC-Whirl.xpm.
+2025-07-04 13:33:51,002 - INFO - Validation successful for LOFI-80zigerDisco.xpm.
+2025-07-04 13:33:51,003 - INFO - Validation successful for LOFI-80zigerDisco.xpm.
+2025-07-04 13:33:51,203 - INFO - Validation successful for GT-Neonist.xpm.
+2025-07-04 13:33:51,210 - INFO - Validation successful for GT-Neonist.xpm.
+2025-07-04 13:33:51,235 - INFO - Validation successful for PD-Millennium.xpm.
+2025-07-04 13:33:51,236 - INFO - Validation successful for PD-Millennium.xpm.
+2025-07-04 13:33:51,432 - INFO - Validation successful for LOFI-India.xpm.
+2025-07-04 13:33:51,442 - INFO - Validation successful for LOFI-India.xpm.
+2025-07-04 13:33:51,449 - INFO - Validation successful for BR-FatAnalog.xpm.
+2025-07-04 13:33:51,647 - INFO - Validation successful for BR-FatAnalog.xpm.
+2025-07-04 13:33:51,672 - INFO - Validation successful for SC-FatStack.xpm.
+2025-07-04 13:33:51,673 - INFO - Validation successful for SC-FatStack.xpm.
+2025-07-04 13:33:51,873 - INFO - Validation successful for SQ-Perpetual.xpm.
+2025-07-04 13:33:51,880 - INFO - Validation successful for SQ-Perpetual.xpm.
+2025-07-04 13:33:51,896 - INFO - Validation successful for PD-Mirage.xpm.
+2025-07-04 13:33:51,897 - INFO - Validation successful for PD-Mirage.xpm.
+2025-07-04 13:33:51,911 - INFO - Validation successful for SC-Tranzer2000.xpm.
+2025-07-04 13:33:51,912 - INFO - Validation successful for SC-Tranzer2000.xpm.
+2025-07-04 13:33:51,927 - INFO - Validation successful for SC-Tranzer2001.xpm.
+2025-07-04 13:33:51,928 - INFO - Validation successful for SC-Tranzer2001.xpm.
+2025-07-04 13:33:51,950 - INFO - Validation successful for LOFI-BluesrockGuit.xpm.
+2025-07-04 13:33:51,950 - INFO - Validation successful for LOFI-BluesrockGuit.xpm.
+2025-07-04 13:33:52,155 - INFO - Validation successful for SQ-Analous.xpm.
+2025-07-04 13:33:52,161 - INFO - Validation successful for SQ-Analous.xpm.
+2025-07-04 13:33:52,165 - INFO - Validation successful for LOFI-Unplugged.xpm.
+2025-07-04 13:33:52,177 - INFO - Validation successful for LOFI-Unplugged.xpm.
+2025-07-04 13:33:52,185 - INFO - Validation successful for LOFI-ProgreRockOrg.xpm.
+2025-07-04 13:33:52,381 - INFO - Validation successful for LOFI-ProgreRockOrg.xpm.
+2025-07-04 13:33:52,401 - INFO - Validation successful for BA-Nasty.xpm.
+2025-07-04 13:33:52,402 - INFO - Validation successful for BA-Nasty.xpm.
+2025-07-04 13:33:52,600 - INFO - Validation successful for SC-Pizz It.xpm.
+2025-07-04 13:33:52,612 - INFO - Validation successful for SC-Pizz It.xpm.
+2025-07-04 13:33:52,630 - INFO - Validation successful for FX-Pearl.xpm.
+2025-07-04 13:33:52,631 - INFO - Validation successful for FX-Pearl.xpm.
+2025-07-04 13:33:52,651 - INFO - Validation successful for SQ-SeqLayer.xpm.
+2025-07-04 13:33:52,652 - INFO - Validation successful for SQ-SeqLayer.xpm.
+2025-07-04 13:33:52,854 - INFO - Validation successful for SQ-CleanAndDist.xpm.
+2025-07-04 13:33:52,860 - INFO - Validation successful for SQ-CleanAndDist.xpm.
+2025-07-04 13:33:52,867 - INFO - Validation successful for PD-ObiPad.xpm.
+2025-07-04 13:33:53,077 - INFO - Validation successful for PD-ObiPad.xpm.
+2025-07-04 13:33:53,101 - INFO - Validation successful for FX-Waterflow.xpm.
+2025-07-04 13:33:53,102 - INFO - Validation successful for FX-Waterflow.xpm.
+2025-07-04 13:33:53,301 - INFO - Validation successful for SQ-Silver.xpm.
+2025-07-04 13:33:53,306 - INFO - Validation successful for SQ-Silver.xpm.
+2025-07-04 13:33:53,308 - INFO - Validation successful for LOFI-HipHopScratch.xpm.
+2025-07-04 13:33:53,310 - INFO - Validation successful for LOFI-HipHopScratch.xpm.
+2025-07-04 13:33:53,328 - INFO - Validation successful for SC-Tranzer2.xpm.
+2025-07-04 13:33:53,329 - INFO - Validation successful for SC-Tranzer2.xpm.
+2025-07-04 13:33:53,356 - INFO - Validation successful for FX-Torture.xpm.
+2025-07-04 13:33:53,357 - INFO - Validation successful for FX-Torture.xpm.
+2025-07-04 13:33:53,552 - INFO - Validation successful for BA-ChunkyStak.xpm.
+2025-07-04 13:33:53,558 - INFO - Validation successful for BA-ChunkyStak.xpm.
+2025-07-04 13:33:53,561 - INFO - Validation successful for LOFI-Piano.xpm.
+2025-07-04 13:33:53,576 - INFO - Validation successful for LOFI-Piano.xpm.
+2025-07-04 13:33:53,582 - INFO - Validation successful for SC-SoftCream.xpm.
+2025-07-04 13:33:53,779 - INFO - Validation successful for SC-SoftCream.xpm.
+2025-07-04 13:33:53,801 - ERROR - XPM validation error for ST-SuperString.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:53,801 - ERROR - XPM validation error for ST-SuperString.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:53,991 - WARNING - Post-creation validation failed for ST-SuperString.xpm
+2025-07-04 13:33:53,992 - WARNING - Post-creation validation failed for ST-SuperString.xpm
+2025-07-04 13:33:54,013 - INFO - Validation successful for LOFI-Gamelan.xpm.
+2025-07-04 13:33:54,013 - INFO - Validation successful for LOFI-Gamelan.xpm.
+2025-07-04 13:33:54,035 - INFO - Validation successful for SC-Harmony.xpm.
+2025-07-04 13:33:54,036 - INFO - Validation successful for SC-Harmony.xpm.
+2025-07-04 13:33:54,048 - INFO - Validation successful for SC-Block.xpm.
+2025-07-04 13:33:54,049 - INFO - Validation successful for SC-Block.xpm.
+2025-07-04 13:33:54,268 - INFO - Validation successful for LOFI-Techno.xpm.
+2025-07-04 13:33:54,269 - INFO - Validation successful for LOFI-Techno.xpm.
+2025-07-04 13:33:54,467 - INFO - Validation successful for LOFI-Pops.xpm.
+2025-07-04 13:33:54,479 - INFO - Validation successful for LOFI-Pops.xpm.
+2025-07-04 13:33:54,510 - INFO - Validation successful for FX-MrSquidge.xpm.
+2025-07-04 13:33:54,511 - INFO - Validation successful for FX-MrSquidge.xpm.
+2025-07-04 13:33:54,704 - INFO - Validation successful for SQ-SpacePitz.xpm.
+2025-07-04 13:33:54,712 - INFO - Validation successful for SQ-SpacePitz.xpm.
+2025-07-04 13:33:54,732 - INFO - Validation successful for PD-Alpine.xpm.
+2025-07-04 13:33:54,733 - INFO - Validation successful for PD-Alpine.xpm.
+2025-07-04 13:33:54,751 - INFO - Validation successful for SC-StabBoy.xpm.
+2025-07-04 13:33:54,752 - INFO - Validation successful for SC-StabBoy.xpm.
+2025-07-04 13:33:54,950 - INFO - Validation successful for LOFI-MasterKB.xpm.
+2025-07-04 13:33:54,959 - INFO - Validation successful for LOFI-MasterKB.xpm.
+2025-07-04 13:33:54,962 - INFO - Validation successful for SC-PianoStab.xpm.
+2025-07-04 13:33:54,976 - INFO - Validation successful for SC-PianoStab.xpm.
+2025-07-04 13:33:54,994 - INFO - Validation successful for LOFI-HardRock.xpm.
+2025-07-04 13:33:54,995 - INFO - Validation successful for LOFI-HardRock.xpm.
+2025-07-04 13:33:55,017 - INFO - Validation successful for FX-MoonChild.xpm.
+2025-07-04 13:33:55,018 - INFO - Validation successful for FX-MoonChild.xpm.
+2025-07-04 13:33:55,226 - INFO - Validation successful for FX-SnowFlakes.xpm.
+2025-07-04 13:33:55,228 - INFO - Validation successful for FX-SnowFlakes.xpm.
+2025-07-04 13:33:55,254 - INFO - Validation successful for LOFI-WestCoast.xpm.
+2025-07-04 13:33:55,255 - INFO - Validation successful for LOFI-WestCoast.xpm.
+2025-07-04 13:33:55,481 - INFO - Validation successful for SQ-ModernGirl.xpm.
+2025-07-04 13:33:55,483 - INFO - Validation successful for SQ-ModernGirl.xpm.
+2025-07-04 13:33:55,676 - INFO - Validation successful for LOFI-SalsaTrumpet.xpm.
+2025-07-04 13:33:55,678 - INFO - Validation successful for LOFI-SalsaTrumpet.xpm.
+2025-07-04 13:33:55,707 - INFO - Validation successful for FX-Galaxy.xpm.
+2025-07-04 13:33:55,708 - INFO - Validation successful for FX-Galaxy.xpm.
+2025-07-04 13:33:55,915 - ERROR - XPM validation error for PD-NewHorizon.xpm: no element found: line 1, column 0
+2025-07-04 13:33:55,917 - INFO - Validation successful for PD-NewHorizon.xpm.
+2025-07-04 13:33:55,922 - WARNING - Post-creation validation failed for PD-NewHorizon.xpm
+2025-07-04 13:33:55,941 - INFO - Validation successful for SQ-NightByte.xpm.
+2025-07-04 13:33:55,942 - INFO - Validation successful for SQ-NightByte.xpm.
+2025-07-04 13:33:55,971 - ERROR - XPM validation error for FX-Pacific404.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:55,971 - WARNING - Post-creation validation failed for FX-Pacific404.xpm
+2025-07-04 13:33:55,971 - ERROR - XPM validation error for FX-Pacific404.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:55,973 - WARNING - Post-creation validation failed for FX-Pacific404.xpm
+2025-07-04 13:33:55,984 - INFO - Validation successful for BA-Killa.xpm.
+2025-07-04 13:33:55,984 - INFO - Validation successful for BA-Killa.xpm.
+2025-07-04 13:33:56,015 - ERROR - XPM validation error for FX-MagmaSweep.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:56,016 - ERROR - XPM validation error for FX-MagmaSweep.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:56,190 - WARNING - Post-creation validation failed for FX-MagmaSweep.xpm
+2025-07-04 13:33:56,191 - WARNING - Post-creation validation failed for FX-MagmaSweep.xpm
+2025-07-04 13:33:56,217 - ERROR - XPM validation error for LOFI-BigBand.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:56,218 - ERROR - XPM validation error for LOFI-BigBand.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:56,408 - WARNING - Post-creation validation failed for LOFI-BigBand.xpm
+2025-07-04 13:33:56,410 - WARNING - Post-creation validation failed for LOFI-BigBand.xpm
+2025-07-04 13:33:56,439 - INFO - Validation successful for SC-WaveTable.xpm.
+2025-07-04 13:33:56,440 - INFO - Validation successful for SC-WaveTable.xpm.
+2025-07-04 13:33:56,455 - ERROR - XPM validation error for LOFI-FranceAccordion.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:56,455 - WARNING - Post-creation validation failed for LOFI-FranceAccordion.xpm
+2025-07-04 13:33:56,456 - ERROR - XPM validation error for LOFI-FranceAccordion.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:56,457 - WARNING - Post-creation validation failed for LOFI-FranceAccordion.xpm
+2025-07-04 13:33:56,473 - INFO - Validation successful for FX-Aquarium.xpm.
+2025-07-04 13:33:56,475 - INFO - Validation successful for FX-Aquarium.xpm.
+2025-07-04 13:33:56,504 - ERROR - XPM validation error for SC-Brother.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:56,504 - ERROR - XPM validation error for SC-Brother.xpm: junk after document element: line 236, column 13
+2025-07-04 13:33:56,690 - WARNING - Post-creation validation failed for SC-Brother.xpm
+2025-07-04 13:33:56,691 - WARNING - Post-creation validation failed for SC-Brother.xpm
+2025-07-04 13:33:56,720 - INFO - Validation successful for SC-Quintus.xpm.
+2025-07-04 13:33:56,721 - INFO - Validation successful for SC-Quintus.xpm.
+2025-07-04 13:33:56,924 - INFO - Validation successful for LD-DJFinger.xpm.
+2025-07-04 13:33:56,928 - INFO - Validation successful for LD-DJFinger.xpm.
+2025-07-04 13:33:56,946 - INFO - Validation successful for SC-PizzIt.xpm.
+2025-07-04 13:33:56,947 - INFO - Validation successful for SC-PizzIt.xpm.
+2025-07-04 13:33:56,962 - INFO - Validation successful for SQ-DelMare.xpm.
+2025-07-04 13:33:56,962 - INFO - Validation successful for SQ-DelMare.xpm.
+2025-07-04 13:34:01,691 - INFO - Generated preview for samples.xpm
+2025-07-04 13:34:01,705 - INFO - Generated preview for LOFI-BigBeat.xpm
+2025-07-04 13:34:01,728 - INFO - Generated preview for LOFI-Soundtrack.xpm
+2025-07-04 13:34:01,729 - INFO - Generated preview for LOFI-Soundtrack.xpm
+2025-07-04 13:34:01,741 - ERROR - Failed to generate preview for GT-Nylonspher.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,742 - ERROR - Failed to generate preview for GT-Nylonspher.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,767 - INFO - Generated preview for SQ-Electron.xpm
+2025-07-04 13:34:01,767 - INFO - Generated preview for SQ-Electron.xpm
+2025-07-04 13:34:01,807 - INFO - Generated preview for LD-DJ Finger.xpm
+2025-07-04 13:34:01,808 - INFO - Generated preview for LD-DJ Finger.xpm
+2025-07-04 13:34:01,819 - ERROR - Failed to generate preview for PF-AceFlair.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,820 - ERROR - Failed to generate preview for PF-AceFlair.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,820 - ERROR - Failed to generate preview for SQ-Rhythlog.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,821 - ERROR - Failed to generate preview for SQ-Rhythlog.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,823 - ERROR - Failed to generate preview for SQ-DreamGruv.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,824 - ERROR - Failed to generate preview for LOFI-HeavyMetal.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,830 - INFO - Generated preview for LOFI-RnB.xpm
+2025-07-04 13:34:01,836 - ERROR - Failed to generate preview for SQ-DreamGruv.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,837 - ERROR - Failed to generate preview for LOFI-HeavyMetal.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:01,848 - INFO - Generated preview for BA-Toro2000.xpm
+2025-07-04 13:34:01,850 - INFO - Generated preview for FX-AppleLip.xpm
+2025-07-04 13:34:01,862 - INFO - Generated preview for BA-DrumAndBazz.xpm
+2025-07-04 13:34:01,863 - INFO - Generated preview for BA-DrumAndBazz.xpm
+2025-07-04 13:34:01,884 - INFO - Generated preview for SC-Oktavian.xpm
+2025-07-04 13:34:01,884 - INFO - Generated preview for SC-Oktavian.xpm
+2025-07-04 13:34:01,914 - INFO - Generated preview for SC-Tranzer.xpm
+2025-07-04 13:34:01,914 - INFO - Generated preview for SC-Tranzer.xpm
+2025-07-04 13:34:01,926 - INFO - Generated preview for SQ-Del Mare.xpm
+2025-07-04 13:34:01,927 - INFO - Generated preview for SQ-Del Mare.xpm
+2025-07-04 13:34:01,965 - INFO - Generated preview for LOFI-Trance.xpm
+2025-07-04 13:34:01,965 - INFO - Generated preview for LOFI-Trance.xpm
+2025-07-04 13:34:01,985 - INFO - Generated preview for LOFI-Ambientz.xpm
+2025-07-04 13:34:01,986 - INFO - Generated preview for LOFI-Ambientz.xpm
+2025-07-04 13:34:02,024 - INFO - Generated preview for SQ-FinalWorm.xpm
+2025-07-04 13:34:02,025 - INFO - Generated preview for SQ-FinalWorm.xpm
+2025-07-04 13:34:02,044 - INFO - Generated preview for LOFI-Reggae.xpm
+2025-07-04 13:34:02,045 - INFO - Generated preview for LOFI-Reggae.xpm
+2025-07-04 13:34:02,106 - INFO - Generated preview for FX-Enterprise.xpm
+2025-07-04 13:34:02,107 - INFO - Generated preview for FX-Enterprise.xpm
+2025-07-04 13:34:02,123 - INFO - Generated preview for BA-BassMenu.xpm
+2025-07-04 13:34:02,123 - INFO - Generated preview for SC-Pizzi2000.xpm
+2025-07-04 13:34:02,177 - INFO - Generated preview for PF-ChoirPiano.xpm
+2025-07-04 13:34:02,177 - INFO - Generated preview for PF-ChoirPiano.xpm
+2025-07-04 13:34:02,197 - INFO - Generated preview for LD-Megahook.xpm
+2025-07-04 13:34:02,205 - INFO - Generated preview for SQ-Melomatic.xpm
+2025-07-04 13:34:02,213 - INFO - Generated preview for LOFI-FunkRock.xpm
+2025-07-04 13:34:02,216 - INFO - Generated preview for PF-Minor.xpm
+2025-07-04 13:34:02,233 - INFO - Generated preview for LOFI-Sax.xpm
+2025-07-04 13:34:02,234 - INFO - Generated preview for LOFI-Sax.xpm
+2025-07-04 13:34:02,285 - INFO - Generated preview for LOFI-Ballad1.xpm
+2025-07-04 13:34:02,285 - INFO - Generated preview for LOFI-Ballad1.xpm
+2025-07-04 13:34:02,293 - INFO - Generated preview for BA-HouseMenu.xpm
+2025-07-04 13:34:02,293 - INFO - Generated preview for BA-HouseMenu.xpm
+2025-07-04 13:34:02,318 - INFO - Generated preview for LD-PozitiveSP.xpm
+2025-07-04 13:34:02,319 - INFO - Generated preview for LD-PozitiveSP.xpm
+2025-07-04 13:34:02,321 - ERROR - Failed to generate preview for LOFI-BritishRockOrg.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:02,321 - ERROR - Failed to generate preview for LOFI-BritishRockOrg.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:02,322 - ERROR - Failed to generate preview for EN-SmallOrch.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:02,322 - ERROR - Failed to generate preview for EN-SmallOrch.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:02,336 - INFO - Generated preview for LD-TranxTron.xpm
+2025-07-04 13:34:02,336 - INFO - Generated preview for LD-TranxTron.xpm
+2025-07-04 13:34:02,346 - INFO - Generated preview for LOFI-Ballad2.xpm
+2025-07-04 13:34:02,347 - INFO - Generated preview for LOFI-Ballad2.xpm
+2025-07-04 13:34:02,366 - INFO - Generated preview for PF-Chartz.xpm
+2025-07-04 13:34:02,366 - INFO - Generated preview for PF-Chartz.xpm
+2025-07-04 13:34:02,387 - INFO - Generated preview for FX-Mythology.xpm
+2025-07-04 13:34:02,387 - INFO - Generated preview for FX-Mythology.xpm
+2025-07-04 13:34:02,399 - INFO - Generated preview for PD-Emotion.xpm
+2025-07-04 13:34:02,399 - INFO - Generated preview for PD-Emotion.xpm
+2025-07-04 13:34:02,426 - INFO - Generated preview for SC-Whirl.xpm
+2025-07-04 13:34:02,427 - INFO - Generated preview for SC-Whirl.xpm
+2025-07-04 13:34:02,453 - INFO - Generated preview for LOFI-80zigerDisco.xpm
+2025-07-04 13:34:02,453 - INFO - Generated preview for LOFI-80zigerDisco.xpm
+2025-07-04 13:34:02,487 - INFO - Generated preview for GT-Neonist.xpm
+2025-07-04 13:34:02,488 - INFO - Generated preview for GT-Neonist.xpm
+2025-07-04 13:34:02,516 - INFO - Generated preview for PD-Millennium.xpm
+2025-07-04 13:34:02,517 - INFO - Generated preview for PD-Millennium.xpm
+2025-07-04 13:34:02,535 - INFO - Generated preview for LOFI-India.xpm
+2025-07-04 13:34:02,535 - INFO - Generated preview for BR-FatAnalog.xpm
+2025-07-04 13:34:02,552 - INFO - Generated preview for SC-FatStack.xpm
+2025-07-04 13:34:02,553 - INFO - Generated preview for SC-FatStack.xpm
+2025-07-04 13:34:02,593 - INFO - Generated preview for SQ-Perpetual.xpm
+2025-07-04 13:34:02,594 - INFO - Generated preview for SQ-Perpetual.xpm
+2025-07-04 13:34:02,623 - INFO - Generated preview for PD-Mirage.xpm
+2025-07-04 13:34:02,624 - INFO - Generated preview for PD-Mirage.xpm
+2025-07-04 13:34:02,632 - INFO - Generated preview for SC-Tranzer2000.xpm
+2025-07-04 13:34:02,632 - INFO - Generated preview for SC-Tranzer2000.xpm
+2025-07-04 13:34:02,646 - INFO - Generated preview for SC-Tranzer2001.xpm
+2025-07-04 13:34:02,647 - INFO - Generated preview for SC-Tranzer2001.xpm
+2025-07-04 13:34:02,670 - INFO - Generated preview for LOFI-BluesrockGuit.xpm
+2025-07-04 13:34:02,670 - INFO - Generated preview for LOFI-BluesrockGuit.xpm
+2025-07-04 13:34:02,690 - INFO - Generated preview for SQ-Analous.xpm
+2025-07-04 13:34:02,691 - INFO - Generated preview for SQ-Analous.xpm
+2025-07-04 13:34:02,733 - INFO - Generated preview for LOFI-Unplugged.xpm
+2025-07-04 13:34:02,735 - INFO - Generated preview for LOFI-Unplugged.xpm
+2025-07-04 13:34:02,750 - INFO - Generated preview for LOFI-ProgreRockOrg.xpm
+2025-07-04 13:34:02,751 - INFO - Generated preview for LOFI-ProgreRockOrg.xpm
+2025-07-04 13:34:02,797 - INFO - Generated preview for BA-Nasty.xpm
+2025-07-04 13:34:02,798 - INFO - Generated preview for BA-Nasty.xpm
+2025-07-04 13:34:02,812 - INFO - Generated preview for SC-Pizz It.xpm
+2025-07-04 13:34:02,813 - INFO - Generated preview for SC-Pizz It.xpm
+2025-07-04 13:34:02,847 - INFO - Generated preview for FX-Pearl.xpm
+2025-07-04 13:34:02,848 - INFO - Generated preview for FX-Pearl.xpm
+2025-07-04 13:34:02,865 - INFO - Generated preview for SQ-SeqLayer.xpm
+2025-07-04 13:34:02,865 - INFO - Generated preview for SQ-SeqLayer.xpm
+2025-07-04 13:34:02,891 - INFO - Generated preview for SQ-CleanAndDist.xpm
+2025-07-04 13:34:02,892 - INFO - Generated preview for SQ-CleanAndDist.xpm
+2025-07-04 13:34:02,904 - INFO - Generated preview for PD-ObiPad.xpm
+2025-07-04 13:34:02,905 - INFO - Generated preview for PD-ObiPad.xpm
+2025-07-04 13:34:02,922 - INFO - Generated preview for FX-Waterflow.xpm
+2025-07-04 13:34:02,922 - INFO - Generated preview for SQ-Silver.xpm
+2025-07-04 13:34:02,930 - INFO - Generated preview for LOFI-HipHopScratch.xpm
+2025-07-04 13:34:02,930 - INFO - Generated preview for LOFI-HipHopScratch.xpm
+2025-07-04 13:34:02,946 - INFO - Generated preview for SC-Tranzer2.xpm
+2025-07-04 13:34:02,947 - INFO - Generated preview for SC-Tranzer2.xpm
+2025-07-04 13:34:02,972 - INFO - Generated preview for FX-Torture.xpm
+2025-07-04 13:34:02,972 - INFO - Generated preview for FX-Torture.xpm
+2025-07-04 13:34:03,006 - INFO - Generated preview for BA-ChunkyStak.xpm
+2025-07-04 13:34:03,007 - INFO - Generated preview for BA-ChunkyStak.xpm
+2025-07-04 13:34:03,015 - INFO - Generated preview for LOFI-Piano.xpm
+2025-07-04 13:34:03,016 - INFO - Generated preview for LOFI-Piano.xpm
+2025-07-04 13:34:03,033 - INFO - Generated preview for SC-SoftCream.xpm
+2025-07-04 13:34:03,034 - INFO - Generated preview for SC-SoftCream.xpm
+2025-07-04 13:34:03,037 - ERROR - Failed to generate preview for ST-SuperString.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,038 - ERROR - Failed to generate preview for ST-SuperString.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,048 - INFO - Generated preview for LOFI-Gamelan.xpm
+2025-07-04 13:34:03,048 - INFO - Generated preview for LOFI-Gamelan.xpm
+2025-07-04 13:34:03,068 - INFO - Generated preview for SC-Harmony.xpm
+2025-07-04 13:34:03,069 - INFO - Generated preview for SC-Harmony.xpm
+2025-07-04 13:34:03,112 - INFO - Generated preview for SC-Block.xpm
+2025-07-04 13:34:03,112 - INFO - Generated preview for SC-Block.xpm
+2025-07-04 13:34:03,140 - INFO - Generated preview for LOFI-Techno.xpm
+2025-07-04 13:34:03,140 - INFO - Generated preview for LOFI-Techno.xpm
+2025-07-04 13:34:03,149 - INFO - Generated preview for LOFI-Pops.xpm
+2025-07-04 13:34:03,187 - INFO - Generated preview for FX-MrSquidge.xpm
+2025-07-04 13:34:03,187 - INFO - Generated preview for FX-MrSquidge.xpm
+2025-07-04 13:34:03,206 - INFO - Generated preview for SQ-SpacePitz.xpm
+2025-07-04 13:34:03,207 - INFO - Generated preview for SQ-SpacePitz.xpm
+2025-07-04 13:34:03,227 - INFO - Generated preview for PD-Alpine.xpm
+2025-07-04 13:34:03,237 - INFO - Generated preview for SC-StabBoy.xpm
+2025-07-04 13:34:03,251 - INFO - Generated preview for LOFI-MasterKB.xpm
+2025-07-04 13:34:03,252 - INFO - Generated preview for LOFI-MasterKB.xpm
+2025-07-04 13:34:03,261 - INFO - Generated preview for SC-PianoStab.xpm
+2025-07-04 13:34:03,262 - INFO - Generated preview for SC-PianoStab.xpm
+2025-07-04 13:34:03,287 - INFO - Generated preview for LOFI-HardRock.xpm
+2025-07-04 13:34:03,287 - INFO - Generated preview for LOFI-HardRock.xpm
+2025-07-04 13:34:03,306 - INFO - Generated preview for FX-MoonChild.xpm
+2025-07-04 13:34:03,307 - INFO - Generated preview for FX-MoonChild.xpm
+2025-07-04 13:34:03,320 - INFO - Generated preview for FX-SnowFlakes.xpm
+2025-07-04 13:34:03,345 - INFO - Generated preview for LOFI-WestCoast.xpm
+2025-07-04 13:34:03,346 - INFO - Generated preview for SQ-ModernGirl.xpm
+2025-07-04 13:34:03,368 - INFO - Generated preview for LOFI-SalsaTrumpet.xpm
+2025-07-04 13:34:03,368 - INFO - Generated preview for LOFI-SalsaTrumpet.xpm
+2025-07-04 13:34:03,387 - INFO - Generated preview for FX-Galaxy.xpm
+2025-07-04 13:34:03,388 - INFO - Generated preview for FX-Galaxy.xpm
+2025-07-04 13:34:03,413 - INFO - Generated preview for PD-NewHorizon.xpm
+2025-07-04 13:34:03,413 - INFO - Generated preview for PD-NewHorizon.xpm
+2025-07-04 13:34:03,462 - INFO - Generated preview for SQ-NightByte.xpm
+2025-07-04 13:34:03,463 - ERROR - Failed to generate preview for FX-Pacific404.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,463 - INFO - Generated preview for SQ-NightByte.xpm
+2025-07-04 13:34:03,464 - ERROR - Failed to generate preview for FX-Pacific404.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,466 - ERROR - Failed to generate preview for FX-MagmaSweep.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,467 - ERROR - Failed to generate preview for LOFI-BigBand.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,473 - INFO - Generated preview for BA-Killa.xpm
+2025-07-04 13:34:03,474 - ERROR - Failed to generate preview for FX-MagmaSweep.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,481 - INFO - Generated preview for SC-WaveTable.xpm
+2025-07-04 13:34:03,486 - ERROR - Failed to generate preview for LOFI-BigBand.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,486 - ERROR - Failed to generate preview for LOFI-FranceAccordion.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,487 - ERROR - Failed to generate preview for LOFI-FranceAccordion.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,500 - INFO - Generated preview for FX-Aquarium.xpm
+2025-07-04 13:34:03,500 - INFO - Generated preview for FX-Aquarium.xpm
+2025-07-04 13:34:03,502 - ERROR - Failed to generate preview for SC-Brother.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,503 - ERROR - Failed to generate preview for SC-Brother.xpm: junk after document element: line 236, column 13
+2025-07-04 13:34:03,521 - INFO - Generated preview for SC-Quintus.xpm
+2025-07-04 13:34:03,521 - INFO - Generated preview for LD-DJFinger.xpm
+2025-07-04 13:34:03,565 - INFO - Generated preview for SC-PizzIt.xpm
+2025-07-04 13:34:03,565 - INFO - Generated preview for SC-PizzIt.xpm
+2025-07-04 13:34:03,577 - INFO - Generated preview for SQ-DelMare.xpm
+2025-07-04 13:34:03,578 - INFO - Generated preview for SQ-DelMare.xpm
