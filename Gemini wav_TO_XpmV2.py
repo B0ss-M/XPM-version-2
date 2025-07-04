@@ -223,6 +223,22 @@ def parse_xpm_samples(xpm_path):
         logging.error(f"Could not parse samples from {xpm_path}: {e}")
     return samples
 
+def get_xpm_version(xpm_path):
+    """Return Application_Version string from an XPM or 'Unknown'."""
+    try:
+        tree = ET.parse(xpm_path)
+        ver = tree.find('.//Application_Version')
+        if ver is not None and ver.text:
+            return ver.text
+    except Exception as e:
+        logging.error(f"Version parse failed for {xpm_path}: {e}")
+    return "Unknown"
+
+def is_valid_xpm(xpm_path):
+    """Basic validity check using validate_xpm_file."""
+    sample_count = len(parse_xpm_samples(xpm_path))
+    return validate_xpm_file(xpm_path, sample_count)
+
 def extract_root_note_from_wav(filepath):
     """Returns the MIDI root note from the WAV's smpl chunk if present."""
     try:
@@ -248,6 +264,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.master = master
         self.status = tk.StringVar(value="Ready.")
         self.broken_links = {}
+        self.file_info = {}
         self.create_widgets()
         self.scan_broken_links()
 
@@ -265,11 +282,19 @@ class ExpansionDoctorWindow(tk.Toplevel):
         tree_frame.grid_rowconfigure(0, weight=1)
         tree_frame.grid_columnconfigure(0, weight=1)
 
-        self.tree = Treeview(tree_frame, columns=("XPM", "Missing Samples"), show="headings")
+        self.tree = Treeview(
+            tree_frame,
+            columns=("XPM", "Version", "Valid", "Missing Samples"),
+            show="headings",
+        )
         self.tree.heading("XPM", text="XPM File")
+        self.tree.heading("Version", text="Version")
+        self.tree.heading("Valid", text="Valid")
         self.tree.heading("Missing Samples", text="Missing Samples")
         self.tree.column("XPM", width=250)
-        self.tree.column("Missing Samples", width=400)
+        self.tree.column("Version", width=80, anchor="center")
+        self.tree.column("Valid", width=60, anchor="center")
+        self.tree.column("Missing Samples", width=320)
         
         vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
@@ -282,6 +307,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
         ttk.Button(btn_frame, text="Relink Samples...", command=self.relink_samples).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Rewrite Versions", command=self.fix_versions).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Rescan", command=self.scan_broken_links).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=5)
 
@@ -325,17 +351,29 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.status.set(f"Relinked samples for {fixed_count} XPM(s). Rescanning...")
         self.scan_broken_links()
 
+    def fix_versions(self):
+        folder = self.master.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "No valid folder selected.", parent=self)
+            return
+        target = self.master.firmware_version.get()
+        updated = batch_edit_programs(folder, rename=False, version=target)
+        self.status.set(f"Updated {updated} XPM(s) to version {target}. Rescanning...")
+        self.scan_broken_links()
+
     def scan_broken_links(self):
         for i in self.tree.get_children():
             self.tree.delete(i)
         self.broken_links.clear()
+        self.file_info.clear()
         folder = self.master.folder_path.get()
         if not folder or not os.path.isdir(folder):
             self.status.set("No folder selected.")
             return
-        
+
         xpms = glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True)
-        
+        total = len(xpms)
+
         for xpm_path in xpms:
             try:
                 tree = ET.parse(xpm_path)
@@ -347,18 +385,32 @@ class ExpansionDoctorWindow(tk.Toplevel):
                         sample_abs_path = os.path.normpath(os.path.join(os.path.dirname(xpm_path), normalized_rel_path))
                         if not os.path.exists(sample_abs_path):
                             missing.add(os.path.basename(elem.text))
-                
-                if missing:
-                    missing_list = sorted(list(missing))
-                    self.tree.insert('', 'end', values=(os.path.relpath(xpm_path, folder), ', '.join(missing_list)))
+
+                missing_list = sorted(list(missing))
+                version = get_xpm_version(xpm_path)
+                valid = is_valid_xpm(xpm_path)
+                self.tree.insert(
+                    '',
+                    'end',
+                    values=(
+                        os.path.relpath(xpm_path, folder),
+                        version,
+                        'Yes' if valid else 'No',
+                        ', '.join(missing_list),
+                    ),
+                )
+                self.file_info[xpm_path] = {
+                    'version': version,
+                    'valid': valid,
+                    'missing': missing_list,
+                }
+                if missing_list:
                     self.broken_links[xpm_path] = missing_list
             except Exception as e:
                 logging.error(f"Error scanning {xpm_path}: {e}")
-                
-        if not self.broken_links:
-            self.status.set("No broken links found.")
-        else:
-            self.status.set(f"Found {len(self.broken_links)} XPM(s) with missing samples.")
+
+        broken = len(self.broken_links)
+        self.status.set(f"Scanned {total} XPM(s). {broken} with missing samples.")
 
 class ExpansionBuilderWindow(tk.Toplevel):
     def __init__(self, master):
