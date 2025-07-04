@@ -19,6 +19,7 @@ import struct
 import re
 import json
 import zipfile
+from drumkit_grouping import group_similar_files
 
 # --- Application Configuration ---
 APP_VERSION = "22.4"
@@ -966,7 +967,10 @@ class InstrumentBuilder:
         try:
             self.app.status_text.set("Analyzing files...")
 
-            instrument_groups = self.group_wav_files(mode)
+            if mode == 'drum-kit':
+                instrument_groups = group_similar_files(self.folder_path)
+            else:
+                instrument_groups = self.group_wav_files(mode)
             if not instrument_groups:
                 self.app.status_text.set("No suitable WAV files found for this mode.")
                 self._show_info_safe("Finished", "No suitable .wav files found to create instruments.")
@@ -1023,11 +1027,18 @@ class InstrumentBuilder:
         """Creates a single XPM file from a group of samples using robust XML construction."""
         try:
             sample_infos = []
-            for file_path in sample_files:
+            start_note = 60
+            for idx, file_path in enumerate(sample_files):
                 abs_path = os.path.join(self.folder_path, file_path) if not os.path.isabs(file_path) else file_path
                 info = self.validate_sample_info(abs_path)
                 if info.get('is_valid'):
-                    info['midi_note'] = info.get('root_note') or infer_note_from_filename(file_path) or 60
+                    if mode == 'drum-kit':
+                        midi_note = min(start_note + idx, 127)
+                    elif mode == 'one-shot':
+                        midi_note = start_note
+                    else:
+                        midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
+                    info['midi_note'] = midi_note
                     info['sample_path'] = os.path.basename(file_path)
                     sample_infos.append(info)
 
@@ -1438,6 +1449,7 @@ class App(tk.Tk):
         
         ttk.Button(frame, text="Build Multi-Sampled Instruments", command=self.build_multi_sample_instruments, style="Accent.TButton").grid(row=0, column=0, sticky="ew", padx=2, pady=2)
         ttk.Button(frame, text="Build One-Shot Instruments", command=self.build_one_shot_instruments).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Build Drum Kit", command=self.build_drum_kit_instruments).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
     
     def create_advanced_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Advanced Tools", padding="10")
@@ -1544,6 +1556,9 @@ class App(tk.Tk):
 
     def build_one_shot_instruments(self):
         self.build_instruments('one-shot')
+
+    def build_drum_kit_instruments(self):
+        self.build_instruments('drum-kit')
 
     def run_batch_process(self, process_func, *args, confirm=False, confirm_message=""):
         folder = self.folder_path.get()
