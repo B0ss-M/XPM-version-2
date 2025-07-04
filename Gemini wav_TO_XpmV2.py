@@ -859,7 +859,6 @@ class SmartSplitWindow(tk.Toplevel):
         ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=5)
 
     def apply_split(self):
-        folder = self.master.folder_path.get()
         mode = self.split_mode.get()
         self.destroy()
         self.master.run_batch_process(split_files_smartly, mode)
