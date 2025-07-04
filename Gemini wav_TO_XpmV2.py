@@ -19,6 +19,7 @@ import struct
 import re
 import json
 import zipfile
+import batch_program_editor
 
 # --- Application Configuration ---
 APP_VERSION = "22.4"
@@ -797,9 +798,56 @@ class AutoLayeringWindow(tk.Toplevel):
 class BatchProgramEditorWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root)
+        self.master = master
         self.title("Batch Program Editor")
-        self.geometry("700x500")
-        messagebox.showinfo("Placeholder", "Batch Program Editor is not yet implemented.", parent=self)
+        self.geometry("400x260")
+        self.resizable(False, False)
+        self.create_widgets()
+
+    def create_widgets(self):
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill="both", expand=True)
+        frame.columnconfigure(1, weight=1)
+
+        self.rename_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
+
+        ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
+        self.version_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.version_var).grid(row=1, column=1, sticky="ew", pady=(10,0))
+
+        ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        self.creative_var = tk.StringVar(value="off")
+        modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
+        self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
+        self.creative_combo.grid(row=2, column=1, sticky="ew", pady=(10,0))
+        self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
+
+        self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
+        self.config_btn.grid(row=3, column=1, sticky="e")
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.grid(row=4, column=0, columnspan=2, pady=(15,0), sticky="e")
+        ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
+        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
+
+    def toggle_config_btn(self, event=None):
+        if self.creative_var.get() in ['synth', 'lofi']:
+            self.config_btn.config(state='normal')
+        else:
+            self.config_btn.config(state='disabled')
+
+    def open_config(self):
+        self.master.open_window(CreativeModeConfigWindow, self.creative_var.get())
+
+    def apply_edits(self):
+        self.master.run_batch_process(
+            batch_edit_programs,
+            self.rename_var.get(),
+            self.version_var.get().strip() or None,
+            self.creative_var.get(),
+            self.master.creative_config
+        )
         self.destroy()
 
 class SmartSplitWindow(tk.Toplevel):
@@ -1643,6 +1691,54 @@ def split_files_smartly(folder_path, mode):
             logging.error(f"Could not split file {wav_path}: {e}")
 
     return moved_count
+
+def batch_edit_programs(folder_path, rename=False, version=None, creative_mode='off', creative_config=None):
+    """Batch edit XPM files with rename/version and creative tweaks."""
+    edited = 0
+    options = InstrumentOptions(creative_mode=creative_mode,
+                               creative_config=creative_config or {})
+    builder = InstrumentBuilder(folder_path, None, options)
+    for root_dir, _dirs, files in os.walk(folder_path):
+        for file in files:
+            if not file.lower().endswith('.xpm'):
+                continue
+            path = os.path.join(root_dir, file)
+            try:
+                tree = ET.parse(path)
+                root = tree.getroot()
+                changed = False
+
+                if rename:
+                    prog_elem = root.find('.//ProgramName')
+                    new_name = os.path.splitext(file)[0]
+                    if prog_elem is not None and prog_elem.text != new_name:
+                        prog_elem.text = new_name
+                        changed = True
+
+                if version:
+                    ver_elem = root.find('.//Application_Version')
+                    if ver_elem is not None and ver_elem.text != version:
+                        ver_elem.text = version
+                        changed = True
+
+                if creative_mode != 'off':
+                    for inst in root.findall('.//Instrument'):
+                        layers_elem = inst.find('Layers')
+                        if layers_elem is None:
+                            continue
+                        layers = layers_elem.findall('Layer')
+                        total_layers = len(layers)
+                        for idx, layer in enumerate(layers):
+                            builder.apply_creative_mode(inst, layer, idx, total_layers)
+                            changed = True
+
+                if changed:
+                    ET.indent(tree, space="  ")
+                    tree.write(path, encoding='utf-8', xml_declaration=True)
+                    edited += 1
+            except Exception as exc:
+                logging.error(f"Failed to edit {path}: {exc}")
+    return edited
 
 def main():
     if sys.platform == "linux" and "DISPLAY" not in os.environ:
