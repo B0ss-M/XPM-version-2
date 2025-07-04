@@ -4346,3 +4346,9 @@
 2025-07-04 14:07:02,957 - INFO - Generated preview for Proteus 3_WorldX - Wine Glasses.xpm
 2025-07-04 14:07:02,970 - INFO - Generated preview for Proteus 3_WorldX - Wood Block.xpm
 2025-07-04 14:07:02,986 - INFO - Generated preview for Proteus 3_WorldX - Wood Drum.xpm
+2025-07-04 15:18:15,833 - INFO - Application started. Version 22.4.
+2025-07-04 15:19:04,354 - INFO - Selected folder: /Volumes/MPC EXP/Expansions/Kontakt 6/Aeon Rythmic/DreamCries md 90Bpm
+2025-07-04 15:27:12,319 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
+2025-07-04 15:27:24,677 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
+2025-07-04 15:27:25,780 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
+2025-07-04 15:28:03,582 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
