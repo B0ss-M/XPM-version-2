@@ -19,7 +19,6 @@ import struct
 import re
 import json
 import zipfile
-import batch_program_editor
 
 # --- Application Configuration ---
 APP_VERSION = "22.4"
