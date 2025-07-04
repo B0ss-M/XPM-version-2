@@ -21,6 +21,13 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         self.load_files()
 
     def create_widgets(self):
+        path_frame = ttk.Frame(self, padding=(10, 5))
+        path_frame.pack(fill="x")
+        ttk.Label(path_frame, text="Source Folder:").pack(side="left")
+        self.folder_label = ttk.Label(path_frame, text=self.master.folder_path.get())
+        self.folder_label.pack(side="left", fill="x", expand=True)
+        ttk.Button(path_frame, text="Refresh", command=self.load_files).pack(side="right")
+
         main = ttk.Frame(self, padding=10)
         main.pack(fill="both", expand=True)
 
@@ -60,6 +67,8 @@ class MultiSampleBuilderWindow(tk.Toplevel):
 
     def load_files(self):
         folder = self.master.folder_path.get()
+        if hasattr(self, 'folder_label'):
+            self.folder_label.config(text=folder)
         pattern = os.path.join(folder, '**', '*.wav') if self.master.recursive_scan_var.get() else os.path.join(folder, '*.wav')
         files = glob.glob(pattern, recursive=self.master.recursive_scan_var.get())
         self.unassigned = [os.path.relpath(f, folder) for f in files if '.xpm.wav' not in f.lower()]
