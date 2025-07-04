@@ -60,9 +60,9 @@ By following these guidelines, we can ensure the continued stability and reliabi
 
 * **Smart Split Expectations**
   * The smart split feature must inspect `.xpm` files first.
-  * Determine the target category using instrument tags that can appear **anywhere** in the `.xpm` text.
+  * Determine the target category using instrument tags that can appear **anywhere** in the `.xpm` text, including pad assignments.
   * Move the `.xpm` file and all of its referenced samples into a folder named after that category.
-  * Category detection should be robust and not rely solely on the file path.
+  * Category detection should be robust and not rely solely on the file path; scan the entire XPM document for a matching tag before falling back to path-based guesses.
 
 * **Merge Subfolders**
   * When merging, search up to **two levels** of subfolders from the chosen root directory.
