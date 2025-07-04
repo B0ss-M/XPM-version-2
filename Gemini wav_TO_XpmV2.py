@@ -794,6 +794,7 @@ class InstrumentOptions:
     firmware_version: str = '3.5.0'
     polyphony: int = 16
     creative_config: dict = field(default_factory=dict)
+    round_robin: bool = False
 
 #<editor-fold desc="InstrumentBuilder Class">
 class InstrumentBuilder:
@@ -953,13 +954,21 @@ class InstrumentBuilder:
                 
                 layers_for_note = note_layers[note]
                 num_layers = min(len(layers_for_note), 8)
-                vel_split = 128 // num_layers
+                if self.options.round_robin and num_layers > 1:
+                    vel_split = 128
+                else:
+                    vel_split = 128 // num_layers
 
                 for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
                     layer = ET.SubElement(layers_elem, 'Layer', {'number': str(lidx + 1)})
-                    vel_start = lidx * vel_split
-                    vel_end = (lidx + 1) * vel_split - 1 if lidx < num_layers - 1 else 127
+                    if self.options.round_robin and num_layers > 1:
+                        vel_start, vel_end = 0, 127
+                    else:
+                        vel_start = lidx * vel_split
+                        vel_end = (lidx + 1) * vel_split - 1 if lidx < num_layers - 1 else 127
                     self.add_layer_parameters(layer, sample_info, vel_start, vel_end)
+                    if self.options.round_robin and num_layers > 1:
+                        ET.SubElement(layer, 'RoundRobin').text = str(lidx + 1)
                     self.apply_creative_mode(inst, layer, lidx, num_layers)
             
             output_path = os.path.join(output_folder, f"{program_name}.xpm")
@@ -1001,6 +1010,8 @@ class InstrumentBuilder:
             'FilterAttack': '0.0', 'FilterDecay': '0.0', 'FilterSustain': '1.0', 'FilterRelease': '0.0',
             'FilterEnvAmount': '0.0'
         }
+        if self.options.round_robin:
+            params['LayerCycleMode'] = 'RoundRobin'
         for key, val in params.items():
             ET.SubElement(instrument, key).text = val
         return instrument
@@ -1286,6 +1297,8 @@ class App(tk.Tk):
         ttk.Checkbutton(check_frame, text="Analyze SCW", variable=self.analyze_scw_var).pack(side='left', padx=5)
         self.recursive_scan_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(check_frame, text="Recursive Scan", variable=self.recursive_scan_var).pack(side='left', padx=5)
+        self.round_robin_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(check_frame, text="Round Robin", variable=self.round_robin_var).pack(side='left', padx=5)
 
     def create_action_buttons(self, parent):
         frame = ttk.LabelFrame(parent, text="Build Instruments", padding="10")
@@ -1392,7 +1405,8 @@ class App(tk.Tk):
             recursive_scan=self.recursive_scan_var.get(),
             firmware_version=self.firmware_version.get(),
             polyphony=self.polyphony_var.get(),
-            creative_config=self.creative_config
+            creative_config=self.creative_config,
+            round_robin=self.round_robin_var.get()
         )
         builder = InstrumentBuilder(folder, self, options=options)
         threading.Thread(target=builder.create_instruments, args=(mode,), daemon=True).start()
