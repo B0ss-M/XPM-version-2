@@ -20,6 +20,7 @@ import re
 import json
 import zipfile
 from drumkit_grouping import group_similar_files
+from multi_sample_builder import MultiSampleBuilderWindow
 
 # --- Application Configuration ---
 APP_VERSION = "22.4"
@@ -1023,7 +1024,7 @@ class InstrumentBuilder:
         finally:
             self.app.progress["value"] = 0
             
-    def _create_xpm(self, program_name, sample_files, output_folder, mode):
+    def _create_xpm(self, program_name, sample_files, output_folder, mode, midi_notes=None):
         """Creates a single XPM file from a group of samples using robust XML construction."""
         try:
             sample_infos = []
@@ -1032,7 +1033,9 @@ class InstrumentBuilder:
                 abs_path = os.path.join(self.folder_path, file_path) if not os.path.isabs(file_path) else file_path
                 info = self.validate_sample_info(abs_path)
                 if info.get('is_valid'):
-                    if mode == 'drum-kit':
+                    if midi_notes and idx < len(midi_notes):
+                        midi_note = midi_notes[idx]
+                    elif mode == 'drum-kit':
                         midi_note = min(start_note + idx, 127)
                     elif mode == 'one-shot':
                         midi_note = start_note
@@ -1552,7 +1555,7 @@ class App(tk.Tk):
         threading.Thread(target=builder.create_instruments, args=(mode,), daemon=True).start()
 
     def build_multi_sample_instruments(self):
-        self.build_instruments('multi-sample')
+        self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions)
 
     def build_one_shot_instruments(self):
         self.build_instruments('one-shot')
