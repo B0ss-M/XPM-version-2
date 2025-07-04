@@ -683,19 +683,6 @@ class FileRenamerWindow(tk.Toplevel):
 #</editor-fold>
 
 #<editor-fold desc="Advanced Tool Windows">
-class PitchCorrectionWindow(tk.Toplevel):
-    def __init__(self, master):
-        super().__init__(master.root)
-        self.title("Pitch Analysis & Correction")
-        self.geometry("450x150")
-        self.resizable(False, False)
-        messagebox.showinfo(
-            "Feature Placeholder",
-            "This feature requires a dedicated audio analysis library (like 'librosa') to detect the pitch of samples.\n\n"
-            "Once installed, this tool could be implemented to automatically analyze and correct the 'Root Note' for all samples in your project, ensuring perfect tuning.",
-            parent=self
-        )
-        self.destroy()
 
 class CreativeModeConfigWindow(tk.Toplevel):
     def __init__(self, master, mode):
@@ -794,13 +781,6 @@ class SCWToolWindow(tk.Toplevel):
         messagebox.showinfo("Success", f"Created {len(selected_files)} looped instruments.", parent=self)
         self.destroy()
 
-class AutoLayeringWindow(tk.Toplevel):
-    def __init__(self, master):
-        super().__init__(master.root)
-        self.title("Auto-Layering Tool")
-        self.geometry("500x400")
-        messagebox.showinfo("Placeholder", "Auto-Layering Tool is not yet implemented.", parent=self)
-        self.destroy()
 
 class BatchProgramEditorWindow(tk.Toplevel):
     def __init__(self, master):
@@ -1414,10 +1394,8 @@ class App(tk.Tk):
         frame.grid(row=3, column=0, sticky="nsew", pady=5)
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
-        ttk.Button(frame, text="Auto-Layering Tool (RR/Velocity)...", command=lambda: self.open_window(AutoLayeringWindow)).grid(row=0, column=0, sticky="ew", padx=2, pady=2)
-        ttk.Button(frame, text="Single-Cycle Waveform (SCW) Tool...", command=lambda: self.open_window(SCWToolWindow)).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
-        ttk.Button(frame, text="Batch Program Editor...", command=lambda: self.open_window(BatchProgramEditorWindow)).grid(row=1, column=0, sticky="ew", padx=2, pady=2)
-        ttk.Button(frame, text="Pitch Analysis & Correction...", command=self.open_pitch_correction).grid(row=1, column=1, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Single-Cycle Waveform (SCW) Tool...", command=lambda: self.open_window(SCWToolWindow)).grid(row=0, column=0, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Batch Program Editor...", command=lambda: self.open_window(BatchProgramEditorWindow)).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
 
     def create_batch_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Utilities & Batch Tools", padding="10")
@@ -1491,7 +1469,6 @@ class App(tk.Tk):
     def open_file_renamer(self): self.open_window(FileRenamerWindow)
     def open_expansion_builder(self): self.open_window(ExpansionBuilderWindow)
     def open_smart_split_window(self): self.open_window(SmartSplitWindow)
-    def open_pitch_correction(self): self.open_window(PitchCorrectionWindow)
     def open_creative_config(self): self.open_window(CreativeModeConfigWindow, self.creative_mode_var.get())
     #</editor-fold>
     
