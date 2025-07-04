@@ -141,9 +141,28 @@ def get_clean_sample_info(filepath):
     note = infer_note_from_filename(base)
     return {'base': name, 'ext': ext, 'note': note, 'folder': folder}
 
-def get_base_instrument_name(filepath):
-    """Returns an instrument tag if a known tag appears in the path."""
-    tags = ['piano', 'bell', 'pad', 'keys', 'guitar', 'bass', 'lead', 'pluck', 'drum', 'fx', 'vocal', 'ambient', 'brass', 'strings', 'woodwind', 'world', 'horn']
+def get_instrument_category_from_text(text):
+    """Returns a known instrument tag if it appears in the provided text."""
+    tags = ['piano', 'bell', 'pad', 'keys', 'guitar', 'bass', 'lead', 'pluck',
+            'drum', 'fx', 'vocal', 'ambient', 'brass', 'strings', 'woodwind',
+            'world', 'horn']
+    lower = text.lower()
+    for tag in tags:
+        if tag in lower:
+            return tag
+    return None
+
+
+def get_base_instrument_name(filepath, xpm_content=None):
+    """Returns an instrument tag based on the path or optional XPM contents."""
+    if xpm_content:
+        category = get_instrument_category_from_text(xpm_content)
+        if category:
+            return category
+
+    tags = ['piano', 'bell', 'pad', 'keys', 'guitar', 'bass', 'lead', 'pluck',
+            'drum', 'fx', 'vocal', 'ambient', 'brass', 'strings', 'woodwind',
+            'world', 'horn']
     path = filepath.lower()
     for tag in tags:
         if tag in path:
@@ -170,6 +189,32 @@ def get_wav_frames(filepath):
             return w.getnframes()
     except Exception:
         return 0
+
+def parse_xpm_samples(xpm_path):
+    """Return a list of sample paths referenced by an XPM."""
+    samples = []
+    try:
+        tree = ET.parse(xpm_path)
+        root = tree.getroot()
+
+        pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+        if pads_elem is not None and pads_elem.text:
+            data = json.loads(xml_unescape(pads_elem.text))
+            pads = data.get('pads', {})
+            for pad in pads.values():
+                if isinstance(pad, dict) and pad.get('samplePath'):
+                    samples.append(pad['samplePath'])
+
+        for elem in root.findall('.//SampleName'):
+            if elem.text:
+                samples.append(elem.text + '.wav')
+
+        for elem in root.findall('.//SampleFile'):
+            if elem.text:
+                samples.append(elem.text)
+    except Exception as e:
+        logging.error(f"Could not parse samples from {xpm_path}: {e}")
+    return samples
 
 def extract_root_note_from_wav(filepath):
     """Returns the MIDI root note from the WAV's smpl chunk if present."""
@@ -1523,10 +1568,54 @@ def merge_subfolders_to_root(folder_path, max_depth=2):
     return moved_count
 
 def split_files_smartly(folder_path, mode):
-    """Moves WAV files into new subfolders based on the chosen mode."""
+    """Organizes XPMs and WAVs into subfolders based on the chosen mode."""
     moved_count = 0
-    all_wavs = glob.glob(os.path.join(folder_path, '*.wav'))
 
+    # First process XPM files so samples move with them
+    xpm_files = glob.glob(os.path.join(folder_path, '*.xpm'))
+    for xpm_path in xpm_files:
+        try:
+            basename = os.path.basename(xpm_path)
+            subfolder_name = None
+
+            if mode == 'word':
+                subfolder_name = basename.split(' ')[0].split('_')[0].split('-')[0]
+            elif mode == 'prefix':
+                m = re.match(r'([A-Za-z0-9]+[_-])', basename)
+                if m:
+                    subfolder_name = m.group(1).strip('_-')
+            else:  # category
+                with open(xpm_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    xpm_text = f.read()
+                subfolder_name = get_base_instrument_name(xpm_path, xpm_text)
+
+            if not subfolder_name:
+                continue
+
+            subfolder_path = os.path.join(folder_path, subfolder_name)
+            os.makedirs(subfolder_path, exist_ok=True)
+            dest_xpm = os.path.join(subfolder_path, basename)
+            shutil.move(xpm_path, dest_xpm)
+            moved_count += 1
+
+            for sample in parse_xpm_samples(dest_xpm):
+                sample_norm = sample.replace('/', os.sep)
+                sample_abs = os.path.join(folder_path, sample_norm) if not os.path.isabs(sample_norm) else sample_norm
+                if os.path.exists(sample_abs):
+                    dest_sample = os.path.join(subfolder_path, os.path.basename(sample_norm))
+                    if os.path.exists(dest_sample):
+                        base, ext = os.path.splitext(os.path.basename(sample_norm))
+                        dest_sample = os.path.join(subfolder_path, f"{base}_1{ext}")
+                    try:
+                        shutil.move(sample_abs, dest_sample)
+                        moved_count += 1
+                    except Exception as e:
+                        logging.error(f"Could not move {sample_abs}: {e}")
+        except Exception as e:
+            logging.error(f"Could not process {xpm_path}: {e}")
+
+    # Now process remaining WAV files
+    all_wavs = glob.glob(os.path.join(folder_path, '*.wav'))
     for wav_path in all_wavs:
         try:
             subfolder_name = None
@@ -1534,21 +1623,25 @@ def split_files_smartly(folder_path, mode):
 
             if mode == 'word':
                 subfolder_name = basename.split(' ')[0].split('_')[0].split('-')[0]
-            elif mode == 'category':
-                subfolder_name = get_base_instrument_name(wav_path)
             elif mode == 'prefix':
                 match = re.match(r'([A-Za-z0-9]+[_-])', basename)
                 if match:
                     subfolder_name = match.group(1).strip('_-')
+            else:  # category
+                subfolder_name = get_base_instrument_name(wav_path)
 
             if subfolder_name:
                 subfolder_path = os.path.join(folder_path, subfolder_name)
                 os.makedirs(subfolder_path, exist_ok=True)
                 dest_path = os.path.join(subfolder_path, basename)
+                if os.path.exists(dest_path):
+                    base, ext = os.path.splitext(basename)
+                    dest_path = os.path.join(subfolder_path, f"{base}_1{ext}")
                 shutil.move(wav_path, dest_path)
                 moved_count += 1
         except Exception as e:
             logging.error(f"Could not split file {wav_path}: {e}")
+
     return moved_count
 
 def main():
