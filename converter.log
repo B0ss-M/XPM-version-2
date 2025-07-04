@@ -4352,3 +4352,10 @@
 2025-07-04 15:27:24,677 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
 2025-07-04 15:27:25,780 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
 2025-07-04 15:28:03,582 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
+2025-07-04 15:41:11,092 - INFO - Application started. Version 22.4.
+2025-07-04 15:41:32,470 - INFO - Selected folder: /Volumes/MPC EXP/Expansions/Kontakt 6/Aeon Rythmic/DreamCries md 90Bpm
+2025-07-04 15:41:37,997 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
+2025-07-04 15:41:49,185 - ERROR - Failed to edit /Volumes/MPC EXP/Expansions/Kontakt 6/Aeon Rythmic/DreamCries md 90Bpm/._DreamCries md 90Bpm.xpm: not well-formed (invalid token): line 1, column 0
+2025-07-04 15:41:49,189 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
+2025-07-04 15:41:55,239 - WARNING - Validation failed for DreamCries md 90Bpm.xpm: ProgramPads section not found.
+2025-07-04 15:46:27,798 - WARNING - No valid samples for program: 1
