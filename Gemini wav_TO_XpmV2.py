@@ -897,6 +897,8 @@ class InstrumentBuilder:
         self.folder_path = folder_path
         self.app = app
         self.options = options
+        # Determine engine once for later creative tweaks
+        self.engine = get_pad_settings(options.firmware_version).get('engine')
 
     #<editor-fold desc="GUI Safe Callbacks">
     def _show_info_safe(self, title, message):
@@ -1138,12 +1140,25 @@ class InstrumentBuilder:
                     'VolumeAttack': str(round(random.uniform(0.001, 0.05), 4)),
                     'VolumeRelease': str(config.get('release', round(random.uniform(0.2, 0.7), 3)))
                 })
+                if self.engine == 'advanced':
+                    params.update({
+                        'UnisonMode': '1',
+                        'UnisonVoices': '4',
+                        'UnisonDetune': '0.1',
+                        'UnisonSpread': '0.5',
+                        'VoiceDriftSpeed': '0.002'
+                    })
             elif mode == 'lofi':
                 params.update({
                     'Cutoff': str(config.get('cutoff', round(random.uniform(0.2, 0.6), 3))),
                     'Resonance': str(round(random.uniform(0.2, 0.5), 3)),
                     'PitchEnvAmount': str(config.get('pitch_wobble', round(random.uniform(-0.2, 0.2), 3)))
                 })
+                if self.engine == 'advanced':
+                    params.update({
+                        'RandomizationScale': '0.8',
+                        'VoiceDriftSpeed': '0.01'
+                    })
 
         for key, value in params.items():
             target_element = layer_element if key in ['Direction', 'Pan'] else instrument_element
