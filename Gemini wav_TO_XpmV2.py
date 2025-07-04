@@ -1452,7 +1452,9 @@ class App(tk.Tk):
             self.creative_config_btn.config(state='disabled')
 
     def open_window(self, window_class, *args):
-        if window_class not in [ExpansionBuilderWindow] and (not self.folder_path.get() or not os.path.isdir(self.folder_path.get())):
+        if window_class not in [ExpansionBuilderWindow, CreativeModeConfigWindow] and (
+            not self.folder_path.get() or not os.path.isdir(self.folder_path.get())
+        ):
             messagebox.showerror("Error", "Please select a valid source folder first.", parent=self.root)
             return
         try:
