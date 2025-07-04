@@ -2,6 +2,8 @@
 
 This repository contains tools for working with Akai MPC Keygroup programs.
 
+Additional documentation can be found in the `docs` folder, including a summary of the differences between drum and instrument keygroups.
+
 ## Scripts
 
 - `Gemini wav_TO_XpmV2.py` – main Tkinter GUI application for converting WAV files and managing expansions.
