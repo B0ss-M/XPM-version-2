@@ -55,3 +55,15 @@ The script's functions must never delete .wav, .mp3, or any other non-temporary 
 * **GUI Window Classes**: Each tool (e.g., ExpansionDoctorWindow, BatchProgramEditorWindow) is a self-contained Toplevel window. This modularity should be maintained.
 
 By following these guidelines, we can ensure the continued stability and reliability of the project.
+
+## 5. Smart Split and Folder Management
+
+* **Smart Split Expectations**
+  * The smart split feature must inspect `.xpm` files first.
+  * Determine the target category using instrument tags that can appear **anywhere** in the `.xpm` text.
+  * Move the `.xpm` file and all of its referenced samples into a folder named after that category.
+  * Category detection should be robust and not rely solely on the file path.
+
+* **Merge Subfolders**
+  * When merging, search up to **two levels** of subfolders from the chosen root directory.
+  * Handle duplicate file names safely when moving WAV files.
