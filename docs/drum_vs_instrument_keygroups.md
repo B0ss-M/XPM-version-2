@@ -19,3 +19,7 @@ The `InstrumentBuilder` in the main application understands these modes via the 
 - `multi-sample` – spreads samples across the keyboard based on their detected root notes.
 
 Refer to `Gemini wav_TO_XpmV2.py` for the full implementation.
+
+## Tools
+- **Multi-Sample Instrument Builder** now searches for `.wav` files case-insensitively so samples with `.WAV` extensions appear.
+- **Expansion Doctor** lists invalid or corrupt `.xpm` files instead of silently skipping them during scans.

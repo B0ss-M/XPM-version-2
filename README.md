@@ -10,3 +10,7 @@ Additional documentation can be found in the `docs` folder, including a summary 
 - `batch_packager.py` – command-line tool to package each subfolder of a directory into its own expansion ZIP.
 - `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename and firmware version changes.
   This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
+
+## Recent Changes
+- Build Instruments window now lists `.wav` files regardless of case so samples with `.WAV` extensions appear correctly.
+- Expansion Doctor displays invalid or corrupt `.xpm` files instead of skipping them.
