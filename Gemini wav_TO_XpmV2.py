@@ -1086,7 +1086,9 @@ class InstrumentBuilder:
             instruments = ET.SubElement(program, 'Instruments')
             sorted_notes = sorted(note_layers.keys())
             for i, note in enumerate(sorted_notes, start=1):
-                if mode == 'one-shot' and keygroup_count == 1:
+                if mode == 'drum-kit':
+                    low_key = high_key = note
+                elif mode == 'one-shot' and keygroup_count == 1:
                     low_key, high_key = 0, 127
                 else:
                     high_key = (sorted_notes[i-1] + sorted_notes[i]) // 2 if i < len(sorted_notes) else 127
