@@ -49,14 +49,15 @@ class TextHandler(logging.Handler):
             self.text_widget.yview(tk.END)
         self.text_widget.after(0, append)
 
+from firmware_profiles import get_pad_settings, get_program_parameters as fw_program_parameters
+
+
 def build_program_pads_json(firmware, mappings=None):
     """Return ProgramPads JSON escaped for XML embedding."""
-    if firmware in ['3.4.0', '3.5.0']:
-        pads_type = 4
-        universal_pad = 6238976
-    else:
-        pads_type = 1
-        universal_pad = 32512
+    pad_cfg = get_pad_settings(firmware)
+    pads_type = pad_cfg['type']
+    universal_pad = pad_cfg['universal_pad']
+    engine = pad_cfg.get('engine')
 
     pads = {f"value{i}": 0 for i in range(128)}
     if mappings:
@@ -85,6 +86,8 @@ def build_program_pads_json(firmware, mappings=None):
         "UnusedPads": {"value0": 1},
         "PadsFollowTrackColour": {"value0": False},
     }
+    if engine:
+        pads_obj["engine"] = engine
     json_str = json.dumps(pads_obj, indent=4)
     return xml_escape(json_str)
 
@@ -1070,19 +1073,8 @@ class InstrumentBuilder:
             return False
 
     def get_program_parameters(self, num_keygroups):
-        return {
-            'PortamentoTime': '0.0', 'PortamentoLegato': 'False', 'PortamentoQuantized': 'False',
-            'MonoRetrigger': 'False', 'GlobalDriftSpeed': '0.0', 'KeygroupMasterTranspose': '0.0',
-            'KeygroupNumKeygroups': str(num_keygroups), 'KeygroupPitchBendRange': '2.0',
-            'KeygroupWheelToLfo': '0.0', 'KeygroupAftertouchToFilter': '0.0',
-            'KeygroupPressureToFilter': '0.0', 'KeygroupPitchBendPositiveRange': '2',
-            'KeygroupPitchBendNegativeRange': '2', 'KeygroupLegacyMode': 'False',
-            'KeygroupWheelToLfo2': '0.0', 'KeygroupAftertouchToFilter2': '0.0',
-            'KeygroupTimbreShift': '0', 'AmpEnvGlobal': 'False', 'FltEnvGlobal': 'False',
-            'PitchEnvGlobal': 'False', 'AuxEnvGlobal': 'False', 'StackProcessorMode': '0',
-            'UnisonMode': '0', 'UnisonVoices': '0', 'UnisonDetune': '0.0',
-            'UnisonSpread': '0.0', 'HarmoniserMix': '0.5'
-        }
+        firmware = self.options.firmware_version
+        return fw_program_parameters(firmware, num_keygroups)
 
     def build_instrument_element(self, parent, num, low, high):
         instrument = ET.SubElement(parent, 'Instrument', {'number': str(num)})
