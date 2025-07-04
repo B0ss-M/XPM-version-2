@@ -1008,18 +1008,26 @@ class InstrumentBuilder:
     def add_layer_parameters(self, layer_element, sample_info, vel_start, vel_end):
         sample_name, _ = os.path.splitext(os.path.basename(sample_info['sample_path']))
         frames = sample_info.get('frames', 0)
+        is_scw = sample_info.get('is_scw', False)
+        loop_enabled = self.options.loop_one_shots or is_scw
+
         params = {
-            'SampleName': sample_name, 
-            'SampleFile': sample_info['sample_path'], 
-            'VelStart': str(vel_start), 
-            'VelEnd': str(vel_end), 
-            'SampleEnd': str(frames), 
+            'SampleName': sample_name,
+            'SampleFile': sample_info['sample_path'],
+            'VelStart': str(vel_start),
+            'VelEnd': str(vel_end),
+            'SampleEnd': str(frames),
             'RootNote': str(sample_info['midi_note']),
-            'SampleStart': '0', 
-            'Loop': 'Off' if not self.options.loop_one_shots else 'On', 
+            'SampleStart': '0',
+            'Loop': 'On' if loop_enabled else 'Off',
             'Direction': '0', 'Offset': '0', 'Volume': '1.0',
             'Pan': '0.5', 'Tune': '0.0', 'MuteGroup': '0'
         }
+
+        if loop_enabled:
+            params['LoopStart'] = '0'
+            params['LoopEnd'] = str(max(frames - 1, 0))
+
         for key, value in params.items():
             ET.SubElement(layer_element, key).text = value
 
@@ -1145,20 +1153,22 @@ class InstrumentBuilder:
         return groups
 
     def validate_sample_info(self, sample_path):
-        """Validates a WAV file and extracts info."""
+        """Validates a WAV file and extracts info. Detects SCWs if enabled."""
         try:
             if not os.path.exists(sample_path) or not sample_path.lower().endswith('.wav'):
                 return {'is_valid': False, 'reason': 'File not found or not a WAV'}
-            
+
             frames = get_wav_frames(sample_path)
+            is_scw = False
             if self.options.analyze_scw and 0 < frames < SCW_FRAME_THRESHOLD:
-                pass
-            
+                is_scw = True
+
             return {
                 'is_valid': True,
                 'path': sample_path,
                 'frames': frames,
-                'root_note': extract_root_note_from_wav(sample_path)
+                'root_note': extract_root_note_from_wav(sample_path),
+                'is_scw': is_scw
             }
         except Exception as e:
             logging.error(f"Could not validate sample {sample_path}: {e}")
