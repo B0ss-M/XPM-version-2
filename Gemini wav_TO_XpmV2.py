@@ -49,7 +49,11 @@ class TextHandler(logging.Handler):
             self.text_widget.yview(tk.END)
         self.text_widget.after(0, append)
 
-from firmware_profiles import get_pad_settings, get_program_parameters as fw_program_parameters
+from firmware_profiles import (
+    get_pad_settings,
+    get_program_parameters as fw_program_parameters,
+    ADVANCED_INSTRUMENT_PARAMS,
+)
 
 
 def build_program_pads_json(firmware, mappings=None):
@@ -1078,14 +1082,38 @@ class InstrumentBuilder:
 
     def build_instrument_element(self, parent, num, low, high):
         instrument = ET.SubElement(parent, 'Instrument', {'number': str(num)})
-        params = {
-            'Polyphony': str(self.options.polyphony), 'LowNote': str(low), 'HighNote': str(high),
-            'Volume': '1.0', 'Pan': '0.5', 'Tune': '0.0', 'MuteGroup': '0', 'VoiceOverlap': 'Poly',
-            'VolumeAttack': '0.0', 'VolumeDecay': '0.0', 'VolumeSustain': '1.0', 'VolumeRelease': '0.05',
-            'FilterType': 'Off', 'Cutoff': '1.0', 'Resonance': '0.0', 'FilterKeytrack': '0.0',
-            'FilterAttack': '0.0', 'FilterDecay': '0.0', 'FilterSustain': '1.0', 'FilterRelease': '0.0',
-            'FilterEnvAmount': '0.0'
-        }
+        engine = get_pad_settings(self.options.firmware_version).get('engine')
+        if engine == 'advanced' and ADVANCED_INSTRUMENT_PARAMS:
+            params = ADVANCED_INSTRUMENT_PARAMS.copy()
+            params.update({
+                'Polyphony': str(self.options.polyphony),
+                'LowNote': str(low),
+                'HighNote': str(high),
+            })
+        else:
+            params = {
+                'Polyphony': str(self.options.polyphony),
+                'LowNote': str(low),
+                'HighNote': str(high),
+                'Volume': '1.0',
+                'Pan': '0.5',
+                'Tune': '0.0',
+                'MuteGroup': '0',
+                'VoiceOverlap': 'Poly',
+                'VolumeAttack': '0.0',
+                'VolumeDecay': '0.0',
+                'VolumeSustain': '1.0',
+                'VolumeRelease': '0.05',
+                'FilterType': 'Off',
+                'Cutoff': '1.0',
+                'Resonance': '0.0',
+                'FilterKeytrack': '0.0',
+                'FilterAttack': '0.0',
+                'FilterDecay': '0.0',
+                'FilterSustain': '1.0',
+                'FilterRelease': '0.0',
+                'FilterEnvAmount': '0.0',
+            }
         for key, val in params.items():
             ET.SubElement(instrument, key).text = val
         return instrument
