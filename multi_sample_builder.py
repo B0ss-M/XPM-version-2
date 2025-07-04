@@ -69,8 +69,9 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         folder = self.master.folder_path.get()
         if hasattr(self, 'folder_label'):
             self.folder_label.config(text=folder)
-        pattern = os.path.join(folder, '**', '*.wav') if self.master.recursive_scan_var.get() else os.path.join(folder, '*.wav')
-        files = glob.glob(pattern, recursive=self.master.recursive_scan_var.get())
+        pattern = os.path.join(folder, '**', '*') if self.master.recursive_scan_var.get() else os.path.join(folder, '*')
+        all_files = glob.glob(pattern, recursive=self.master.recursive_scan_var.get())
+        files = [f for f in all_files if f.lower().endswith('.wav')]
         self.unassigned = [os.path.relpath(f, folder) for f in files if '.xpm.wav' not in f.lower()]
         self.refresh_file_list()
 

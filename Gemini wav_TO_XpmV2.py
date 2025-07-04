@@ -380,36 +380,52 @@ class ExpansionDoctorWindow(tk.Toplevel):
             try:
                 tree = ET.parse(xpm_path)
                 root = tree.getroot()
-                missing = set()
-                for elem in root.findall('.//SampleFile'):
-                    if elem is not None and elem.text:
-                        normalized_rel_path = elem.text.replace('/', os.sep)
-                        sample_abs_path = os.path.normpath(os.path.join(os.path.dirname(xpm_path), normalized_rel_path))
-                        if not os.path.exists(sample_abs_path):
-                            missing.add(os.path.basename(elem.text))
-
-                missing_list = sorted(list(missing))
-                version = get_xpm_version(xpm_path)
-                valid = is_valid_xpm(xpm_path)
+            except ET.ParseError as e:
+                rel = os.path.relpath(xpm_path, folder)
+                logging.error(f"Error scanning {xpm_path}: {e}")
                 self.tree.insert(
                     '',
                     'end',
-                    values=(
-                        os.path.relpath(xpm_path, folder),
-                        version,
-                        'Yes' if valid else 'No',
-                        ', '.join(missing_list),
-                    ),
+                    values=(rel, 'Unknown', 'No', 'Invalid XPM'),
                 )
                 self.file_info[xpm_path] = {
-                    'version': version,
-                    'valid': valid,
-                    'missing': missing_list,
+                    'version': 'Unknown',
+                    'valid': False,
+                    'missing': [],
                 }
-                if missing_list:
-                    self.broken_links[xpm_path] = missing_list
+                continue
             except Exception as e:
                 logging.error(f"Error scanning {xpm_path}: {e}")
+                continue
+
+            missing = set()
+            for elem in root.findall('.//SampleFile'):
+                if elem is not None and elem.text:
+                    normalized_rel_path = elem.text.replace('/', os.sep)
+                    sample_abs_path = os.path.normpath(os.path.join(os.path.dirname(xpm_path), normalized_rel_path))
+                    if not os.path.exists(sample_abs_path):
+                        missing.add(os.path.basename(elem.text))
+
+            missing_list = sorted(list(missing))
+            version = get_xpm_version(xpm_path)
+            valid = is_valid_xpm(xpm_path)
+            self.tree.insert(
+                '',
+                'end',
+                values=(
+                    os.path.relpath(xpm_path, folder),
+                    version,
+                    'Yes' if valid else 'No',
+                    ', '.join(missing_list),
+                ),
+            )
+            self.file_info[xpm_path] = {
+                'version': version,
+                'valid': valid,
+                'missing': missing_list,
+            }
+            if missing_list:
+                self.broken_links[xpm_path] = missing_list
 
         broken = len(self.broken_links)
         self.status.set(f"Scanned {total} XPM(s). {broken} with missing samples.")
