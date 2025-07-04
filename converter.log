@@ -1,0 +1,1728 @@
+2025-07-04 12:20:14,005 - INFO - Application started. Version 22.4.
+2025-07-04 12:20:47,138 - INFO - Selected folder: /Volumes/MPC SSD/Expansions/Korg KRONOS GM 
+2025-07-04 12:20:49,948 - INFO - Generated preview for KR-Gunshot.xpm
+2025-07-04 12:20:49,995 - INFO - Generated preview for KR-Dist.CutNoiz.xpm
+2025-07-04 12:20:50,033 - INFO - Generated preview for KR-CustomEPiano L1.xpm
+2025-07-04 12:20:50,044 - INFO - Generated preview for KR-DistLead L0.xpm
+2025-07-04 12:20:50,055 - INFO - Generated preview for KR-FatLivingSynth L0.xpm
+2025-07-04 12:20:50,068 - INFO - Generated preview for KR-Melodic Tom.xpm
+2025-07-04 12:20:50,083 - INFO - Generated preview for KR-Explosion.xpm
+2025-07-04 12:20:50,099 - INFO - Generated preview for KR-GtCutNoise2.xpm
+2025-07-04 12:20:50,118 - INFO - Generated preview for KR-Harpsichord1.xpm
+2025-07-04 12:20:50,134 - INFO - Generated preview for KR-HeartBeat.xpm
+2025-07-04 12:20:50,188 - INFO - Generated preview for KR-HorseGallop.xpm
+2025-07-04 12:20:50,199 - INFO - Generated preview for KR-JazzGuitar.xpm
+2025-07-04 12:20:50,218 - INFO - Generated preview for KR-LotsO'Drawbars.xpm
+2025-07-04 12:20:50,233 - INFO - Generated preview for KR-Laughing.xpm
+2025-07-04 12:20:50,251 - INFO - Generated preview for KR-Helicopter.xpm
+2025-07-04 12:20:50,288 - INFO - Generated preview for KR-MetalPad.xpm
+2025-07-04 12:20:50,301 - INFO - Generated preview for KR-Musette.xpm
+2025-07-04 12:20:50,319 - INFO - Generated preview for KR-HonkeyTonk.xpm
+2025-07-04 12:20:50,335 - INFO - Generated preview for KR-IceRain.xpm
+2025-07-04 12:20:50,389 - INFO - Generated preview for KR-PipeFullOrgan L1.xpm
+2025-07-04 12:20:50,401 - INFO - Generated preview for KR-JetPlane.xpm
+2025-07-04 12:20:50,441 - INFO - Generated preview for KR-Koto.xpm
+2025-07-04 12:20:50,478 - INFO - Generated preview for KR-LaserGun.xpm
+2025-07-04 12:20:50,490 - INFO - Generated preview for KR-MusicBox.xpm
+2025-07-04 12:20:50,504 - INFO - Generated preview for KR-OboeVib.xpm
+2025-07-04 12:20:50,547 - INFO - Generated preview for kR-OrchHit.xpm
+2025-07-04 12:20:50,593 - INFO - Generated preview for KR-MutedPickGT2 L1.xpm
+2025-07-04 12:20:50,607 - INFO - Generated preview for KR-MachineGun.xpm
+2025-07-04 12:20:50,618 - INFO - Generated preview for KR-Fiddle L0.xpm
+2025-07-04 12:20:50,644 - INFO - Generated preview for KR-OverdGtr.xpm
+2025-07-04 12:20:50,657 - INFO - Generated preview for KR-Fiddle L1.xpm
+2025-07-04 12:20:50,667 - INFO - Generated preview for KR-Fiddle L2.xpm
+2025-07-04 12:20:50,684 - INFO - Generated preview for KR-FluteDynamic L1.xpm
+2025-07-04 12:20:50,701 - INFO - Generated preview for KR-FlutterPad L0.xpm
+2025-07-04 12:20:50,750 - INFO - Generated preview for KR-GtCutNoise L1.xpm
+2025-07-04 12:20:50,763 - INFO - Generated preview for KR-PanFlute.xpm
+2025-07-04 12:20:50,784 - INFO - Generated preview for KR-HarmDynWah L0.xpm
+2025-07-04 12:20:50,801 - INFO - Generated preview for KR-HarpNALLS L0.xpm
+2025-07-04 12:20:50,853 - INFO - Generated preview for KR-Kalimba L0.xpm
+2025-07-04 12:20:50,883 - INFO - Generated preview for KR-PercE.Organ.xpm
+2025-07-04 12:20:50,905 - INFO - Generated preview for KR-Whishle.xpm
+2025-07-04 12:20:50,917 - INFO - Generated preview for KR-Scratch2.xpm
+2025-07-04 12:20:50,934 - INFO - Generated preview for KR-Shamisen.xpm
+2025-07-04 12:20:50,954 - INFO - Generated preview for kR-LegatoStStrings L0.xpm
+2025-07-04 12:20:51,006 - INFO - Generated preview for KR-Shanai.xpm
+2025-07-04 12:20:51,019 - INFO - Generated preview for kR-LegatoStStrings L1.xpm
+2025-07-04 12:20:51,034 - INFO - Generated preview for KR-LegatoTB333Bass L0.xpm
+2025-07-04 12:20:51,050 - INFO - Generated preview for KR-MarimbaHard L0.xpm
+2025-07-04 12:20:51,067 - INFO - Generated preview for KR-Sitar1.xpm
+2025-07-04 12:20:51,084 - INFO - Generated preview for KR-MarimbaHard L1.xpm
+2025-07-04 12:20:51,108 - INFO - Generated preview for kR-Mutetrumpet L1.xpm
+2025-07-04 12:20:51,125 - INFO - Generated preview for KR-Orchestra L0.xpm
+2025-07-04 12:20:51,159 - INFO - Generated preview for KR-PickPrecBass L0.xpm
+2025-07-04 12:20:51,170 - INFO - Generated preview for KR-PizzStrings L1.xpm
+2025-07-04 12:20:51,185 - INFO - Generated preview for KR-Siren.xpm
+2025-07-04 12:20:51,199 - INFO - Generated preview for KR-PlanWavSeqGt L0.xpm
+2025-07-04 12:20:51,214 - INFO - Generated preview for kR-PopcHitBright L1.xpm
+2025-07-04 12:20:51,273 - INFO - Generated preview for KR-PrecisionEl_Bass L0.xpm
+2025-07-04 12:20:51,283 - INFO - Generated preview for KR-Recorder L1.xpm
+2025-07-04 12:20:51,322 - INFO - Generated preview for KR-RomanticPad L0.xpm
+2025-07-04 12:20:51,332 - INFO - Generated preview for KR-Santur L1.xpm
+2025-07-04 12:20:51,356 - INFO - Generated preview for KR-Siren2.xpm
+2025-07-04 12:20:51,370 - INFO - Generated preview for KR-Seashore L0.xpm
+2025-07-04 12:20:51,423 - INFO - Generated preview for KR-Seashore L2.xpm
+2025-07-04 12:20:51,435 - INFO - Generated preview for KR-SlapBass1 L1.xpm
+2025-07-04 12:20:51,474 - INFO - Generated preview for kR-SlowStereoStrings L1.xpm
+2025-07-04 12:20:51,491 - INFO - Generated preview for KR-StageEPiano L0.xpm
+2025-07-04 12:20:51,529 - INFO - Generated preview for KR-NewNorthWind.xpm
+2025-07-04 12:20:51,551 - INFO - Generated preview for kR-SynthVOX.xpm
+2025-07-04 12:20:51,579 - INFO - Generated preview for KR-StageEPiano L1.xpm
+2025-07-04 12:20:51,600 - INFO - Generated preview for KR-ReedOrgan.xpm
+2025-07-04 12:20:51,631 - INFO - Generated preview for KR-RoomKit L0.xpm
+2025-07-04 12:20:51,679 - INFO - Generated preview for KR-OrchCelesta.xpm
+2025-07-04 12:20:51,690 - INFO - Generated preview for KR-Taiko.xpm
+2025-07-04 12:20:51,702 - INFO - Generated preview for KR-StandEPiano L2.xpm
+2025-07-04 12:20:51,719 - INFO - Generated preview for KR-TheTemple L0.xpm
+2025-07-04 12:20:51,733 - INFO - Generated preview for KR-SynCalliope.xpm
+2025-07-04 12:20:51,751 - INFO - Generated preview for KR-TenorSaxVib.xpm
+2025-07-04 12:20:51,767 - INFO - Generated preview for KR-BlownBottle L0.xpm
+2025-07-04 12:20:51,783 - INFO - Generated preview for KR-AcousticBass L0.xpm
+2025-07-04 12:20:51,834 - INFO - Generated preview for KR-PercE_Organ.xpm
+2025-07-04 12:20:51,851 - INFO - Generated preview for KR-PerfectStorm.xpm
+2025-07-04 12:20:51,891 - INFO - Generated preview for KR-PiccoloFlute.xpm
+2025-07-04 12:20:51,910 - INFO - Generated preview for KR-JazzKit L3.xpm
+2025-07-04 12:20:51,938 - INFO - Generated preview for KR-ViolSoloRib L1.xpm
+2025-07-04 12:20:51,950 - INFO - Generated preview for kR-Trombone4Vel L2.xpm
+2025-07-04 12:20:51,989 - INFO - Generated preview for kR-SynthStrings1 L0.xpm
+2025-07-04 12:20:52,003 - INFO - Generated preview for KR-Shakuhachi L0.xpm
+2025-07-04 12:20:52,017 - INFO - Generated preview for KR-Recorder L0.xpm
+2025-07-04 12:20:52,038 - INFO - Generated preview for KR-StudioStdKit L0.xpm
+2025-07-04 12:20:52,092 - INFO - Generated preview for KR-KronosGermP L1.xpm
+2025-07-04 12:20:52,105 - INFO - Generated preview for KR-80008Kit L1.xpm
+2025-07-04 12:20:52,117 - INFO - Generated preview for KR-JazzKit L1.xpm
+2025-07-04 12:20:52,133 - INFO - Generated preview for KR-FluteDynamic L0.xpm
+2025-07-04 12:20:52,150 - INFO - Generated preview for kR-Timpani L2.xpm
+2025-07-04 12:20:52,202 - INFO - Generated preview for KR-SteelAcGt L2.xpm
+2025-07-04 12:20:52,215 - INFO - Generated preview for KR-PizzStrings L0.xpm
+2025-07-04 12:20:52,233 - INFO - Generated preview for KR-ElectronKit L1.xpm
+2025-07-04 12:20:52,274 - INFO - Generated preview for KR-Screaming.xpm
+2025-07-04 12:20:52,304 - INFO - Generated preview for KR-SopranoSax.xpm
+2025-07-04 12:20:52,319 - INFO - Generated preview for KR-HarpNALLS L1.xpm
+2025-07-04 12:20:52,355 - INFO - Generated preview for kR-Mutetrumpet L0.xpm
+2025-07-04 12:20:52,366 - INFO - Generated preview for kR-Trombone4Vel L6.xpm
+2025-07-04 12:20:52,406 - INFO - Generated preview for KR-TubeSetGuitar L1.xpm
+2025-07-04 12:20:52,419 - INFO - Generated preview for kR-TubaDynamicX L1.xpm
+2025-07-04 12:20:52,433 - INFO - Generated preview for KR-SteelAcGt L0.xpm
+2025-07-04 12:20:52,450 - INFO - Generated preview for KR-StarTheme.xpm
+2025-07-04 12:20:52,508 - INFO - Generated preview for KR-SteelDrums.xpm
+2025-07-04 12:20:52,521 - INFO - Generated preview for KR-TchuVoices L0.xpm
+2025-07-04 12:20:52,563 - INFO - Generated preview for KR-PowerKit L0.xpm
+2025-07-04 12:20:52,584 - INFO - Generated preview for KR-SynthStrings2.xpm
+2025-07-04 12:20:52,606 - INFO - Generated preview for KR-BrushKit L0.xpm
+2025-07-04 12:20:52,635 - INFO - Generated preview for KR-PrecisionEl.Bass.xpm
+2025-07-04 12:20:52,670 - INFO - Generated preview for KR-Telephone1.xpm
+2025-07-04 12:20:52,684 - INFO - Generated preview for KR-Theinnocence.xpm
+2025-07-04 12:20:52,700 - INFO - Generated preview for KR-TinkleBell.xpm
+2025-07-04 12:20:52,720 - INFO - Generated preview for KR-ViolaSoloRib.xpm
+2025-07-04 12:20:52,770 - INFO - Generated preview for KR-VoiceThree.xpm
+2025-07-04 12:20:52,784 - INFO - Generated preview for KR-WindChimes.xpm
+2025-07-04 12:20:52,822 - INFO - Generated preview for kR-Timpani L1.xpm
+2025-07-04 12:20:52,835 - INFO - Generated preview for KR-12StringGtr L0.xpm
+2025-07-04 12:20:52,849 - INFO - Generated preview for KR-AcousticBass L1.xpm
+2025-07-04 12:20:52,866 - INFO - Generated preview for KR-AcousticBass L2.xpm
+2025-07-04 12:20:52,884 - INFO - Generated preview for KR-BrightPiano L0.xpm
+2025-07-04 12:20:52,925 - INFO - Generated preview for KR-DistLead L1.xpm
+2025-07-04 12:20:52,938 - INFO - Generated preview for KR-Evolving L0.xpm
+2025-07-04 12:20:52,952 - INFO - Generated preview for KR-Evolving L1.xpm
+2025-07-04 12:20:52,972 - INFO - Generated preview for KR-GtCutNoise L0.xpm
+2025-07-04 12:20:52,987 - INFO - Generated preview for KR-HarmDynWah L1.xpm
+2025-07-04 12:20:53,028 - INFO - Generated preview for KR-HBFretlessBass L0.xpm
+2025-07-04 12:20:53,039 - INFO - Generated preview for KR-HBFretlessBass L1.xpm
+2025-07-04 12:20:53,050 - INFO - Generated preview for KR-Kalimba L1.xpm
+2025-07-04 12:20:53,072 - INFO - Generated preview for KR-KronosGermP L0.xpm
+2025-07-04 12:20:53,083 - INFO - Generated preview for KR-LegatoTB333Bass L1.xpm
+2025-07-04 12:20:53,099 - INFO - Generated preview for KR-MutedPickGT2 L0.xpm
+2025-07-04 12:20:53,136 - INFO - Generated preview for KR-Orchestra L1.xpm
+2025-07-04 12:20:53,149 - INFO - Generated preview for KR-PickPrecBass L1.xpm
+2025-07-04 12:20:53,167 - INFO - Generated preview for KR-PipeFullOrgan L0.xpm
+2025-07-04 12:20:53,185 - INFO - Generated preview for kR-PopcHitBright L0.xpm
+2025-07-04 12:20:53,201 - INFO - Generated preview for KR-Santur L0.xpm
+2025-07-04 12:20:53,239 - INFO - Generated preview for KR-Seashore L1.xpm
+2025-07-04 12:20:53,249 - INFO - Generated preview for KR-Shakuhachi L1.xpm
+2025-07-04 12:20:53,288 - INFO - Generated preview for KR-SlapBass1 L0.xpm
+2025-07-04 12:20:53,301 - INFO - Generated preview for KR-SlapBassString L0.xpm
+2025-07-04 12:20:53,335 - INFO - Generated preview for KR-12StringGtr.xpm
+2025-07-04 12:20:53,350 - INFO - Generated preview for KR-SlapBassString L1.xpm
+2025-07-04 12:20:53,371 - INFO - Generated preview for KR-80008Kit.xpm
+2025-07-04 12:20:53,388 - INFO - Generated preview for KR-AcousticBass.xpm
+2025-07-04 12:20:53,404 - INFO - Generated preview for KR-BrushKit L1.xpm
+2025-07-04 12:20:53,439 - INFO - Generated preview for KR-HarmDynWah.xpm
+2025-07-04 12:20:53,458 - INFO - Generated preview for KR-StageEPiano L2.xpm
+2025-07-04 12:20:53,471 - INFO - Generated preview for KR-StandEPiano L1.xpm
+2025-07-04 12:20:53,494 - INFO - Generated preview for KR-AnalogicKit.xpm
+2025-07-04 12:20:53,507 - INFO - Generated preview for KR-SteelAcGt L1.xpm
+2025-07-04 12:20:53,519 - INFO - Generated preview for kR-SynthStrings1 L1.xpm
+2025-07-04 12:20:53,533 - INFO - Generated preview for KR-TchuVoices L1.xpm
+2025-07-04 12:20:53,550 - INFO - Generated preview for kR-Trombone4Vel L3.xpm
+2025-07-04 12:20:53,567 - INFO - Generated preview for KR-BagPipe.xpm
+2025-07-04 12:20:53,603 - INFO - Generated preview for KR-Trumpets X Fade L0.xpm
+2025-07-04 12:20:53,614 - INFO - Generated preview for KR-JazzKit L2.xpm
+2025-07-04 12:20:53,633 - INFO - Generated preview for KR-Trumpets X Fade L3.xpm
+2025-07-04 12:20:53,650 - INFO - Generated preview for kR-TubaDynamicX L0.xpm
+2025-07-04 12:20:53,667 - INFO - Generated preview for KR-TubeSetGuitar L0.xpm
+2025-07-04 12:20:53,702 - INFO - Generated preview for KR-Vibraphon e1 L0.xpm
+2025-07-04 12:20:53,714 - INFO - Generated preview for KR-ViolSoloRib L0.xpm
+2025-07-04 12:20:53,733 - INFO - Generated preview for KR-XylophoneDyn L0.xpm
+2025-07-04 12:20:53,751 - INFO - Generated preview for KR-XylophoneDyn L1.xpm
+2025-07-04 12:20:53,807 - INFO - Generated preview for KR-JazzKit.xpm
+2025-07-04 12:20:53,823 - INFO - Generated preview for KR-80008Kit L0.xpm
+2025-07-04 12:20:53,855 - INFO - Generated preview for KR-Bassoon.xpm
+2025-07-04 12:20:53,869 - INFO - Generated preview for KR-ClassicChoir.xpm
+2025-07-04 12:20:53,904 - INFO - Generated preview for KR-PickPrecBass.xpm
+2025-07-04 12:20:53,923 - INFO - Generated preview for KR-AnalogicKit L0.xpm
+2025-07-04 12:20:53,956 - INFO - Generated preview for KR-AnalogicKit L1.xpm
+2025-07-04 12:20:53,975 - INFO - Generated preview for KR-ElectronKit L0.xpm
+2025-07-04 12:20:53,990 - INFO - Generated preview for KR-JazzKit L0.xpm
+2025-07-04 12:20:54,007 - INFO - Generated preview for KR-PowerKit L1.xpm
+2025-07-04 12:20:54,047 - INFO - Generated preview for KR-RoomKit L3.xpm
+2025-07-04 12:20:54,067 - INFO - Generated preview for KR-DistLead.xpm
+2025-07-04 12:20:54,081 - INFO - Generated preview for KR-BlownBottle.xpm
+2025-07-04 12:20:54,105 - INFO - Generated preview for KR-RoomKit.xpm
+2025-07-04 12:20:54,122 - INFO - Generated preview for KR-ElectronKit.xpm
+2025-07-04 12:20:54,169 - INFO - Generated preview for KR-Evolving.xpm
+2025-07-04 12:20:54,180 - INFO - Generated preview for KR-FluteDynamic.xpm
+2025-07-04 12:20:54,206 - INFO - Generated preview for KR-Orchestra.xpm
+2025-07-04 12:20:54,222 - INFO - Generated preview for KR-Brightness.xpm
+2025-07-04 12:20:54,237 - INFO - Generated preview for KR-StandEPiano.xpm
+2025-07-04 12:20:54,272 - INFO - Generated preview for KR-BrightPiano.xpm
+2025-07-04 12:20:54,289 - INFO - Generated preview for KR-BrushKit.xpm
+2025-07-04 12:20:54,321 - INFO - Generated preview for KR-Shakuhachi.xpm
+2025-07-04 12:20:54,335 - INFO - Generated preview for KR-Vibraphone1.xpm
+2025-07-04 12:20:54,351 - INFO - Generated preview for KR-Charang.xpm
+2025-07-04 12:20:54,371 - INFO - Generated preview for KR-Trumpets X Fade.xpm
+2025-07-04 12:20:54,383 - INFO - Generated preview for KR-TubeSetGuitar.xpm
+2025-07-04 12:20:54,401 - INFO - Generated preview for KR-CustomEPiano.xpm
+2025-07-04 12:20:54,415 - INFO - Generated preview for KR-PizzStrings.xpm
+2025-07-04 12:20:54,431 - INFO - Generated preview for KR-FatLivingSynth.xpm
+2025-07-04 12:20:54,449 - INFO - Generated preview for KR-Fiddle.xpm
+2025-07-04 12:20:54,466 - INFO - Generated preview for KR-FlutterPad.xpm
+2025-07-04 12:20:54,483 - INFO - Generated preview for KR-HBFretlessBass.xpm
+2025-07-04 12:20:54,521 - INFO - Generated preview for KR-GtCutNoise.xpm
+2025-07-04 12:20:54,541 - INFO - Generated preview for KR-StudioStdKit.xpm
+2025-07-04 12:20:54,575 - INFO - Generated preview for KR-HarpNALLS.xpm
+2025-07-04 12:20:54,590 - INFO - Generated preview for KR-KronosGermP.xpm
+2025-07-04 12:20:54,600 - INFO - Generated preview for kR-LegatoStStrings.xpm
+2025-07-04 12:20:54,615 - INFO - Generated preview for KR-MarimbaHard.xpm
+2025-07-04 12:20:54,632 - INFO - Generated preview for KR-MutedPickGT2.xpm
+2025-07-04 12:20:54,650 - INFO - Generated preview for KR-Kalimba.xpm
+2025-07-04 12:20:54,665 - INFO - Generated preview for KR-LegatoTB333Bass.xpm
+2025-07-04 12:20:54,682 - INFO - Generated preview for kR-Mutetrumpet.xpm
+2025-07-04 12:20:54,735 - INFO - Generated preview for KR-Recorder.xpm
+2025-07-04 12:20:54,749 - INFO - Generated preview for kR-Timpani.xpm
+2025-07-04 12:20:54,765 - INFO - Generated preview for KR-PipeFullOrgan.xpm
+2025-07-04 12:20:54,787 - INFO - Generated preview for KR-SlapBassString.xpm
+2025-07-04 12:20:54,839 - INFO - Generated preview for KR-StageEPiano.xpm
+2025-07-04 12:20:54,850 - INFO - Generated preview for kR-Trombone4Vel.xpm
+2025-07-04 12:20:54,865 - INFO - Generated preview for KR-PlanWavSeqGt.xpm
+2025-07-04 12:20:54,881 - INFO - Generated preview for kR-PopcHitBright.xpm
+2025-07-04 12:20:54,905 - INFO - Generated preview for KR-PowerKit.xpm
+2025-07-04 12:20:54,940 - INFO - Generated preview for KR-PrecisionEl_Bass.xpm
+2025-07-04 12:20:54,952 - INFO - Generated preview for KR-RomanticPad.xpm
+2025-07-04 12:20:54,989 - INFO - Generated preview for KR-Santur.xpm
+2025-07-04 12:20:55,002 - INFO - Generated preview for KR-Seashore.xpm
+2025-07-04 12:20:55,040 - INFO - Generated preview for KR-TchuVoices.xpm
+2025-07-04 12:20:55,054 - INFO - Generated preview for KR-SlapBass1.xpm
+2025-07-04 12:20:55,067 - INFO - Generated preview for kR-SlowStereoStrings.xpm
+2025-07-04 12:20:55,081 - INFO - Generated preview for KR-SteelAcGt.xpm
+2025-07-04 12:20:55,098 - INFO - Generated preview for kR-SynthStrings1.xpm
+2025-07-04 12:20:55,155 - INFO - Generated preview for KR-TheTemple.xpm
+2025-07-04 12:20:55,167 - INFO - Generated preview for kR-TubaDynamicX.xpm
+2025-07-04 12:20:55,203 - INFO - Generated preview for KR-ViolSoloRib.xpm
+2025-07-04 12:20:55,218 - INFO - Generated preview for KR-XylophoneDyn.xpm
+2025-07-04 12:20:55,257 - INFO - Generated preview for KR_Applause.xpm
+2025-07-04 12:20:55,268 - INFO - Generated preview for kR-Trombone4Vel L1.xpm
+2025-07-04 12:20:55,283 - INFO - Generated preview for KR-BagPipe L1.xpm
+2025-07-04 12:20:55,309 - INFO - Generated preview for KR_SFX.xpm
+2025-07-04 12:20:55,320 - INFO - Generated preview for KR-StandEPiano L0.xpm
+2025-07-04 12:20:55,355 - INFO - Generated preview for kR-Timpani L0.xpm
+2025-07-04 12:20:55,371 - INFO - Generated preview for KR-RomanticPad L1.xpm
+2025-07-04 12:20:55,407 - INFO - Generated preview for kR-SlowStereoStrings L0.xpm
+2025-07-04 12:20:55,420 - INFO - Generated preview for KR-FatLivingSynth L1.xpm
+2025-07-04 12:20:55,460 - INFO - Generated preview for KR-Fiddle L3.xpm
+2025-07-04 12:20:55,471 - INFO - Generated preview for KR-FlutterPad L1.xpm
+2025-07-04 12:20:55,482 - INFO - Generated preview for KR-5thSawTooth.xpm
+2025-07-04 12:20:55,499 - INFO - Generated preview for KR-PlanWavSeqGt L1.xpm
+2025-07-04 12:20:55,518 - INFO - Generated preview for KR-PrecisionEl_Bass L1.xpm
+2025-07-04 12:20:55,569 - INFO - Generated preview for KR-RoomKit L1.xpm
+2025-07-04 12:20:55,584 - INFO - Generated preview for KR-StudioStdKit L1.xpm
+2025-07-04 12:20:55,601 - INFO - Generated preview for KR-TheTemple L1.xpm
+2025-07-04 12:20:55,615 - INFO - Generated preview for KR-GTFrNoise.xpm
+2025-07-04 12:20:55,669 - INFO - Generated preview for KR-RoomKit L2.xpm
+2025-07-04 12:20:55,683 - INFO - Generated preview for KR-Vibraphon e1 L1.xpm
+2025-07-04 12:20:55,700 - INFO - Generated preview for KR-Agogo.xpm
+2025-07-04 12:20:55,718 - INFO - Generated preview for KR-AltoSaxDyn.xpm
+2025-07-04 12:20:55,734 - INFO - Generated preview for KR-Cello.xpm
+2025-07-04 12:20:55,750 - INFO - Generated preview for kR-Trombone4Vel L4.xpm
+2025-07-04 12:20:55,772 - INFO - Generated preview for kR-AnaPowerBrass.xpm
+2025-07-04 12:20:55,785 - INFO - Generated preview for KR-Astor'sBandoneon.xpm
+2025-07-04 12:20:55,820 - INFO - Generated preview for kR-Trombone4Vel L0.xpm
+2025-07-04 12:20:55,835 - INFO - Generated preview for KR-Trumpets X Fade L1.xpm
+2025-07-04 12:20:55,851 - INFO - Generated preview for KR-Banjo.xpm
+2025-07-04 12:20:55,873 - INFO - Generated preview for KR-BaritoneSax.xpm
+2025-07-04 12:20:55,884 - INFO - Generated preview for KR-OutsideElements.xpm
+2025-07-04 12:20:55,900 - INFO - Generated preview for KR-ChiffLead.xpm
+2025-07-04 12:20:55,923 - INFO - Generated preview for KR-ChordStroke.xpm
+2025-07-04 12:20:55,963 - INFO - Generated preview for KR-Clarinet.xpm
+2025-07-04 12:20:56,023 - INFO - Generated preview for KR-Bass&Lead.xpm
+2025-07-04 12:20:56,036 - INFO - Generated preview for KR-Crystal.xpm
+2025-07-04 12:20:56,072 - INFO - Generated preview for KR-StringSlap.xpm
+2025-07-04 12:20:56,088 - INFO - Generated preview for kR-DarkStereoBrass.xpm
+2025-07-04 12:20:56,125 - INFO - Generated preview for kR-SupSawBrass.xpm
+2025-07-04 12:20:56,137 - INFO - Generated preview for KR-DetunedSawtooth.xpm
+2025-07-04 12:20:56,150 - INFO - Generated preview for KR-DetunedSquare.xpm
+2025-07-04 12:20:56,177 - INFO - Generated preview for KR-SynthDrum.xpm
+2025-07-04 12:20:56,186 - INFO - Generated preview for KR-Dist_CutNoiz.xpm
+2025-07-04 12:20:56,199 - INFO - Generated preview for kR-Trombone4Vel L5.xpm
+2025-07-04 12:20:56,227 - INFO - Generated preview for KR-BigShot.xpm
+2025-07-04 12:20:56,240 - INFO - Generated preview for KR-Bird1.xpm
+2025-07-04 12:20:56,251 - INFO - Generated preview for KR-BiwaStroke.xpm
+2025-07-04 12:20:56,279 - INFO - Generated preview for KR-DistOrgan.xpm
+2025-07-04 12:20:56,289 - INFO - Generated preview for KR-Scratch1.xpm
+2025-07-04 12:20:56,298 - INFO - Generated preview for KR-RevCymbal.xpm
+2025-07-04 12:20:56,315 - INFO - Generated preview for KR-DoorCreaking.xpm
+2025-07-04 12:20:56,331 - INFO - Generated preview for KR-DoorSlam.xpm
+2025-07-04 12:20:56,351 - INFO - Generated preview for KR-BowedGlass.xpm
+2025-07-04 12:20:56,386 - INFO - Generated preview for KR-EnglishHorn.xpm
+2025-07-04 12:20:56,399 - INFO - Generated preview for KR-BreathN.xpm
+2025-07-04 12:20:56,417 - INFO - Generated preview for KR-Fantasia.xpm
+2025-07-04 12:20:56,439 - INFO - Generated preview for KR-NylonGtr1.xpm
+2025-07-04 12:20:56,488 - INFO - Generated preview for KR-BreatOcSy.xpm
+2025-07-04 12:20:56,501 - INFO - Generated preview for KR-Trumpets X Fade L2.xpm
+2025-07-04 12:20:56,516 - INFO - Generated preview for KR-Ocarina.xpm
+2025-07-04 12:20:56,533 - INFO - Generated preview for KR-Footsteps.xpm
+2025-07-04 12:20:56,579 - INFO - Generated preview for KR-Kitty.xpm
+2025-07-04 12:20:56,593 - INFO - Generated preview for KR-GlockenspHard.xpm
+2025-07-04 12:20:56,606 - INFO - Generated preview for KR-Growl.xpm
+2025-07-04 12:20:56,617 - INFO - Generated preview for KR-Soundtrack.xpm
+2025-07-04 12:20:56,632 - INFO - Generated preview for KR-Bassoon L0.xpm
+2025-07-04 12:20:56,649 - INFO - Generated preview for KR-Bubble.xpm
+2025-07-04 12:20:56,667 - INFO - Generated preview for KR-BurstNoise.xpm
+2025-07-04 12:20:56,682 - INFO - Generated preview for KR-CarCrash.xpm
+2025-07-04 12:20:56,700 - INFO - Generated preview for KR-CarEngine.xpm
+2025-07-04 12:20:56,717 - INFO - Generated preview for KR-Carillon.xpm
+2025-07-04 12:20:56,732 - INFO - Generated preview for KR-CarPass.xpm
+2025-07-04 12:20:56,749 - INFO - Generated preview for KR-CarStop.xpm
+2025-07-04 12:20:56,767 - INFO - Generated preview for KR-Thunder.xpm
+2025-07-04 12:20:56,801 - INFO - Generated preview for KR-WarmPad.xpm
+2025-07-04 12:20:56,812 - INFO - Generated preview for KR-Brightness L0.xpm
+2025-07-04 12:20:56,833 - INFO - Generated preview for KR-ClasPunchB.xpm
+2025-07-04 12:20:56,848 - INFO - Generated preview for KR-Charang L0.xpm
+2025-07-04 12:20:56,867 - INFO - Generated preview for KR-CustomEPiano L0.xpm
+2025-07-04 12:20:56,890 - INFO - Generated preview for KR-Punch.xpm
+2025-07-04 12:20:56,904 - INFO - Generated preview for KR-TremStrings.xpm
+2025-07-04 12:20:56,918 - INFO - Generated preview for KR-ClavMute1.xpm
+2025-07-04 12:20:56,957 - INFO - Generated preview for KR-Contrabass.xpm
+2025-07-04 12:20:56,970 - INFO - Generated preview for KR-Train.xpm
+2025-07-04 12:20:56,984 - INFO - Generated preview for KR-TubularBells.xpm
+2025-07-04 12:20:57,006 - INFO - Generated preview for KR-VoiceOne.xpm
+2025-07-04 12:20:57,019 - INFO - Generated preview for KR-VoiceTwo.xpm
+2025-07-04 12:20:57,032 - INFO - Generated preview for KR-Woodblock.xpm
+2025-07-04 12:20:57,059 - INFO - Generated preview for KR-DistortGtr.xpm
+2025-07-04 12:20:57,071 - INFO - Generated preview for KR-12StringGtr L1.xpm
+2025-07-04 12:20:57,083 - INFO - Generated preview for KR-BagPipe L0.xpm
+2025-07-04 12:20:57,097 - INFO - Generated preview for KR-Dog.xpm
+2025-07-04 12:20:57,117 - INFO - Generated preview for KR-Bassoon L1.xpm
+2025-07-04 12:20:57,132 - INFO - Generated preview for KR-BlownBottle L1.xpm
+2025-07-04 12:20:57,150 - INFO - Generated preview for kR-DynaFrenchHorns.xpm
+2025-07-04 12:20:57,172 - INFO - Generated preview for KR-Brightness L1.xpm
+2025-07-04 12:20:57,220 - INFO - Generated preview for KR-BrightPiano L1.xpm
+2025-07-04 12:20:57,230 - INFO - Generated preview for KR-Charang L1.xpm
+2025-07-04 12:20:57,270 - INFO - Generated preview for KR-ClassicChoir L0.xpm
+2025-07-04 12:20:57,285 - INFO - Generated preview for KR-ClassicChoir L1.xpm
+2025-07-04 12:24:57,394 - INFO - Selected folder: /Volumes/MPC SSD/Expansions/Roland Orchestral Family Vol.1
+2025-07-04 12:24:59,760 - INFO - Generated preview for 01 STR_Cbs Pizz 1aS.xpm
+2025-07-04 12:24:59,797 - INFO - Generated preview for 01 Chamber Grp1.xpm
+2025-07-04 12:24:59,835 - INFO - Generated preview for 01 STR_Vls ORCp%7aS.xpm
+2025-07-04 12:24:59,898 - INFO - Generated preview for 01 STR_Fiddle nv 1a.xpm
+2025-07-04 12:24:59,953 - INFO - Generated preview for 01 STR_Vls Sym ^1aS.xpm
+2025-07-04 12:25:00,003 - INFO - Generated preview for 01 STR_Vls Sym  1dM.xpm
+2025-07-04 12:25:00,035 - INFO - Generated preview for 01 STR_Cb pizz  1aS.xpm
+2025-07-04 12:25:00,074 - INFO - Generated preview for 01 STR_Cb Marc  1a.xpm
+2025-07-04 12:25:00,110 - INFO - Generated preview for 01 STR_Cb Pizz  3aS.xpm
+2025-07-04 12:25:00,164 - INFO - Generated preview for 01 Ominousness 1.xpm
+2025-07-04 12:25:00,219 - INFO - Generated preview for 01 Vln1 _ marc.xpm
+2025-07-04 12:25:00,264 - INFO - Generated preview for 01 Chamber Grp2.xpm
+2025-07-04 12:25:00,318 - INFO - Generated preview for 01 STR_Vls  p % 6aS.xpm
+2025-07-04 12:25:00,370 - INFO - Generated preview for 01 STR_Cbs Trem 1aS.xpm
+2025-07-04 12:25:00,416 - INFO - Generated preview for 01 STR_Cb Arc nv 3a.xpm
+2025-07-04 12:25:00,465 - INFO - Generated preview for 01 Vln2 % + dyn.xpm
+2025-07-04 12:25:00,517 - INFO - Generated preview for 01 STR_Vcs Pizz 1aS.xpm
+2025-07-04 12:25:00,569 - INFO - Generated preview for 01 STR_Cb Jz.Pz 2a.xpm
+2025-07-04 12:25:00,608 - INFO - Generated preview for 01 STR_Va Pizz MM1a.xpm
+2025-07-04 12:25:00,642 - INFO - Generated preview for 01 STR_Vlsx8    5aS.xpm
+2025-07-04 12:25:00,678 - INFO - Generated preview for 01 Vls7 p%f  St.xpm
+2025-07-04 12:25:00,725 - INFO - Generated preview for 01 Vln4 _ marc.xpm
+2025-07-04 12:25:00,767 - INFO - Generated preview for 01 STR_Vc PizzMM1a.xpm
+2025-07-04 12:25:00,802 - INFO - Generated preview for 01 STR_Vas Mute 1aS.xpm
+2025-07-04 12:25:00,842 - INFO - Generated preview for 01 StringOrch 1 1 2.xpm
+2025-07-04 12:25:00,882 - INFO - Generated preview for 01 STR_Vls  f   6aS.xpm
+2025-07-04 12:25:00,935 - INFO - Generated preview for 01 STR_Cbs ORCp 2aS.xpm
+2025-07-04 12:25:00,984 - INFO - Generated preview for 01 STR_Vls Arco 2aS.xpm
+2025-07-04 12:25:01,036 - INFO - Generated preview for 01 Chamber Pizz.xpm
+2025-07-04 12:25:01,086 - INFO - Generated preview for 01 STR_Vcs ORCf 7aS.xpm
+2025-07-04 12:25:01,136 - INFO - Generated preview for 01 STR_Vls Pont 1aS.xpm
+2025-07-04 12:25:01,186 - INFO - Generated preview for 01 STR_Va mf vb  1a.xpm
+2025-07-04 12:25:01,236 - INFO - Generated preview for 01 Vla2 _  marc.xpm
+2025-07-04 12:25:01,277 - INFO - Generated preview for 01 STR_Vls mf   6aS.xpm
+2025-07-04 12:25:01,352 - INFO - Generated preview for 01 Mellow Pad 1.xpm
+2025-07-04 12:25:01,394 - INFO - Generated preview for 01 Vla3 % + dyn.xpm
+2025-07-04 12:25:01,449 - INFO - Generated preview for 01 ORC_Unison p 1aS.xpm
+2025-07-04 12:25:01,485 - INFO - Generated preview for 01 STR_Vls fff ^8aS.xpm
+2025-07-04 12:25:01,517 - INFO - Generated preview for 01 STR_Vcs Pizz 3aS.xpm
+2025-07-04 12:25:01,558 - INFO - Generated preview for 01 Arco_Marcato.xpm
+2025-07-04 12:25:01,596 - INFO - Generated preview for 01 STR_Vc atak  2aS.xpm
+2025-07-04 12:25:01,634 - INFO - Generated preview for 01 ORC_Cluster menu.xpm
+2025-07-04 12:25:01,700 - INFO - Generated preview for 01 Str.Orch Oct.xpm
+2025-07-04 12:25:01,733 - INFO - Generated preview for 01 STR_Vlsx8   ^5aS.xpm
+2025-07-04 12:25:01,766 - INFO - Generated preview for 01 STR_Cb mfvb MM1a.xpm
+2025-07-04 12:25:01,799 - INFO - Generated preview for 01 Vls6 mf%f St.xpm
+2025-07-04 12:25:01,871 - INFO - Generated preview for 01 STR_Cbs Bryt 3aS.xpm
+2025-07-04 12:25:01,914 - INFO - Generated preview for 01 STR_Vls  f  ^6aS.xpm
+2025-07-04 12:25:01,948 - INFO - Generated preview for 01 Vla1 _  marc.xpm
+2025-07-04 12:25:01,986 - INFO - Generated preview for 01 HIT_Orc min _  S.xpm
+2025-07-04 12:25:02,026 - INFO - Generated preview for 01 STR_Vl  mf vb 2a.xpm
+2025-07-04 12:25:02,066 - INFO - Generated preview for 01 mf Strings.xpm
+2025-07-04 12:25:02,098 - INFO - Generated preview for 01 STR_Vls Arco^2aS.xpm
+2025-07-04 12:25:02,129 - INFO - Generated preview for 01 STR_Vc mfnvMM3a.xpm
+2025-07-04 12:25:02,178 - INFO - Generated preview for 01 Vln4 % + dyn.xpm
+2025-07-04 12:25:02,219 - INFO - Generated preview for 01 STR_Vls Trem%1aS.xpm
+2025-07-04 12:25:02,279 - INFO - Generated preview for 01 STR_Vls mf  ^6aS.xpm
+2025-07-04 12:25:02,333 - INFO - Generated preview for 01 STR_Vls ORCf%7aS.xpm
+2025-07-04 12:25:02,389 - INFO - Generated preview for 01 Vln3 _ marc.xpm
+2025-07-04 12:25:02,422 - INFO - Generated preview for 01 MIDI Section.xpm
+2025-07-04 12:25:02,459 - INFO - Generated preview for 01 STR_Vlsx6 %  4aS.xpm
+2025-07-04 12:25:02,497 - INFO - Generated preview for 01 STR_Vcs ORCp 7aS.xpm
+2025-07-04 12:25:02,546 - INFO - Generated preview for 01 Vln1 % + dyn.xpm
+2025-07-04 12:25:02,582 - INFO - Generated preview for 01 2voice Pad 1.xpm
+2025-07-04 12:25:02,648 - INFO - Generated preview for 01 STR_Va marc MM1a.xpm
+2025-07-04 12:25:02,702 - INFO - Generated preview for 01 STR_Vls Mute 1aS.xpm
+2025-07-04 12:25:02,748 - INFO - Generated preview for 01 STR_Vls agit 8aS.xpm
+2025-07-04 12:25:02,785 - INFO - Generated preview for 01 STR_Vl mut vb 1a.xpm
+2025-07-04 12:25:02,858 - INFO - Generated preview for 01 STR_Orch. p  2aS.xpm
+2025-07-04 12:25:02,895 - INFO - Generated preview for 01 STR_Vas mf   4aS.xpm
+2025-07-04 12:25:02,972 - INFO - Generated preview for 01 ORC_Unison f 1aS.xpm
+2025-07-04 12:25:03,016 - INFO - Generated preview for 01 STR_Cb Harm MM1a.xpm
+2025-07-04 12:25:03,067 - INFO - Generated preview for 01 STR_Vc Marc  1aS.xpm
+2025-07-04 12:25:03,102 - INFO - Generated preview for 01 HIT_Tutti Major.xpm
+2025-07-04 12:25:03,142 - INFO - Generated preview for 01 STR_Vl lgt.vb 3a.xpm
+2025-07-04 12:25:03,177 - INFO - Generated preview for 01 STR_Vcs Pizz 2aS.xpm
+2025-07-04 12:25:03,228 - INFO - Generated preview for 01 Chamber Marc.xpm
+2025-07-04 12:25:03,281 - INFO - Generated preview for 01 STR_Vls Sym  1aS.xpm
+2025-07-04 12:25:03,319 - INFO - Generated preview for 01 HIT_Orc Maj _  S.xpm
+2025-07-04 12:25:03,386 - INFO - Generated preview for 01 STR_Vas Pont 1aS.xpm
+2025-07-04 12:25:03,423 - INFO - Generated preview for 01 STR_Vl Tuning Up.xpm
+2025-07-04 12:25:03,494 - INFO - Generated preview for 01 Chamber Harm.xpm
+2025-07-04 12:25:03,538 - INFO - Generated preview for 01 STR_Vas  f   4aS.xpm
+2025-07-04 12:25:03,598 - INFO - Generated preview for 01 2voice Pad 1 2.xpm
+2025-07-04 12:25:03,648 - INFO - Generated preview for 01 Vln2 % marc.xpm
+2025-07-04 12:25:03,700 - INFO - Generated preview for 01 STR_Vcs Marc 1aS.xpm
+2025-07-04 12:25:03,734 - INFO - Generated preview for 01 STR_Marcato  1aS.xpm
+2025-07-04 12:25:03,777 - INFO - Generated preview for 01 ORC_Penta  _  1a.xpm
+2025-07-04 12:25:03,810 - INFO - Generated preview for 01 HIT_Orc dim _  S.xpm
+2025-07-04 12:25:03,861 - INFO - Generated preview for 01 Ominousness 1 2.xpm
+2025-07-04 12:25:03,900 - INFO - Generated preview for 01 Vls7 p%f  M.xpm
+2025-07-04 12:25:03,964 - INFO - Generated preview for 01 Vla2 % + dyn.xpm
+2025-07-04 12:25:04,016 - INFO - Generated preview for 01 STR_Vcs atak 2a.xpm
+2025-07-04 12:25:04,067 - INFO - Generated preview for 01 STR_Vcs Pizz 4a.xpm
+2025-07-04 12:25:04,109 - INFO - Generated preview for 01 STR_Pizzicato1aS.xpm
+2025-07-04 12:25:04,149 - INFO - Generated preview for 01 STR_Cbs Pont 1aS.xpm
+2025-07-04 12:25:04,184 - INFO - Generated preview for 01 STR_Vls Marc 4aS.xpm
+2025-07-04 12:25:04,231 - INFO - Generated preview for 01 Vla3 _  marc.xpm
+2025-07-04 12:25:04,284 - INFO - Generated preview for 01 STR_Vlsx6    4aS.xpm
+2025-07-04 12:25:04,327 - INFO - Generated preview for 01 STR_Vcs f vb^2aS.xpm
+2025-07-04 12:25:04,393 - INFO - Generated preview for 01 Cello Orch.xpm
+2025-07-04 12:25:04,431 - INFO - Generated preview for 01 STR_Vls  p  ^6aS.xpm
+2025-07-04 12:25:04,501 - INFO - Generated preview for 01 StringOrch 1 1.xpm
+2025-07-04 12:25:04,542 - INFO - Generated preview for 01 STR_Va Harm MM1a.xpm
+2025-07-04 12:25:04,611 - INFO - Generated preview for 01 STR_Vls Mute%1aS.xpm
+2025-07-04 12:25:04,667 - INFO - Generated preview for 01 STR_Vls Bryt^3aS.xpm
+2025-07-04 12:25:04,707 - INFO - Generated preview for 01 STR_Vcs Sym ^1aS.xpm
+2025-07-04 12:25:04,765 - INFO - Generated preview for 01 Vln1 % marc.xpm
+2025-07-04 12:25:04,801 - INFO - Generated preview for 01 HIT_Stac.Oct _ S.xpm
+2025-07-04 12:25:04,878 - INFO - Generated preview for 01 STR_Vcs p nv 6aS.xpm
+2025-07-04 12:25:04,930 - INFO - Generated preview for 01 STR_Vls Sym %1aS.xpm
+2025-07-04 12:25:04,982 - INFO - Generated preview for 01 STR_Vls Arc% 2aS.xpm
+2025-07-04 12:25:05,033 - INFO - Generated preview for 01 STR_Vls ORCp^7aS.xpm
+2025-07-04 12:25:05,086 - INFO - Generated preview for 01 STR_VcsTremf 1aS.xpm
+2025-07-04 12:25:05,133 - INFO - Generated preview for 01 STR_Vls Trem 1aS.xpm
+2025-07-04 12:25:05,182 - INFO - Generated preview for 01 Vln4 % marc.xpm
+2025-07-04 12:25:05,234 - INFO - Generated preview for 01 STR_Vas Marc 1aS.xpm
+2025-07-04 12:25:05,281 - INFO - Generated preview for 01 Vln3 % + dyn.xpm
+2025-07-04 12:25:05,327 - INFO - Generated preview for 01 STR_Vls fff %8aS.xpm
+2025-07-04 12:25:05,400 - INFO - Generated preview for 01 STR_Vcs Pont 1aS.xpm
+2025-07-04 12:25:05,449 - INFO - Generated preview for 01 STR_Vls ORCf 7aS.xpm
+2025-07-04 12:25:05,499 - INFO - Generated preview for 01 STR_Symph. ^ 1aS.xpm
+2025-07-04 12:25:05,550 - INFO - Generated preview for 01 STR_Vas warm 3aS.xpm
+2025-07-04 12:25:05,600 - INFO - Generated preview for 01 STR_Vls Marc 2aS.xpm
+2025-07-04 12:25:05,677 - INFO - Generated preview for 01 STR_Cb f vb MM2a.xpm
+2025-07-04 12:25:05,753 - INFO - Generated preview for 01 STR_Vas  p   4aS.xpm
+2025-07-04 12:25:05,800 - INFO - Generated preview for 01 Vla1 %  marc.xpm
+2025-07-04 12:25:05,841 - INFO - Generated preview for 01 STR_Cbs  f   1a.xpm
+2025-07-04 12:25:05,916 - INFO - Generated preview for 01 ORC_Min Gliss  S.xpm
+2025-07-04 12:25:05,966 - INFO - Generated preview for 01 STR_Vas agit 1aS.xpm
+2025-07-04 12:25:06,023 - INFO - Generated preview for 01 STR_Vas Marc 3aS.xpm
+2025-07-04 12:25:06,079 - INFO - Generated preview for 01 STR_Vcs f nv 6aS.xpm
+2025-07-04 12:25:06,116 - INFO - Generated preview for 01 STR_Vls Brt% 3aS.xpm
+2025-07-04 12:25:06,166 - INFO - Generated preview for 01 STR_Vls ORC_ 7aS.xpm
+2025-07-04 12:25:06,215 - INFO - Generated preview for 01 StringOrch 2.xpm
+2025-07-04 12:25:06,249 - INFO - Generated preview for 01 Brite Strngs.xpm
+2025-07-04 12:25:06,292 - INFO - Generated preview for 01 STR_Vls Pizz 1aS.xpm
+2025-07-04 12:25:06,328 - INFO - Generated preview for 01 STR_Vls RunsNS S.xpm
+2025-07-04 12:25:06,381 - INFO - Generated preview for 01 STR_Vc HarmMM1a.xpm
+2025-07-04 12:25:06,432 - INFO - Generated preview for 01 STR_Symphonic1aS.xpm
+2025-07-04 12:25:06,467 - INFO - Generated preview for 01 STR_Vls Pont%1aS.xpm
+2025-07-04 12:25:06,533 - INFO - Generated preview for 01 STR_Va mf vb  2a.xpm
+2025-07-04 12:25:06,584 - INFO - Generated preview for 01 Hi Strings 2.xpm
+2025-07-04 12:25:06,637 - INFO - Generated preview for 01 Hi Strings 3.xpm
+2025-07-04 12:25:06,670 - INFO - Generated preview for 01 Mellow Pad 1 2.xpm
+2025-07-04 12:25:06,708 - INFO - Generated preview for 01 Vla2 %  marc.xpm
+2025-07-04 12:25:06,743 - INFO - Generated preview for 01 STR_Vl  mf nv 4a.xpm
+2025-07-04 12:25:06,795 - INFO - Generated preview for 01 STR_Vcs f nv 5a.xpm
+2025-07-04 12:25:06,851 - INFO - Generated preview for 01 ORC_12-Tone _ S.xpm
+2025-07-04 12:25:06,900 - INFO - Generated preview for 01 STR_Vls ORCf^7aS.xpm
+2025-07-04 12:25:06,951 - INFO - Generated preview for 01 STR_VcsTremp 1aS.xpm
+2025-07-04 12:25:06,999 - INFO - Generated preview for 01 Low Marcato 1 2.xpm
+2025-07-04 12:25:07,049 - INFO - Generated preview for 01 STR_Vls mf % 6aS.xpm
+2025-07-04 12:25:07,084 - INFO - Generated preview for 01 STR_Vls  f % 6aS.xpm
+2025-07-04 12:25:07,130 - INFO - Generated preview for 01 ORC_Tremelo _ 1a.xpm
+2025-07-04 12:25:07,234 - INFO - Generated preview for 01 STR_Vc p nv  2aS.xpm
+2025-07-04 12:25:07,274 - INFO - Generated preview for 01 Hi Strings 1.xpm
+2025-07-04 12:25:07,314 - INFO - Generated preview for 01 STR_Va mf nvMM3a.xpm
+2025-07-04 12:25:07,365 - INFO - Generated preview for 01 Vln3 % marc.xpm
+2025-07-04 12:25:07,420 - INFO - Generated preview for 01 ORC_Maj Gliss  S.xpm
+2025-07-04 12:25:07,467 - INFO - Generated preview for 01 STR_Vls Marc 5aS.xpm
+2025-07-04 12:25:07,514 - INFO - Generated preview for 01 STR_Vc f vb  1a.xpm
+2025-07-04 12:25:07,554 - INFO - Generated preview for 01 STR_Vas Trem 1aS.xpm
+2025-07-04 12:25:07,628 - INFO - Generated preview for 01 Full Section.xpm
+2025-07-04 12:25:07,664 - INFO - Generated preview for 01 Lrg Ensemble.xpm
+2025-07-04 12:25:07,701 - INFO - Generated preview for 01 STR_Vls Marc 1aS.xpm
+2025-07-04 12:25:07,754 - INFO - Generated preview for 01 STR_Vas Bryt 2aS.xpm
+2025-07-04 12:25:07,806 - INFO - Generated preview for 01 STR_Vcs mfvb 3aS.xpm
+2025-07-04 12:25:07,850 - INFO - Generated preview for 01 Low Marcato 1.xpm
+2025-07-04 12:25:07,886 - INFO - Generated preview for 01 STR_Vcs mfnv 6aS.xpm
+2025-07-04 12:25:07,964 - INFO - Generated preview for 01 STR_Arp.Major p.xpm
+2025-07-04 12:25:08,015 - INFO - Generated preview for 01 STR_Vls  p   6aS.xpm
+2025-07-04 12:25:08,067 - INFO - Generated preview for 01 STR_Vas Marc 2aS.xpm
+2025-07-04 12:25:08,113 - INFO - Generated preview for 01 STR_Vcs f vb 2aS.xpm
+2025-07-04 12:25:08,165 - INFO - Generated preview for 01 STR_Vlsx6   ^4aS.xpm
+2025-07-04 12:25:08,199 - INFO - Generated preview for 01 Symph.+attak.xpm
+2025-07-04 12:25:08,278 - INFO - Generated preview for 01 STR_Vlsx8 %  5aS.xpm
+2025-07-04 12:25:08,315 - INFO - Generated preview for 01 STR_Vls Bryt 3aS.xpm
+2025-07-04 12:25:08,381 - INFO - Generated preview for 01 CMB_Rosin Pad 1.xpm
+2025-07-04 12:25:08,437 - INFO - Generated preview for 01 STR_Vcs Sym  1aS.xpm
+2025-07-04 12:25:08,483 - INFO - Generated preview for 01 Vls6 mf%f M.xpm
+2025-07-04 12:25:08,518 - INFO - Generated preview for 01 STR_Vcs mfnv 4aS.xpm
+2025-07-04 12:25:08,594 - INFO - Generated preview for 01 STR_Orch. f  2aS.xpm
+2025-07-04 12:25:08,647 - INFO - Generated preview for 01 Vls6 p%mf M.xpm
+2025-07-04 12:25:08,698 - INFO - Generated preview for 01 Vls6 p%mf St.xpm
+2025-07-04 12:25:08,751 - INFO - Generated preview for 01 STR_Vcs Mute 1aS.xpm
+2025-07-04 12:25:08,799 - INFO - Generated preview for 01 STR_Vls Marc 3aS.xpm
+2025-07-04 12:25:08,849 - INFO - Generated preview for 01 CMB_Bryt Str 3aS.xpm
+2025-07-04 12:25:08,900 - INFO - Generated preview for 01 STR_Vas Pizz 1aS.xpm
+2025-07-04 12:25:08,934 - INFO - Generated preview for 01 STR_Vls ORCp 7aS.xpm
+2025-07-04 12:25:08,975 - INFO - Generated preview for 01 Vln2 _ marc.xpm
+2025-07-04 12:25:09,016 - INFO - Generated preview for 01 Vla1 % + dyn.xpm
+2025-07-04 12:25:09,045 - INFO - Generated preview for SAX_Sop_mp 1c.xpm
+2025-07-04 12:25:09,053 - INFO - Generated preview for CMB_Bryt Violins.xpm
+2025-07-04 12:25:09,070 - INFO - Generated preview for STR_Cbs Trem 1aS.xpm
+2025-07-04 12:25:09,092 - INFO - Generated preview for HIT_Tutti dimin.xpm
+2025-07-04 12:25:09,143 - INFO - Generated preview for HIT_Orc min f  M.xpm
+2025-07-04 12:25:09,156 - INFO - Generated preview for STR_Vlsx8 %  5cM.xpm
+2025-07-04 12:25:09,170 - INFO - Generated preview for CMB_Bryt Str 3aS.xpm
+2025-07-04 12:25:09,189 - INFO - Generated preview for STR_Vls ORC_ 7aM.xpm
+2025-07-04 12:25:09,245 - INFO - Generated preview for STR_Symphoni c1bS.xpm
+2025-07-04 12:25:09,255 - INFO - Generated preview for BRS_FHrn p    4b.xpm
+2025-07-04 12:25:09,272 - INFO - Generated preview for STR_Cbs Trem 1dS.xpm
+2025-07-04 12:25:09,296 - INFO - Generated preview for ORC_Tremelo _ 1a.xpm
+2025-07-04 12:25:09,309 - INFO - Generated preview for STR_Symphoni c1bM.xpm
+2025-07-04 12:25:09,344 - INFO - Generated preview for BRS_Tps ShFl 1bS.xpm
+2025-07-04 12:25:09,363 - INFO - Generated preview for BRS_FHns mf  2bS.xpm
+2025-07-04 12:25:09,372 - INFO - Generated preview for SAX_Bari FX 8.xpm
+2025-07-04 12:25:09,385 - INFO - Generated preview for BRS_Tps ShFl 1cS.xpm
+2025-07-04 12:25:09,403 - INFO - Generated preview for BRS_Tps ShFl 1aM.xpm
+2025-07-04 12:25:09,421 - INFO - Generated preview for SAX_Sop_mf 1d.xpm
+2025-07-04 12:25:09,438 - INFO - Generated preview for BRS_Tps LnFl 1aS.xpm
+2025-07-04 12:25:09,455 - INFO - Generated preview for BRS_Ensemble  OE.xpm
+2025-07-04 12:25:09,507 - INFO - Generated preview for BRS_Tps LnFl 1bM.xpm
+2025-07-04 12:25:09,518 - INFO - Generated preview for BRS_Tps Fall 2a.xpm
+2025-07-04 12:25:09,540 - INFO - Generated preview for BRS_Fat Sect 1bS.xpm
+2025-07-04 12:25:09,555 - INFO - Generated preview for BRS_Tps Doit 1aM.xpm
+2025-07-04 12:25:09,571 - INFO - Generated preview for BRS_Tps Shak 1aS.xpm
+2025-07-04 12:25:09,611 - INFO - Generated preview for BRS_Tps Shak 1bS.xpm
+2025-07-04 12:25:09,625 - INFO - Generated preview for BRS_Tps f_Doit M.xpm
+2025-07-04 12:25:09,657 - INFO - Generated preview for BRS_FHrn _    4c.xpm
+2025-07-04 12:25:09,672 - INFO - Generated preview for BRS_Tps f_Shak M.xpm
+2025-07-04 12:25:09,686 - INFO - Generated preview for BRS_Tps Ln_Sh  S.xpm
+2025-07-04 12:25:09,703 - INFO - Generated preview for BRS_Tps Ln_Sh  M.xpm
+2025-07-04 12:25:09,720 - INFO - Generated preview for BRS_Flugel  _ 1b.xpm
+2025-07-04 12:25:09,737 - INFO - Generated preview for BRS_FHrn MtSwl1a.xpm
+2025-07-04 12:25:09,755 - INFO - Generated preview for BRS_FHrn Amb  3b.xpm
+2025-07-04 12:25:09,771 - INFO - Generated preview for BRS_5pcStc_f 1cS.xpm
+2025-07-04 12:25:09,787 - INFO - Generated preview for BRS_Euphonium 1a.xpm
+2025-07-04 12:25:09,802 - INFO - Generated preview for BRS_Barihrn _ 1c.xpm
+2025-07-04 12:25:09,821 - INFO - Generated preview for BRS_FHrn mf   4b.xpm
+2025-07-04 12:25:09,873 - INFO - Generated preview for SAX_T_Breathy 1b.xpm
+2025-07-04 12:25:09,884 - INFO - Generated preview for SAX_Tenor ff 1d.xpm
+2025-07-04 12:25:09,905 - INFO - Generated preview for SAX_Bari Sax 1b.xpm
+2025-07-04 12:25:09,919 - INFO - Generated preview for SAX_Bari FX 1.xpm
+2025-07-04 12:25:09,937 - INFO - Generated preview for SAX_Alto stab 1a.xpm
+2025-07-04 12:25:09,955 - INFO - Generated preview for SAX_Tenor  _4 1c.xpm
+2025-07-04 12:25:09,972 - INFO - Generated preview for SAX_Tenor  _2 1a.xpm
+2025-07-04 12:25:09,988 - INFO - Generated preview for BRS_Flugels f 1c.xpm
+2025-07-04 12:25:10,024 - INFO - Generated preview for BRS_Barihrn f 1a.xpm
+2025-07-04 12:25:10,038 - INFO - Generated preview for BRS_FHrn Amb  3a.xpm
+2025-07-04 12:25:10,055 - INFO - Generated preview for BRS_5pcStc__ 1aS.xpm
+2025-07-04 12:25:10,070 - INFO - Generated preview for BRS_5pcStc__ 1cM.xpm
+2025-07-04 12:25:10,122 - INFO - Generated preview for BRS_5pcStc_p 1aM.xpm
+2025-07-04 12:25:10,137 - INFO - Generated preview for BRS_5pcStc_f 1bS.xpm
+2025-07-04 12:25:10,178 - INFO - Generated preview for BRS_5pcStc_f 1aM.xpm
+2025-07-04 12:25:10,191 - INFO - Generated preview for BRS_FHns Swl 1c.xpm
+2025-07-04 12:25:10,225 - INFO - Generated preview for BRS_5pcStc_f 1bM.xpm
+2025-07-04 12:25:10,243 - INFO - Generated preview for BRS_5pc sfz  1bS.xpm
+2025-07-04 12:25:10,278 - INFO - Generated preview for BRS_Tbns ff  3b.xpm
+2025-07-04 12:25:10,291 - INFO - Generated preview for BRS_5pc sfz  1cS.xpm
+2025-07-04 12:25:10,327 - INFO - Generated preview for BRS_5pc sfz  1cM.xpm
+2025-07-04 12:25:10,341 - INFO - Generated preview for BRS_Tbns swel 1c.xpm
+2025-07-04 12:25:10,380 - INFO - Generated preview for BRS_Ens_FX menu.xpm
+2025-07-04 12:25:10,390 - INFO - Generated preview for BRS_Lo Cluster.xpm
+2025-07-04 12:25:10,406 - INFO - Generated preview for BRS_Tps Xfde 1dS.xpm
+2025-07-04 12:25:10,429 - INFO - Generated preview for WND_Mute+Flut 1c.xpm
+2025-07-04 12:26:17,698 - INFO - Selected folder: /Volumes/MPC SSD/Expansions/S-50 Factory
+2025-07-04 12:26:20,657 - INFO - Generated preview for S50_Esraj 1.xpm
+2025-07-04 12:26:20,689 - INFO - Generated preview for S50_Doira_Dumblk.xpm
+2025-07-04 12:26:20,741 - INFO - Generated preview for S50_FM   Marimba.xpm
+2025-07-04 12:26:20,781 - INFO - Generated preview for S50_Oboe 1 1.xpm
+2025-07-04 12:26:20,814 - INFO - Generated preview for S50_Glckn 1 uni.xpm
+2025-07-04 12:26:20,849 - INFO - Generated preview for S50_Stereo Hit 1.xpm
+2025-07-04 12:26:20,903 - INFO - Generated preview for S50_Mini MoogBS5.xpm
+2025-07-04 12:26:20,939 - INFO - Generated preview for S50_Flute wc 1.xpm
+2025-07-04 12:26:21,004 - INFO - Generated preview for S50_P1 _ Rub.xpm
+2025-07-04 12:26:21,039 - INFO - Generated preview for S50_E.Organ 7.xpm
+2025-07-04 12:26:21,069 - INFO - Generated preview for S50_Gated-DR.xpm
+2025-07-04 12:26:21,105 - INFO - Generated preview for S50_Wa-Teki 1 pf 1.xpm
+2025-07-04 12:26:21,176 - INFO - Generated preview for S50_Tenor Saxy 2.xpm
+2025-07-04 12:26:21,220 - INFO - Generated preview for S50_Celesta 1 1.xpm
+2025-07-04 12:26:21,272 - INFO - Generated preview for S50_Block Head.xpm
+2025-07-04 12:26:21,306 - INFO - Generated preview for S50_Acousti-DR.xpm
+2025-07-04 12:26:21,374 - INFO - Generated preview for S50_Flanged Gong.xpm
+2025-07-04 12:26:21,422 - INFO - Generated preview for S50_Koto(Mando).xpm
+2025-07-04 12:26:21,457 - INFO - Generated preview for S50_Positv uni.xpm
+2025-07-04 12:26:21,487 - INFO - Generated preview for S50_Low Oz_oooze.xpm
+2025-07-04 12:26:21,536 - INFO - Generated preview for S50_VP Strings 1.xpm
+2025-07-04 12:26:21,587 - INFO - Generated preview for S50_Tabla-Baya 2.xpm
+2025-07-04 12:26:21,640 - INFO - Generated preview for S50_E.Piano1 mf 1.xpm
+2025-07-04 12:26:21,690 - INFO - Generated preview for S50_Tinpani roll.xpm
+2025-07-04 12:26:21,731 - INFO - Generated preview for S50_DX E.Guitar1.xpm
+2025-07-04 12:26:21,765 - INFO - Generated preview for S50_Concert BD 2.xpm
+2025-07-04 12:26:21,801 - INFO - Generated preview for S50_SNARES 6.xpm
+2025-07-04 12:26:21,853 - INFO - Generated preview for S50_Bell Ride 2.xpm
+2025-07-04 12:26:21,905 - INFO - Generated preview for S50_Strings Piz1.xpm
+2025-07-04 12:26:21,979 - INFO - Generated preview for S50_Castanets 2 1.xpm
+2025-07-04 12:26:22,019 - INFO - Generated preview for S50_Glasses 1.xpm
+2025-07-04 12:26:22,057 - INFO - Generated preview for S50_Cello bend +.xpm
+2025-07-04 12:26:22,107 - INFO - Generated preview for S50_Wonderland3M.xpm
+2025-07-04 12:26:22,157 - INFO - Generated preview for S50_Doira 1.xpm
+2025-07-04 12:26:22,208 - INFO - Generated preview for S50_Harpsi 8'II 1.xpm
+2025-07-04 12:26:22,249 - INFO - Generated preview for S50_Super Mix 1 1.xpm
+2025-07-04 12:26:22,324 - INFO - Generated preview for S50_Church uni 1.xpm
+2025-07-04 12:26:22,368 - INFO - Generated preview for S50_VP Choir 1.xpm
+2025-07-04 12:26:22,420 - INFO - Generated preview for S50_Strings L_R.xpm
+2025-07-04 12:26:22,472 - INFO - Generated preview for S50_Rob Bass 1.xpm
+2025-07-04 12:26:22,523 - INFO - Generated preview for S50_Cello1_Vln.1.xpm
+2025-07-04 12:26:22,573 - INFO - Generated preview for S50_Space Bubbls.xpm
+2025-07-04 12:26:22,623 - INFO - Generated preview for S50_Clarinet 1.xpm
+2025-07-04 12:26:22,656 - INFO - Generated preview for S50_Church +wind.xpm
+2025-07-04 12:26:22,688 - INFO - Generated preview for S50_Grand Cmblm1.xpm
+2025-07-04 12:26:22,735 - INFO - Generated preview for S50_Harpsichord2.xpm
+2025-07-04 12:26:22,786 - INFO - Generated preview for S50_Slit Dr uni.xpm
+2025-07-04 12:26:22,822 - INFO - Generated preview for S50_Mondira 1.xpm
+2025-07-04 12:26:22,894 - INFO - Generated preview for S50_Slap Bass 1 1.xpm
+2025-07-04 12:26:22,951 - INFO - Generated preview for S50_SNARES 7.xpm
+2025-07-04 12:26:22,990 - INFO - Generated preview for S50_Bowed_Bass.xpm
+2025-07-04 12:26:23,038 - INFO - Generated preview for S50_Tenor Sect.1.xpm
+2025-07-04 12:26:23,074 - INFO - Generated preview for S50_Glocken 2 1.xpm
+2025-07-04 12:26:23,116 - INFO - Generated preview for S50_Midi Bells 1.xpm
+2025-07-04 12:26:23,150 - INFO - Generated preview for S50_Flute s+f.xpm
+2025-07-04 12:26:23,203 - INFO - Generated preview for S50_A.Sax p+f 2.xpm
+2025-07-04 12:26:23,256 - INFO - Generated preview for S50_Toy Xylo.xpm
+2025-07-04 12:26:23,307 - INFO - Generated preview for S50_Folk Guitar1.xpm
+2025-07-04 12:26:23,356 - INFO - Generated preview for S50_E.Organ 6.xpm
+2025-07-04 12:26:23,406 - INFO - Generated preview for S50_EQ Kit 12A.xpm
+2025-07-04 12:26:23,441 - INFO - Generated preview for S50_Mini MoogBS4.xpm
+2025-07-04 12:26:23,490 - INFO - Generated preview for S50_EQ Kit 9A.xpm
+2025-07-04 12:26:23,566 - INFO - Generated preview for S50_Dholak 2.xpm
+2025-07-04 12:26:23,619 - INFO - Generated preview for S50_Fretles Bass 1.xpm
+2025-07-04 12:26:23,656 - INFO - Generated preview for S50_Reed Dual.xpm
+2025-07-04 12:26:23,688 - INFO - Generated preview for S50_Futozao uni.xpm
+2025-07-04 12:26:23,740 - INFO - Generated preview for S50_Elec. Pno 1.xpm
+2025-07-04 12:26:23,790 - INFO - Generated preview for S50_Perc.FX. 2.xpm
+2025-07-04 12:26:23,823 - INFO - Generated preview for S50_Flute s+f 1.xpm
+2025-07-04 12:26:23,855 - INFO - Generated preview for S50_Recorder Flo.xpm
+2025-07-04 12:26:23,891 - INFO - Generated preview for S50_Elec. Pno 3.xpm
+2025-07-04 12:26:23,951 - INFO - Generated preview for S50_Esraj 2.xpm
+2025-07-04 12:26:23,987 - INFO - Generated preview for S50_Shinobue Dua.xpm
+2025-07-04 12:26:24,060 - INFO - Generated preview for S50_T.Sax 1_Blow 1.xpm
+2025-07-04 12:26:24,107 - INFO - Generated preview for S50_SequencerBS5.xpm
+2025-07-04 12:26:24,155 - INFO - Generated preview for S50_Stereo Hit 2.xpm
+2025-07-04 12:26:24,193 - INFO - Generated preview for S50_Mini MoogBS6.xpm
+2025-07-04 12:26:24,233 - INFO - Generated preview for S50_E.Organ 4.xpm
+2025-07-04 12:26:24,266 - INFO - Generated preview for S50_Folk Guitar3.xpm
+2025-07-04 12:26:24,302 - INFO - Generated preview for S50_Viola.xpm
+2025-07-04 12:26:24,339 - INFO - Generated preview for S50_Tenor Saxy 1.xpm
+2025-07-04 12:26:24,374 - INFO - Generated preview for S50_BIG UNISON.xpm
+2025-07-04 12:26:24,407 - INFO - Generated preview for S50_JP-8 Strgs 1.xpm
+2025-07-04 12:26:24,441 - INFO - Generated preview for S50_Cuban.xpm
+2025-07-04 12:26:24,491 - INFO - Generated preview for S50_Tabla-Baya 1.xpm
+2025-07-04 12:26:24,546 - INFO - Generated preview for S50_Choir.xpm
+2025-07-04 12:26:24,591 - INFO - Generated preview for S50_Wavetar.xpm
+2025-07-04 12:26:24,643 - INFO - Generated preview for S50_JP-8 Brass 1 1.xpm
+2025-07-04 12:26:24,695 - INFO - Generated preview for S50_Theater Flng.xpm
+2025-07-04 12:26:24,733 - INFO - Generated preview for S50_E.Piano Uni 1.xpm
+2025-07-04 12:26:24,769 - INFO - Generated preview for S50_DX E.Guitar2.xpm
+2025-07-04 12:26:24,848 - INFO - Generated preview for S50_Concert BD 1.xpm
+2025-07-04 12:26:24,882 - INFO - Generated preview for S50_SNARES 5.xpm
+2025-07-04 12:26:24,953 - INFO - Generated preview for S50_Church Organ.xpm
+2025-07-04 12:26:25,007 - INFO - Generated preview for S50_Hosozao 1 pf.xpm
+2025-07-04 12:26:25,055 - INFO - Generated preview for S50_Positv+Chrch.xpm
+2025-07-04 12:26:25,091 - INFO - Generated preview for S50_Mellow Piano.xpm
+2025-07-04 12:26:25,175 - INFO - Generated preview for S50_PositivOrgan.xpm
+2025-07-04 12:26:25,222 - INFO - Generated preview for S50_Cello Solo.xpm
+2025-07-04 12:26:25,272 - INFO - Generated preview for S50_Flute s uni 1.xpm
+2025-07-04 12:26:25,322 - INFO - Generated preview for S50_G _ C 2 1.xpm
+2025-07-04 12:26:25,372 - INFO - Generated preview for S50_Combination 1.xpm
+2025-07-04 12:26:25,407 - INFO - Generated preview for S50_A.Sax p+f 2 1.xpm
+2025-07-04 12:26:25,448 - INFO - Generated preview for S50_Shinobue Nor.xpm
+2025-07-04 12:26:25,484 - INFO - Generated preview for S50_Fl soft V-sw 1.xpm
+2025-07-04 12:26:25,519 - INFO - Generated preview for S50_Oboe 1.xpm
+2025-07-04 12:26:25,557 - INFO - Generated preview for S50_Fast Flute.xpm
+2025-07-04 12:26:25,599 - INFO - Generated preview for S50_Grand Santr1.xpm
+2025-07-04 12:26:25,637 - INFO - Generated preview for S50_Soft sw Full 1.xpm
+2025-07-04 12:26:25,695 - INFO - Generated preview for S50_Piano-Koto.xpm
+2025-07-04 12:26:25,728 - INFO - Generated preview for S50_Ocarina 1.xpm
+2025-07-04 12:26:25,766 - INFO - Generated preview for S50_Brass.xpm
+2025-07-04 12:26:25,801 - INFO - Generated preview for S50_Stick 1unisn.xpm
+2025-07-04 12:26:25,837 - INFO - Generated preview for S50_Harpsichord1.xpm
+2025-07-04 12:26:25,874 - INFO - Generated preview for S50_Bras Section.xpm
+2025-07-04 12:26:25,916 - INFO - Generated preview for S50_Flute 2 Sect.xpm
+2025-07-04 12:26:25,955 - INFO - Generated preview for S50_Shohko.xpm
+2025-07-04 12:26:26,006 - INFO - Generated preview for S50_SNARES 4.xpm
+2025-07-04 12:26:26,056 - INFO - Generated preview for S50_Medley 2 1.xpm
+2025-07-04 12:26:26,106 - INFO - Generated preview for S50_Pulling _ P1 1.xpm
+2025-07-04 12:26:26,140 - INFO - Generated preview for S50_Flute f uni 1.xpm
+2025-07-04 12:26:26,176 - INFO - Generated preview for S50_FM   Mrmba 2.xpm
+2025-07-04 12:26:26,211 - INFO - Generated preview for S50_Combi.4-DR.xpm
+2025-07-04 12:26:26,269 - INFO - Generated preview for S50_Soft Jap Flt.xpm
+2025-07-04 12:26:26,322 - INFO - Generated preview for S50_Piccolo uni 1.xpm
+2025-07-04 12:26:26,370 - INFO - Generated preview for S50_Tenor Sect.2.xpm
+2025-07-04 12:26:26,444 - INFO - Generated preview for S50_Mellow Harp.xpm
+2025-07-04 12:26:26,481 - INFO - Generated preview for S50_E.Piano_Bs 1 1.xpm
+2025-07-04 12:26:26,522 - INFO - Generated preview for S50_Folk Guitar2.xpm
+2025-07-04 12:26:26,573 - INFO - Generated preview for S50_Acoustic GTR.xpm
+2025-07-04 12:26:26,623 - INFO - Generated preview for S50_E.Organ 5.xpm
+2025-07-04 12:26:26,658 - INFO - Generated preview for S50_SoloHorn  MS.xpm
+2025-07-04 12:26:26,699 - INFO - Generated preview for S50_EQ Kit 5A.xpm
+2025-07-04 12:26:26,741 - INFO - Generated preview for S50_A.Sax p+f 1.xpm
+2025-07-04 12:26:26,786 - INFO - Generated preview for S50_SequencerBS4.xpm
+2025-07-04 12:26:26,840 - INFO - Generated preview for S50_Mini MoogBS7.xpm
+2025-07-04 12:26:26,890 - INFO - Generated preview for S50_Stereo Hit 3.xpm
+2025-07-04 12:26:26,942 - INFO - Generated preview for S50_Air Base.xpm
+2025-07-04 12:26:26,990 - INFO - Generated preview for S50_Trombone 1 1.xpm
+2025-07-04 12:26:27,052 - INFO - Generated preview for S50_Slow sw Full.xpm
+2025-07-04 12:26:27,089 - INFO - Generated preview for S50_Rok Lead 4.xpm
+2025-07-04 12:26:27,121 - INFO - Generated preview for S50_Dholak 1.xpm
+2025-07-04 12:26:27,172 - INFO - Generated preview for S50_Celesta 3 1.xpm
+2025-07-04 12:26:27,207 - INFO - Generated preview for S50_Elec. Pno 2.xpm
+2025-07-04 12:26:27,249 - INFO - Generated preview for S50_Perc.FX. 1.xpm
+2025-07-04 12:26:27,292 - INFO - Generated preview for S50_Bells 1 FM.xpm
+2025-07-04 12:26:27,338 - INFO - Generated preview for S50_Mellow Piano 3.xpm
+2025-07-04 12:26:27,389 - INFO - Generated preview for S50_Bonang 1.xpm
+2025-07-04 12:26:27,440 - INFO - Generated preview for S50_Mingti 1.xpm
+2025-07-04 12:26:27,489 - INFO - Generated preview for S50_Combo Vox 1.xpm
+2025-07-04 12:26:27,540 - INFO - Generated preview for S50_808 Perc. #2.xpm
+2025-07-04 12:26:27,575 - INFO - Generated preview for S50_Bass Combo 1.xpm
+2025-07-04 12:26:27,614 - INFO - Generated preview for S50_EQ Kit 4A.xpm
+2025-07-04 12:26:27,653 - INFO - Generated preview for S50_Cello 2.xpm
+2025-07-04 12:26:27,706 - INFO - Generated preview for S50_E.Organ 1.xpm
+2025-07-04 12:26:27,756 - INFO - Generated preview for S50_Mini MoogBS3.xpm
+2025-07-04 12:26:27,806 - INFO - Generated preview for S50_Trompet uni 1.xpm
+2025-07-04 12:26:27,861 - INFO - Generated preview for S50_Sports 1.xpm
+2025-07-04 12:26:27,906 - INFO - Generated preview for S50_Vibe soft.xpm
+2025-07-04 12:26:27,942 - INFO - Generated preview for S50_5ths & Mutes.xpm
+2025-07-04 12:26:27,983 - INFO - Generated preview for S50_Conbination 1.xpm
+2025-07-04 12:26:28,016 - INFO - Generated preview for S50_Barafon 2.xpm
+2025-07-04 12:26:28,069 - INFO - Generated preview for S50_Bandolim 3.xpm
+2025-07-04 12:26:28,122 - INFO - Generated preview for S50_Harp 2.xpm
+2025-07-04 12:26:28,171 - INFO - Generated preview for S50_Strings Mono.xpm
+2025-07-04 12:26:28,208 - INFO - Generated preview for S50_Rumble_Flang.xpm
+2025-07-04 12:26:28,284 - INFO - Generated preview for S50_Soft Strings.xpm
+2025-07-04 12:26:28,337 - INFO - Generated preview for S50_Glckn_Clst.xpm
+2025-07-04 12:26:28,390 - INFO - Generated preview for S50_Rainy Day.xpm
+2025-07-04 12:26:28,442 - INFO - Generated preview for S50_Trio.xpm
+2025-07-04 12:26:28,489 - INFO - Generated preview for S50_Fret_Thumb 1.xpm
+2025-07-04 12:26:28,540 - INFO - Generated preview for S50_Strings Tre1.xpm
+2025-07-04 12:26:28,589 - INFO - Generated preview for S50_Goblets.xpm
+2025-07-04 12:26:28,641 - INFO - Generated preview for S50_Dragon Cymb.xpm
+2025-07-04 12:26:28,705 - INFO - Generated preview for S50_Biwa 1 uni.xpm
+2025-07-04 12:26:28,755 - INFO - Generated preview for S50_Solo Trumpet 1.xpm
+2025-07-04 12:26:28,805 - INFO - Generated preview for S50_Pulling _ P5 1.xpm
+2025-07-04 12:26:28,840 - INFO - Generated preview for S50_Latin Perc 2.xpm
+2025-07-04 12:26:28,883 - INFO - Generated preview for S50_HiHat.xpm
+2025-07-04 12:26:28,915 - INFO - Generated preview for S50_Classic Gt.1.xpm
+2025-07-04 12:26:28,951 - INFO - Generated preview for S50_Cello V-mix.xpm
+2025-07-04 12:26:28,994 - INFO - Generated preview for S50_BIG DIGITAL.xpm
+2025-07-04 12:26:29,040 - INFO - Generated preview for S50_Fue Organ.xpm
+2025-07-04 12:26:29,074 - INFO - Generated preview for S50_Bassoon 1.xpm
+2025-07-04 12:26:29,118 - INFO - Generated preview for S50_Flucorder.xpm
+2025-07-04 12:26:29,157 - INFO - Generated preview for S50_Shanai 1.xpm
+2025-07-04 12:26:29,197 - INFO - Generated preview for S50_Wa-Teki 1 pf.xpm
+2025-07-04 12:26:29,235 - INFO - Generated preview for S50_Vibraphone 2.xpm
+2025-07-04 12:26:29,273 - INFO - Generated preview for S50_Stereo Set1B.xpm
+2025-07-04 12:26:29,306 - INFO - Generated preview for S50_E.Guitar 1_3.xpm
+2025-07-04 12:26:29,357 - INFO - Generated preview for S50_E Grnd  Dtun 1.xpm
+2025-07-04 12:26:29,405 - INFO - Generated preview for S50_SoundEffect2 1.xpm
+2025-07-04 12:26:29,443 - INFO - Generated preview for S50_TRUMPET.xpm
+2025-07-04 12:26:29,481 - INFO - Generated preview for S50_Biwa 1.xpm
+2025-07-04 12:26:29,525 - INFO - Generated preview for S50_Conbination 1 2.xpm
+2025-07-04 12:26:29,570 - INFO - Generated preview for S50_Guitar&Hits.xpm
+2025-07-04 12:26:29,622 - INFO - Generated preview for S50_Noh Perc 1.xpm
+2025-07-04 12:26:29,672 - INFO - Generated preview for S50_SNARES 1.xpm
+2025-07-04 12:26:29,705 - INFO - Generated preview for S50_Bandolim 2.xpm
+2025-07-04 12:26:29,772 - INFO - Generated preview for S50_Elec. Grnd.xpm
+2025-07-04 12:26:29,808 - INFO - Generated preview for S50_Tuntina.xpm
+2025-07-04 12:26:29,885 - INFO - Generated preview for S50_Hammer Orch!.xpm
+2025-07-04 12:26:29,938 - INFO - Generated preview for S50_Thai Gong 1.xpm
+2025-07-04 12:26:29,973 - INFO - Generated preview for S50_Marimba+Bell.xpm
+2025-07-04 12:26:30,007 - INFO - Generated preview for S50_Elec. Pno8vb.xpm
+2025-07-04 12:26:30,090 - INFO - Generated preview for S50_Mini MoogBS2.xpm
+2025-07-04 12:26:30,144 - INFO - Generated preview for S50_SequencerBS1.xpm
+2025-07-04 12:26:30,190 - INFO - Generated preview for S50_Arab Orch.xpm
+2025-07-04 12:26:30,239 - INFO - Generated preview for S50_Bright Harp.xpm
+2025-07-04 12:26:30,305 - INFO - Generated preview for S50_Techno Drums.xpm
+2025-07-04 12:26:30,355 - INFO - Generated preview for S50_Trompet dual.xpm
+2025-07-04 12:26:30,406 - INFO - Generated preview for S50_808 Perc. #3.xpm
+2025-07-04 12:26:30,441 - INFO - Generated preview for S50_JP-8 Strgs 1 1.xpm
+2025-07-04 12:26:30,484 - INFO - Generated preview for S50_Shinobue Vib.xpm
+2025-07-04 12:26:30,515 - INFO - Generated preview for S50_Khole 2.xpm
+2025-07-04 12:26:30,552 - INFO - Generated preview for S50_Mellow Piano 2.xpm
+2025-07-04 12:26:30,621 - INFO - Generated preview for S50_Rok Lead 1.xpm
+2025-07-04 12:26:30,673 - INFO - Generated preview for S50_V-Switch Syn.xpm
+2025-07-04 12:26:30,715 - INFO - Generated preview for S50_EQ Kit 8A.xpm
+2025-07-04 12:26:30,786 - INFO - Generated preview for S50_Bonang 2.xpm
+2025-07-04 12:26:30,837 - INFO - Generated preview for S50_Rok Lead 3.xpm
+2025-07-04 12:26:30,873 - INFO - Generated preview for S50_Corkorgan.xpm
+2025-07-04 12:26:30,939 - INFO - Generated preview for S50_E.Organ 2.xpm
+2025-07-04 12:26:30,988 - INFO - Generated preview for S50_Cello 1.xpm
+2025-07-04 12:26:31,039 - INFO - Generated preview for S50_SequencerBS3.xpm
+2025-07-04 12:26:31,075 - INFO - Generated preview for S50_EQ Kit 13A.xpm
+2025-07-04 12:26:31,115 - INFO - Generated preview for S50_Voices 1.xpm
+2025-07-04 12:26:31,150 - INFO - Generated preview for S50_E.P.1 mp uni 1.xpm
+2025-07-04 12:26:31,187 - INFO - Generated preview for S50_5's Agogo 1.xpm
+2025-07-04 12:26:31,251 - INFO - Generated preview for S50_China&G Flng.xpm
+2025-07-04 12:26:31,293 - INFO - Generated preview for S50_Stab Fall 1.xpm
+2025-07-04 12:26:31,325 - INFO - Generated preview for S50_Cymbl_Gong 2 1.xpm
+2025-07-04 12:26:31,373 - INFO - Generated preview for S50_Church +wind 1.xpm
+2025-07-04 12:26:31,416 - INFO - Generated preview for S50_Timbale Town.xpm
+2025-07-04 12:26:31,452 - INFO - Generated preview for S50_Barafon 1.xpm
+2025-07-04 12:26:31,493 - INFO - Generated preview for S50_Flute wc.xpm
+2025-07-04 12:26:31,532 - INFO - Generated preview for S50_SNARES 3.xpm
+2025-07-04 12:26:31,584 - INFO - Generated preview for S50_SoloTrumptMS.xpm
+2025-07-04 12:26:31,639 - INFO - Generated preview for S50_Harp 1.xpm
+2025-07-04 12:26:31,673 - INFO - Generated preview for S50_Infinite.xpm
+2025-07-04 12:26:31,738 - INFO - Generated preview for S50_Shinobue V_T.xpm
+2025-07-04 12:26:31,776 - INFO - Generated preview for S50_Fantasia.xpm
+2025-07-04 12:26:31,822 - INFO - Generated preview for S50_Fretless 5.xpm
+2025-07-04 12:26:31,862 - INFO - Generated preview for S50_CR-78 Perc.xpm
+2025-07-04 12:26:31,898 - INFO - Generated preview for S50_Sho _Komabue.xpm
+2025-07-04 12:26:31,935 - INFO - Generated preview for S50_A.Sax wc 2 1.xpm
+2025-07-04 12:26:32,005 - INFO - Generated preview for S50_Wah Velo.Sw.xpm
+2025-07-04 12:26:32,056 - INFO - Generated preview for S50_Clav_E.Piano.xpm
+2025-07-04 12:26:32,105 - INFO - Generated preview for S50_Shanai 3.xpm
+2025-07-04 12:26:32,141 - INFO - Generated preview for S50_OB Strings.xpm
+2025-07-04 12:26:32,183 - INFO - Generated preview for S50_Timp & Snare 1.xpm
+2025-07-04 12:26:32,217 - INFO - Generated preview for S50_Low Crash.xpm
+2025-07-04 12:26:32,268 - INFO - Generated preview for S50_Slow sw soft 1.xpm
+2025-07-04 12:26:32,306 - INFO - Generated preview for S50_W.Bass_Glkn.xpm
+2025-07-04 12:26:32,375 - INFO - Generated preview for S50_Shanai 2.xpm
+2025-07-04 12:26:32,422 - INFO - Generated preview for S50_Steel Drums.xpm
+2025-07-04 12:26:32,473 - INFO - Generated preview for S50_Brass Sec. 1 1.xpm
+2025-07-04 12:26:32,508 - INFO - Generated preview for S50_Stereo Set1A.xpm
+2025-07-04 12:26:32,550 - INFO - Generated preview for S50_Vibraphone 1.xpm
+2025-07-04 12:26:32,582 - INFO - Generated preview for S50_Warm E.Pno.xpm
+2025-07-04 12:26:32,619 - INFO - Generated preview for S50_Fretless 4.xpm
+2025-07-04 12:26:32,686 - INFO - Generated preview for S50_Harmo Synth.xpm
+2025-07-04 12:26:32,738 - INFO - Generated preview for S50_Bandolim 1.xpm
+2025-07-04 12:26:32,789 - INFO - Generated preview for S50_Flute Chord.xpm
+2025-07-04 12:26:32,825 - INFO - Generated preview for S50_SNARES 2.xpm
+2025-07-04 12:26:32,866 - INFO - Generated preview for S50_Shaku V_A.xpm
+2025-07-04 12:26:32,906 - INFO - Generated preview for S50_Slow Strings 1.xpm
+2025-07-04 12:26:32,953 - INFO - Generated preview for S50_Jet Stng2 ST.xpm
+2025-07-04 12:26:33,004 - INFO - Generated preview for S50_E.P.1 mf uni.xpm
+2025-07-04 12:26:33,055 - INFO - Generated preview for S50_Steel Drum 1.xpm
+2025-07-04 12:26:33,106 - INFO - Generated preview for S50_Jete'Strings.xpm
+2025-07-04 12:26:33,155 - INFO - Generated preview for S50_Soprano Oz.xpm
+2025-07-04 12:26:33,206 - INFO - Generated preview for S50_Trombone 2_3.xpm
+2025-07-04 12:26:33,240 - INFO - Generated preview for S50_V-Switch #1.xpm
+2025-07-04 12:26:33,282 - INFO - Generated preview for S50_T.Bell 1 pf.xpm
+2025-07-04 12:26:33,316 - INFO - Generated preview for S50_Koto(Guitar).xpm
+2025-07-04 12:26:33,353 - INFO - Generated preview for S50_A.Sax pp uni 1.xpm
+2025-07-04 12:26:33,390 - INFO - Generated preview for S50_SequencerBS2.xpm
+2025-07-04 12:26:33,503 - INFO - Generated preview for S50_Mini MoogBS1.xpm
+2025-07-04 12:26:33,571 - INFO - Generated preview for S50_Shaku Vib.xpm
+2025-07-04 12:26:33,622 - INFO - Generated preview for S50_E.Organ 3.xpm
+2025-07-04 12:26:33,672 - INFO - Generated preview for S50_Forte  Piano 1.xpm
+2025-07-04 12:26:33,706 - INFO - Generated preview for S50_Elec. Pno 4.xpm
+2025-07-04 12:26:33,749 - INFO - Generated preview for S50_Dumbelek 1.xpm
+2025-07-04 12:26:33,782 - INFO - Generated preview for S50_Rok Lead 2.xpm
+2025-07-04 12:26:33,820 - INFO - Generated preview for S50_Velo Rezo FX.xpm
+2025-07-04 12:26:33,857 - INFO - Generated preview for S50_Khole 1.xpm
+2025-07-04 12:26:33,934 - INFO - Generated preview for S50_Mellow Piano 1.xpm
+2025-07-04 12:26:33,990 - INFO - Generated preview for S50_Bowed Roads.xpm
+2025-07-04 12:26:34,038 - INFO - Generated preview for S50_Orchestra 7.xpm
+2025-07-04 12:26:34,082 - INFO - Generated preview for S50_Medley 1 2.xpm
+2025-07-04 12:26:34,147 - INFO - Generated preview for S50_Explosarize.xpm
+2025-07-04 12:26:34,185 - INFO - Generated preview for S50_Slap Bass 2 1.xpm
+2025-07-04 12:26:34,220 - INFO - Generated preview for S50_Combine #2.xpm
+2025-07-04 12:26:34,255 - INFO - Generated preview for S50_High Strings.xpm
+2025-07-04 12:26:34,305 - INFO - Generated preview for S50_V-SW Accent.xpm
+2025-07-04 12:26:34,356 - INFO - Generated preview for S50_Bell Rev  ST.xpm
+2025-07-04 12:26:34,390 - INFO - Generated preview for S50_Church+Choir.xpm
+2025-07-04 12:26:34,433 - INFO - Generated preview for S50_Trumpet 3_4.xpm
+2025-07-04 12:26:34,464 - INFO - Generated preview for S50_E.Piano 8162.xpm
+2025-07-04 12:26:34,518 - INFO - Generated preview for S50_Rock'n Roll2.xpm
+2025-07-04 12:26:34,570 - INFO - Generated preview for S50_Church+Choir 1.xpm
+2025-07-04 12:26:34,630 - INFO - Generated preview for S50_G&L Bass 5.xpm
+2025-07-04 12:26:34,672 - INFO - Generated preview for S50_Eerie 1.xpm
+2025-07-04 12:26:34,722 - INFO - Generated preview for S50_Koto (Piano).xpm
+2025-07-04 12:26:34,773 - INFO - Generated preview for S50_Pluck Piano1.xpm
+2025-07-04 12:26:34,821 - INFO - Generated preview for S50_E.Guitar 2.xpm
+2025-07-04 12:26:34,858 - INFO - Generated preview for S50_Trumpet 4.xpm
+2025-07-04 12:26:34,899 - INFO - Generated preview for S50_Chunk Organ2.xpm
+2025-07-04 12:26:34,931 - INFO - Generated preview for S50_BIG SET!.xpm
+2025-07-04 12:26:34,971 - INFO - Generated preview for S50_THX 1 ST.xpm
+2025-07-04 12:26:35,037 - INFO - Generated preview for S50_Glocken 1 1.xpm
+2025-07-04 12:26:35,089 - INFO - Generated preview for S50_HeeBeeGeeBez.xpm
+2025-07-04 12:26:35,138 - INFO - Generated preview for S50_Futozao 1.xpm
+2025-07-04 12:26:35,181 - INFO - Generated preview for S50_Fretless Uni.xpm
+2025-07-04 12:26:35,228 - INFO - Generated preview for S50_Combi.2-DR.xpm
+2025-07-04 12:26:35,267 - INFO - Generated preview for S50_LowerGrand 3.xpm
+2025-07-04 12:26:35,300 - INFO - Generated preview for S50_Shimedaiko.xpm
+2025-07-04 12:26:35,354 - INFO - Generated preview for S50_Ir Whistle 1.xpm
+2025-07-04 12:26:35,405 - INFO - Generated preview for S50_A.Sax ff.xpm
+2025-07-04 12:26:35,454 - INFO - Generated preview for S50_Stick 1.xpm
+2025-07-04 12:26:35,489 - INFO - Generated preview for S50_Harpsi 8'II.xpm
+2025-07-04 12:26:35,532 - INFO - Generated preview for S50_Effects 2.xpm
+2025-07-04 12:26:35,566 - INFO - Generated preview for S50_Tuntina 1.xpm
+2025-07-04 12:26:35,602 - INFO - Generated preview for S50_Celesta 2 1.xpm
+2025-07-04 12:26:35,641 - INFO - Generated preview for S50_Windaphone 1.xpm
+2025-07-04 12:26:35,680 - INFO - Generated preview for S50_All StopsOut.xpm
+2025-07-04 12:26:35,726 - INFO - Generated preview for S50_Koto 2 p_f.xpm
+2025-07-04 12:26:35,772 - INFO - Generated preview for S50_Pulling _ P5.xpm
+2025-07-04 12:26:35,822 - INFO - Generated preview for S50_Trumpet 5.xpm
+2025-07-04 12:26:35,858 - INFO - Generated preview for S50_E.Guitar 3.xpm
+2025-07-04 12:26:35,898 - INFO - Generated preview for S50_Soft Dumbek.xpm
+2025-07-04 12:26:35,933 - INFO - Generated preview for S50_C.Bass.xpm
+2025-07-04 12:26:35,986 - INFO - Generated preview for S50_KA BONG!!.xpm
+2025-07-04 12:26:36,038 - INFO - Generated preview for S50_OB Brass.xpm
+2025-07-04 12:26:36,088 - INFO - Generated preview for S50_Chuk_Cord Sw.xpm
+2025-07-04 12:26:36,138 - INFO - Generated preview for S50_Dry Congas 1.xpm
+2025-07-04 12:26:36,189 - INFO - Generated preview for S50_Triangle.xpm
+2025-07-04 12:26:36,238 - INFO - Generated preview for S50_G&L Bass 4.xpm
+2025-07-04 12:26:36,282 - INFO - Generated preview for S50_Orgiano 1.xpm
+2025-07-04 12:26:36,319 - INFO - Generated preview for S50_Synth 1.xpm
+2025-07-04 12:26:36,401 - INFO - Generated preview for S50_Koto.xpm
+2025-07-04 12:26:36,439 - INFO - Generated preview for S50_Med Pitchago.xpm
+2025-07-04 12:26:36,473 - INFO - Generated preview for S50_Marching Snr.xpm
+2025-07-04 12:26:36,523 - INFO - Generated preview for S50_Celeste.xpm
+2025-07-04 12:26:36,572 - INFO - Generated preview for S50_C.Bass 1.xpm
+2025-07-04 12:26:36,623 - INFO - Generated preview for S50_Cymbl_Gong 1.xpm
+2025-07-04 12:26:36,672 - INFO - Generated preview for S50_Bright Piano.xpm
+2025-07-04 12:26:36,707 - INFO - Generated preview for S50_Steel Dr uni.xpm
+2025-07-04 12:26:36,748 - INFO - Generated preview for S50_EQ Kit 3A.xpm
+2025-07-04 12:26:36,782 - INFO - Generated preview for S50_Slow Sitar 1.xpm
+2025-07-04 12:26:36,841 - INFO - Generated preview for S50_Combine #3.xpm
+2025-07-04 12:26:36,887 - INFO - Generated preview for S50_Flute 1.xpm
+2025-07-04 12:26:36,938 - INFO - Generated preview for S50_Castanets 1 1.xpm
+2025-07-04 12:26:36,988 - INFO - Generated preview for S50_Cello uni.xpm
+2025-07-04 12:26:37,039 - INFO - Generated preview for S50_OB Sync.xpm
+2025-07-04 12:26:37,074 - INFO - Generated preview for S50_Medley 1 3.xpm
+2025-07-04 12:26:37,115 - INFO - Generated preview for S50_Glass Xylo.xpm
+2025-07-04 12:26:37,148 - INFO - Generated preview for S50_Orchestra 6.xpm
+2025-07-04 12:26:37,184 - INFO - Generated preview for S50_Medley 1 1.xpm
+2025-07-04 12:26:37,253 - INFO - Generated preview for S50_E.Piano2 Lpf.xpm
+2025-07-04 12:26:37,305 - INFO - Generated preview for S50_E.Piano uni.xpm
+2025-07-04 12:26:37,356 - INFO - Generated preview for S50_Orchestra 4.xpm
+2025-07-04 12:26:37,398 - INFO - Generated preview for S50_Orugohru_Kin.xpm
+2025-07-04 12:26:37,466 - INFO - Generated preview for S50_Fg.B1_Sl.B1 1.xpm
+2025-07-04 12:26:37,504 - INFO - Generated preview for S50_LoGrnd2noTVF.xpm
+2025-07-04 12:26:37,570 - INFO - Generated preview for S50_Combine #1.xpm
+2025-07-04 12:26:37,605 - INFO - Generated preview for S50_Church uni.xpm
+2025-07-04 12:26:37,671 - INFO - Generated preview for S50_Latin 2 uni.xpm
+2025-07-04 12:26:37,721 - INFO - Generated preview for S50_Castanets 3 1.xpm
+2025-07-04 12:26:37,757 - INFO - Generated preview for S50_Req 1.xpm
+2025-07-04 12:26:37,799 - INFO - Generated preview for S50_Breathin'Low.xpm
+2025-07-04 12:26:37,830 - INFO - Generated preview for S50_Jar N Log.xpm
+2025-07-04 12:26:37,866 - INFO - Generated preview for S50_A.Sax pp uni.xpm
+2025-07-04 12:26:37,938 - INFO - Generated preview for S50_Biwa _ Koto.xpm
+2025-07-04 12:26:37,993 - INFO - Generated preview for S50_Orgiano 3.xpm
+2025-07-04 12:26:38,037 - INFO - Generated preview for S50_G&L Bass 6.xpm
+2025-07-04 12:26:38,073 - INFO - Generated preview for S50_Eerie 2.xpm
+2025-07-04 12:26:38,116 - INFO - Generated preview for S50_Synth 3.xpm
+2025-07-04 12:26:38,146 - INFO - Generated preview for S50_E.Piano 8161.xpm
+2025-07-04 12:26:38,200 - INFO - Generated preview for S50_Rock'n Roll1.xpm
+2025-07-04 12:26:38,255 - INFO - Generated preview for S50_Vox 1.xpm
+2025-07-04 12:26:38,305 - INFO - Generated preview for S50_Shakuhachi.xpm
+2025-07-04 12:26:38,354 - INFO - Generated preview for S50_Pluck Piano2.xpm
+2025-07-04 12:26:38,405 - INFO - Generated preview for S50_Synth Bass.xpm
+2025-07-04 12:26:38,439 - INFO - Generated preview for S50_E.Guitar 1.xpm
+2025-07-04 12:26:38,482 - INFO - Generated preview for S50_Clavi 1.xpm
+2025-07-04 12:26:38,522 - INFO - Generated preview for S50_Church Choir.xpm
+2025-07-04 12:26:38,567 - INFO - Generated preview for S50_Chunk Organ1.xpm
+2025-07-04 12:26:38,618 - INFO - Generated preview for S50_MIDI    #1.xpm
+2025-07-04 12:26:38,671 - INFO - Generated preview for S50_Glocken 1 2.xpm
+2025-07-04 12:26:38,721 - INFO - Generated preview for S50_E.Piano_Bs 2 1.xpm
+2025-07-04 12:26:38,772 - INFO - Generated preview for S50_Sanko.xpm
+2025-07-04 12:26:38,821 - INFO - Generated preview for S50_Positv_Chrch.xpm
+2025-07-04 12:26:38,872 - INFO - Generated preview for S50_Hajiki V-sw.xpm
+2025-07-04 12:26:38,906 - INFO - Generated preview for S50_Hosozao 1.xpm
+2025-07-04 12:26:38,947 - INFO - Generated preview for S50_PIPE ORGAN.xpm
+2025-07-04 12:26:38,981 - INFO - Generated preview for S50_Glckn 2 uni.xpm
+2025-07-04 12:26:39,036 - INFO - Generated preview for S50_LowerGrand 1.xpm
+2025-07-04 12:26:39,092 - INFO - Generated preview for S50_Ir Whistle 2.xpm
+2025-07-04 12:26:39,138 - INFO - Generated preview for S50_Pret.Metal 1.xpm
+2025-07-04 12:26:39,188 - INFO - Generated preview for S50_Taiko 1.xpm
+2025-07-04 12:26:39,238 - INFO - Generated preview for S50_KlinkNklank.xpm
+2025-07-04 12:26:39,290 - INFO - Generated preview for S50_Bass n'Organ.xpm
+2025-07-04 12:26:39,327 - INFO - Generated preview for S50_Bright Piano 1.xpm
+2025-07-04 12:26:39,365 - INFO - Generated preview for S50_Effects 1.xpm
+2025-07-04 12:26:39,398 - INFO - Generated preview for S50_STRINGS.xpm
+2025-07-04 12:26:39,434 - INFO - Generated preview for S50_Syn_Pop Bass.xpm
+2025-07-04 12:26:39,471 - INFO - Generated preview for S50_Trumpet 6.xpm
+2025-07-04 12:26:39,505 - INFO - Generated preview for S50_Pluck Piano3.xpm
+2025-07-04 12:26:39,555 - INFO - Generated preview for S50_Synth 2.xpm
+2025-07-04 12:26:39,610 - INFO - Generated preview for S50_BEACH ORGAN.xpm
+2025-07-04 12:26:39,654 - INFO - Generated preview for S50_A.Sax p+f 1 1.xpm
+2025-07-04 12:26:39,688 - INFO - Generated preview for S50_Orgiano 2.xpm
+2025-07-04 12:26:39,763 - INFO - Generated preview for S50_E.Piano2 Lpf 1.xpm
+2025-07-04 12:26:39,800 - INFO - Generated preview for S50_Noh Perc 1sw.xpm
+2025-07-04 12:26:39,837 - INFO - Generated preview for S50_Cymbl_Gong 2.xpm
+2025-07-04 12:26:39,872 - INFO - Generated preview for S50_Zap!!.xpm
+2025-07-04 12:26:39,922 - INFO - Generated preview for S50_Trumpet 1_4.xpm
+2025-07-04 12:26:39,972 - INFO - Generated preview for S50_Jete dual.xpm
+2025-07-04 12:26:40,006 - INFO - Generated preview for S50_Glckn_Clst 1.xpm
+2025-07-04 12:26:40,047 - INFO - Generated preview for S50_EQ Kit 14A.xpm
+2025-07-04 12:26:40,081 - INFO - Generated preview for S50_Ac Piano Lpf.xpm
+2025-07-04 12:26:40,140 - INFO - Generated preview for S50_Orchestra 5.xpm
+2025-07-04 12:26:40,187 - INFO - Generated preview for S50_Zgal V-sw.xpm
+2025-07-04 12:26:40,237 - INFO - Generated preview for S50_Elec. PnoDtn.xpm
+2025-07-04 12:26:40,289 - INFO - Generated preview for S50_Cymbalom.xpm
+2025-07-04 12:26:40,338 - INFO - Generated preview for S50_T.Sax 1_Blow.xpm
+2025-07-04 12:26:40,372 - INFO - Generated preview for S50_OB Polysynth.xpm
+2025-07-04 12:26:40,443 - INFO - Generated preview for S50_OB Polysyn 1.xpm
+2025-07-04 12:26:40,501 - INFO - Generated preview for S50_Medley 1 4.xpm
+2025-07-04 12:26:40,554 - INFO - Generated preview for S50_Monster_Drum.xpm
+2025-07-04 12:26:40,606 - INFO - Generated preview for S50_Orchestra 1.xpm
+2025-07-04 12:26:40,637 - INFO - Generated preview for S50_Flute 1 Solo.xpm
+2025-07-04 12:26:40,705 - INFO - Generated preview for S50_Eth drum#1.xpm
+2025-07-04 12:26:40,760 - INFO - Generated preview for S50_Medley 1.xpm
+2025-07-04 12:26:40,806 - INFO - Generated preview for S50_SoundEffect1 1.xpm
+2025-07-04 12:26:40,839 - INFO - Generated preview for S50_E.Piano1 mf.xpm
+2025-07-04 12:26:40,918 - INFO - Generated preview for S50_EQ Kit 15A.xpm
+2025-07-04 12:26:40,954 - INFO - Generated preview for S50_LowVoc_Oz.xpm
+2025-07-04 12:26:41,019 - INFO - Generated preview for S50_G&L Bass 3.xpm
+2025-07-04 12:26:41,070 - INFO - Generated preview for S50_Slow Flute.xpm
+2025-07-04 12:26:41,109 - INFO - Generated preview for S50_Cello Duo.xpm
+2025-07-04 12:26:41,181 - INFO - Generated preview for S50_Synth 2 squ.xpm
+2025-07-04 12:26:41,216 - INFO - Generated preview for S50_Ac Piano Hpf.xpm
+2025-07-04 12:26:41,287 - INFO - Generated preview for S50_Picked Bass2.xpm
+2025-07-04 12:26:41,339 - INFO - Generated preview for S50_Tablah 1.xpm
+2025-07-04 12:26:41,396 - INFO - Generated preview for S50_Bell Ride.xpm
+2025-07-04 12:26:41,451 - INFO - Generated preview for S50_Hajiki.xpm
+2025-07-04 12:26:41,489 - INFO - Generated preview for S50_Trumpet 2.xpm
+2025-07-04 12:26:41,539 - INFO - Generated preview for S50_Syn.Sax wc 1.xpm
+2025-07-04 12:26:41,589 - INFO - Generated preview for S50_Hichi Vln.xpm
+2025-07-04 12:26:41,639 - INFO - Generated preview for S50_Whisker Bass.xpm
+2025-07-04 12:26:41,681 - INFO - Generated preview for S50_Brite Solo 2.xpm
+2025-07-04 12:26:41,719 - INFO - Generated preview for S50_Fantasia 1.xpm
+2025-07-04 12:26:41,799 - INFO - Generated preview for S50_Brass+Sax.xpm
+2025-07-04 12:26:41,838 - INFO - Generated preview for S50_Jet Stng4 ST.xpm
+2025-07-04 12:26:41,872 - INFO - Generated preview for S50_Sicu 1.xpm
+2025-07-04 12:26:41,921 - INFO - Generated preview for S50_Glckn 2 uni 1.xpm
+2025-07-04 12:26:41,972 - INFO - Generated preview for S50_Elec. Grnd8A.xpm
+2025-07-04 12:26:42,008 - INFO - Generated preview for S50_Crumhorn 1.xpm
+2025-07-04 12:26:42,045 - INFO - Generated preview for S50_Pungi 1.xpm
+2025-07-04 12:26:42,094 - INFO - Generated preview for S50_Brite Solo 3.xpm
+2025-07-04 12:26:42,148 - INFO - Generated preview for S50_Shaku Ornam.xpm
+2025-07-04 12:26:42,183 - INFO - Generated preview for S50_Strings 3 1.xpm
+2025-07-04 12:26:42,250 - INFO - Generated preview for S50_Japan Perc 2.xpm
+2025-07-04 12:26:42,302 - INFO - Generated preview for S50_SuperBass 2.xpm
+2025-07-04 12:26:42,355 - INFO - Generated preview for S50_Trumpet 3.xpm
+2025-07-04 12:26:42,405 - INFO - Generated preview for S50_Syn-clavi-A 1.xpm
+2025-07-04 12:26:42,439 - INFO - Generated preview for S50_Elec. Grnd 1.xpm
+2025-07-04 12:26:42,480 - INFO - Generated preview for S50_Biwa_Ryuteki.xpm
+2025-07-04 12:26:42,517 - INFO - Generated preview for S50_FM MRBells!.xpm
+2025-07-04 12:26:42,573 - INFO - Generated preview for S50_A.Sax pp 1.xpm
+2025-07-04 12:26:42,619 - INFO - Generated preview for S50_Zgal.xpm
+2025-07-04 12:26:42,670 - INFO - Generated preview for S50_E.Piano2 Hpf.xpm
+2025-07-04 12:26:42,705 - INFO - Generated preview for S50_Quena 1.xpm
+2025-07-04 12:26:42,771 - INFO - Generated preview for S50_2nd Violin.xpm
+2025-07-04 12:26:42,805 - INFO - Generated preview for S50_Fingered B.1.xpm
+2025-07-04 12:26:42,848 - INFO - Generated preview for S50_Scrynth 1.xpm
+2025-07-04 12:26:42,879 - INFO - Generated preview for S50_Upright Bass.xpm
+2025-07-04 12:26:42,933 - INFO - Generated preview for S50_Pc soft V-sw.xpm
+2025-07-04 12:26:42,971 - INFO - Generated preview for S50_G&L Bass 2.xpm
+2025-07-04 12:26:43,003 - INFO - Generated preview for S50_Infini Flang.xpm
+2025-07-04 12:26:43,052 - INFO - Generated preview for S50_Pc hard V-sw 1.xpm
+2025-07-04 12:26:43,125 - INFO - Generated preview for S50_Ryuteki.xpm
+2025-07-04 12:26:43,168 - INFO - Generated preview for S50_Triangle 1.xpm
+2025-07-04 12:26:43,219 - INFO - Generated preview for S50_A.Sax wc 1.xpm
+2025-07-04 12:26:43,253 - INFO - Generated preview for S50_Synth E.Bs 2.xpm
+2025-07-04 12:26:43,286 - INFO - Generated preview for S50_Koto 1.xpm
+2025-07-04 12:26:43,339 - INFO - Generated preview for S50_E.P.1 mp uni.xpm
+2025-07-04 12:26:43,371 - INFO - Generated preview for S50_E.Piano1 mp.xpm
+2025-07-04 12:26:43,405 - INFO - Generated preview for S50_Slow +  soft.xpm
+2025-07-04 12:26:43,441 - INFO - Generated preview for S50_Cello wc.xpm
+2025-07-04 12:26:43,503 - INFO - Generated preview for S50_Bdrum.xpm
+2025-07-04 12:26:43,540 - INFO - Generated preview for S50_BowedYnchin1.xpm
+2025-07-04 12:26:43,603 - INFO - Generated preview for S50_THX 3 ST.xpm
+2025-07-04 12:26:43,658 - INFO - Generated preview for S50_Orchestra 2.xpm
+2025-07-04 12:26:43,705 - INFO - Generated preview for S50_Steel Drum.xpm
+2025-07-04 12:26:43,754 - INFO - Generated preview for S50_EQ Kit 2A.xpm
+2025-07-04 12:26:43,812 - INFO - Generated preview for S50_E.Piano2 1.xpm
+2025-07-04 12:26:43,854 - INFO - Generated preview for S50_Medley 2.xpm
+2025-07-04 12:26:43,904 - INFO - Generated preview for S50_Syn-clavi-A.xpm
+2025-07-04 12:26:43,938 - INFO - Generated preview for S50_Drums.xpm
+2025-07-04 12:26:43,974 - INFO - Generated preview for S50_Timpani pf 1.xpm
+2025-07-04 12:26:44,026 - INFO - Generated preview for S50_Long Ride.xpm
+2025-07-04 12:26:44,063 - INFO - Generated preview for S50_Shaku N_A.xpm
+2025-07-04 12:26:44,102 - INFO - Generated preview for S50_Guitar Swtch.xpm
+2025-07-04 12:26:44,179 - INFO - Generated preview for S50_Vibe hard 1.xpm
+2025-07-04 12:26:44,222 - INFO - Generated preview for S50_Bowls&Bells1.xpm
+2025-07-04 12:26:44,259 - INFO - Generated preview for S50_Shaku N_V.xpm
+2025-07-04 12:26:44,300 - INFO - Generated preview for S50_PassingCraft.xpm
+2025-07-04 12:26:44,334 - INFO - Generated preview for S50_Drums_Per RR.xpm
+2025-07-04 12:26:44,372 - INFO - Generated preview for S50_Ac Piano Hpf 1.xpm
+2025-07-04 12:26:44,437 - INFO - Generated preview for S50_Fl soft V-sw.xpm
+2025-07-04 12:26:44,488 - INFO - Generated preview for S50_Picked Bass1.xpm
+2025-07-04 12:26:44,537 - INFO - Generated preview for S50_F.Guitar 3_2.xpm
+2025-07-04 12:26:44,587 - INFO - Generated preview for S50_Quena 3.xpm
+2025-07-04 12:26:44,638 - INFO - Generated preview for S50_E Grnd  Dtun.xpm
+2025-07-04 12:26:44,676 - INFO - Generated preview for S50_OB Hornz.xpm
+2025-07-04 12:26:44,751 - INFO - Generated preview for S50_Descend.xpm
+2025-07-04 12:26:44,808 - INFO - Generated preview for S50_Trumpet 1.xpm
+2025-07-04 12:26:44,854 - INFO - Generated preview for S50_Ride  ST  1.xpm
+2025-07-04 12:26:44,904 - INFO - Generated preview for S50_Pulling _ P1.xpm
+2025-07-04 12:26:44,955 - INFO - Generated preview for S50_Mdln & Piano.xpm
+2025-07-04 12:26:45,004 - INFO - Generated preview for S50_Piccolo 1.xpm
+2025-07-04 12:26:45,054 - INFO - Generated preview for S50_Brite Solo 1.xpm
+2025-07-04 12:26:45,090 - INFO - Generated preview for S50_Piccolo.xpm
+2025-07-04 12:26:45,131 - INFO - Generated preview for S50_Sicu 2.xpm
+2025-07-04 12:26:45,166 - INFO - Generated preview for S50_Cymbl_Gong 1 1.xpm
+2025-07-04 12:26:45,203 - INFO - Generated preview for S50_JP-8 Brass 1.xpm
+2025-07-04 12:26:45,238 - INFO - Generated preview for S50_Round Wound1.xpm
+2025-07-04 12:26:45,287 - INFO - Generated preview for S50_Elec. Grnd8B.xpm
+2025-07-04 12:26:45,343 - INFO - Generated preview for S50_Crumhorn 2.xpm
+2025-07-04 12:26:45,389 - INFO - Generated preview for S50_E.Piano 1 vm.xpm
+2025-07-04 12:26:45,438 - INFO - Generated preview for S50_Elec. Pno.xpm
+2025-07-04 12:26:45,471 - INFO - Generated preview for S50_Pungi 2.xpm
+2025-07-04 12:26:45,507 - INFO - Generated preview for S50_SynStrings 2.xpm
+2025-07-04 12:26:45,538 - INFO - Generated preview for S50_N.Percussion.xpm
+2025-07-04 12:26:45,573 - INFO - Generated preview for S50_Japan Perc 1.xpm
+2025-07-04 12:26:45,625 - INFO - Generated preview for S50_China Ping.xpm
+2025-07-04 12:26:45,667 - INFO - Generated preview for S50_SuperBass 1.xpm
+2025-07-04 12:26:45,733 - INFO - Generated preview for S50_Little Ping.xpm
+2025-07-04 12:26:45,769 - INFO - Generated preview for S50_Quena 2.xpm
+2025-07-04 12:26:45,803 - INFO - Generated preview for S50_E.Piano 1 mp.xpm
+2025-07-04 12:26:45,859 - INFO - Generated preview for S50_Slow sw soft.xpm
+2025-07-04 12:26:45,903 - INFO - Generated preview for S50_Fingered B.2.xpm
+2025-07-04 12:26:45,955 - INFO - Generated preview for S50_Slit Drum 1.xpm
+2025-07-04 12:26:45,993 - INFO - Generated preview for S50_KICKS 8.xpm
+2025-07-04 12:26:46,064 - INFO - Generated preview for S50_G&L Bass 1.xpm
+2025-07-04 12:26:46,101 - INFO - Generated preview for S50_Barafo+Sanza.xpm
+2025-07-04 12:26:46,139 - INFO - Generated preview for S50_Synth 4.xpm
+2025-07-04 12:26:46,181 - INFO - Generated preview for S50_Trem Violins.xpm
+2025-07-04 12:26:46,216 - INFO - Generated preview for S50_A.Sax wc 1 1.xpm
+2025-07-04 12:26:46,254 - INFO - Generated preview for S50_Dragon Flang.xpm
+2025-07-04 12:26:46,287 - INFO - Generated preview for S50_Steel Dr.Uni.xpm
+2025-07-04 12:26:46,338 - INFO - Generated preview for S50_12StringWave.xpm
+2025-07-04 12:26:46,381 - INFO - Generated preview for S50_Koto 2.xpm
+2025-07-04 12:26:46,419 - INFO - Generated preview for S50_Synth E.Bs 1.xpm
+2025-07-04 12:26:46,460 - INFO - Generated preview for S50_A.Sax wc 2.xpm
+2025-07-04 12:26:46,499 - INFO - Generated preview for S50_Low! 1.xpm
+2025-07-04 12:26:46,537 - INFO - Generated preview for S50_French Hornz.xpm
+2025-07-04 12:26:46,572 - INFO - Generated preview for S50_Vibe hard.xpm
+2025-07-04 12:26:46,609 - INFO - Generated preview for S50_Trompet wc 1.xpm
+2025-07-04 12:26:46,659 - INFO - Generated preview for S50_Orchestra 3.xpm
+2025-07-04 12:26:46,697 - INFO - Generated preview for S50_Heavy Esraj1.xpm
+2025-07-04 12:26:46,735 - INFO - Generated preview for S50_Honky-tonk 1.xpm
+2025-07-04 12:26:46,776 - INFO - Generated preview for S50_Analog Pad 1.xpm
+2025-07-04 12:26:46,814 - INFO - Generated preview for S50_Marimba 2.xpm
+2025-07-04 12:26:46,874 - INFO - Generated preview for S50_Saron 1.xpm
+2025-07-04 12:26:46,920 - INFO - Generated preview for S50_Fretless B.2 1.xpm
+2025-07-04 12:26:46,970 - INFO - Generated preview for S50_Saz 1.xpm
+2025-07-04 12:26:47,021 - INFO - Generated preview for S50_AltoSax Solo.xpm
+2025-07-04 12:26:47,071 - INFO - Generated preview for S50_Nohkan Vib.xpm
+2025-07-04 12:26:47,122 - INFO - Generated preview for S50_Honky Tonk 2.xpm
+2025-07-04 12:26:47,170 - INFO - Generated preview for S50_EQ Kit 1A.xpm
+2025-07-04 12:26:47,207 - INFO - Generated preview for S50_Slap Bass 5.xpm
+2025-07-04 12:26:47,284 - INFO - Generated preview for S50_Soprano Sax1 1.xpm
+2025-07-04 12:26:47,337 - INFO - Generated preview for S50_Wave 1.xpm
+2025-07-04 12:26:47,387 - INFO - Generated preview for S50_Recorder 1.xpm
+2025-07-04 12:26:47,465 - INFO - Generated preview for S50_MiniMoogBS15.xpm
+2025-07-04 12:26:47,543 - INFO - Generated preview for S50_KICKS 5.xpm
+2025-07-04 12:26:47,590 - INFO - Generated preview for S50_Rok Drums 1.xpm
+2025-07-04 12:26:47,650 - INFO - Generated preview for S50_Fretless B.1.xpm
+2025-07-04 12:26:47,687 - INFO - Generated preview for S50_Mystery.xpm
+2025-07-04 12:26:47,721 - INFO - Generated preview for S50_Bendir 1.xpm
+2025-07-04 12:26:47,770 - INFO - Generated preview for S50_Trombone 1.xpm
+2025-07-04 12:26:47,805 - INFO - Generated preview for S50_E.Bass 2.xpm
+2025-07-04 12:26:47,848 - INFO - Generated preview for S50_Timpani f 1.xpm
+2025-07-04 12:26:47,879 - INFO - Generated preview for S50_Big Bones!.xpm
+2025-07-04 12:26:47,916 - INFO - Generated preview for S50_Biwa.xpm
+2025-07-04 12:26:47,954 - INFO - Generated preview for S50_Sanza 4.xpm
+2025-07-04 12:26:47,988 - INFO - Generated preview for S50_FlangeBowls1.xpm
+2025-07-04 12:26:48,037 - INFO - Generated preview for S50_Stab Brass 1.xpm
+2025-07-04 12:26:48,094 - INFO - Generated preview for S50_Bari.Sax 1.xpm
+2025-07-04 12:26:48,137 - INFO - Generated preview for S50_Combination 1 2.xpm
+2025-07-04 12:26:48,179 - INFO - Generated preview for S50_Combi.5-DR.xpm
+2025-07-04 12:26:48,216 - INFO - Generated preview for S50_Picked Bass1 1.xpm
+2025-07-04 12:26:48,259 - INFO - Generated preview for S50_Flutenet.xpm
+2025-07-04 12:26:48,297 - INFO - Generated preview for S50_B.Marimba 1.xpm
+2025-07-04 12:26:48,350 - INFO - Generated preview for S50_SuperBass 1 1.xpm
+2025-07-04 12:26:48,386 - INFO - Generated preview for S50_E.Piano 1 mp 1.xpm
+2025-07-04 12:26:48,453 - INFO - Generated preview for S50_Chuzao uni.xpm
+2025-07-04 12:26:48,486 - INFO - Generated preview for S50_Splash ST 2.xpm
+2025-07-04 12:26:48,518 - INFO - Generated preview for S50_Wonderland 1.xpm
+2025-07-04 12:26:48,572 - INFO - Generated preview for S50_Vocal Pad.xpm
+2025-07-04 12:26:48,625 - INFO - Generated preview for S50_SoundEffect2.xpm
+2025-07-04 12:26:48,671 - INFO - Generated preview for S50_Vaporize.xpm
+2025-07-04 12:26:48,707 - INFO - Generated preview for S50_Poly Synth.xpm
+2025-07-04 12:26:48,748 - INFO - Generated preview for S50_KICKS 4.xpm
+2025-07-04 12:26:48,779 - INFO - Generated preview for S50_Chorus 5ths.xpm
+2025-07-04 12:26:48,815 - INFO - Generated preview for S50_Rock Lead1.xpm
+2025-07-04 12:26:48,854 - INFO - Generated preview for S50_BIG MIX.xpm
+2025-07-04 12:26:48,887 - INFO - Generated preview for S50_J.Wind Bell1.xpm
+2025-07-04 12:26:48,936 - INFO - Generated preview for S50_8161_Bass 1.xpm
+2025-07-04 12:26:48,976 - INFO - Generated preview for S50_Tune Up.xpm
+2025-07-04 12:26:49,012 - INFO - Generated preview for S50_Fingered B.1 1.xpm
+2025-07-04 12:26:49,048 - INFO - Generated preview for S50_MiniMoogBS14.xpm
+2025-07-04 12:26:49,093 - INFO - Generated preview for S50_ST.WindTree1.xpm
+2025-07-04 12:26:49,127 - INFO - Generated preview for S50_Orch. Perc 1.xpm
+2025-07-04 12:26:49,175 - INFO - Generated preview for S50_Slap Bass 4.xpm
+2025-07-04 12:26:49,212 - INFO - Generated preview for S50_V-Mix Bass 1.xpm
+2025-07-04 12:26:49,251 - INFO - Generated preview for S50_Hoso.xpm
+2025-07-04 12:26:49,331 - INFO - Generated preview for S50_Comedy Props.xpm
+2025-07-04 12:26:49,368 - INFO - Generated preview for S50_Positv+Choir.xpm
+2025-07-04 12:26:49,432 - INFO - Generated preview for S50_A.Sax V-sw 2.xpm
+2025-07-04 12:26:49,485 - INFO - Generated preview for S50_Trio 1.xpm
+2025-07-04 12:26:49,537 - INFO - Generated preview for S50_Alto Sax.xpm
+2025-07-04 12:26:49,589 - INFO - Generated preview for S50_Drivin'round.xpm
+2025-07-04 12:26:49,638 - INFO - Generated preview for S50_Saron 2.xpm
+2025-07-04 12:26:49,691 - INFO - Generated preview for S50_Marimba 1.xpm
+2025-07-04 12:26:49,752 - INFO - Generated preview for S50_Honky-tonk 2.xpm
+2025-07-04 12:26:49,803 - INFO - Generated preview for S50_Saz 2.xpm
+2025-07-04 12:26:49,854 - INFO - Generated preview for S50_Timba Tumba.xpm
+2025-07-04 12:26:49,893 - INFO - Generated preview for S50_Jet Stng1 ST.xpm
+2025-07-04 12:26:49,962 - INFO - Generated preview for S50_Ac Piano.xpm
+2025-07-04 12:26:49,999 - INFO - Generated preview for S50_Soft Strings 1.xpm
+2025-07-04 12:26:50,069 - INFO - Generated preview for S50_Guit_Har. Sw.xpm
+2025-07-04 12:26:50,103 - INFO - Generated preview for S50_Honky tonk 1.xpm
+2025-07-04 12:26:50,139 - INFO - Generated preview for S50_Soft +  Full 1.xpm
+2025-07-04 12:26:50,179 - INFO - Generated preview for S50_Atarigane.xpm
+2025-07-04 12:26:50,219 - INFO - Generated preview for S50_Wave 2.xpm
+2025-07-04 12:26:50,258 - INFO - Generated preview for S50_MiniMoogBS16.xpm
+2025-07-04 12:26:50,321 - INFO - Generated preview for S50_Piccolo uni.xpm
+2025-07-04 12:26:50,370 - INFO - Generated preview for S50_8161_Bass 3.xpm
+2025-07-04 12:26:50,407 - INFO - Generated preview for S50_KICKS 6.xpm
+2025-07-04 12:26:50,483 - INFO - Generated preview for S50_Lead  1.xpm
+2025-07-04 12:26:50,537 - INFO - Generated preview for S50_Afrigogo.xpm
+2025-07-04 12:26:50,587 - INFO - Generated preview for S50_Koto(Tremol).xpm
+2025-07-04 12:26:50,636 - INFO - Generated preview for S50_Trombone 2.xpm
+2025-07-04 12:26:50,672 - INFO - Generated preview for S50_COWABUNGA!!!.xpm
+2025-07-04 12:26:50,714 - INFO - Generated preview for S50_Dimensionz.xpm
+2025-07-04 12:26:50,745 - INFO - Generated preview for S50_Fretless B.2.xpm
+2025-07-04 12:26:50,783 - INFO - Generated preview for S50_JP  Perc 2pf.xpm
+2025-07-04 12:26:50,823 - INFO - Generated preview for S50_G _ C 2.xpm
+2025-07-04 12:26:50,856 - INFO - Generated preview for S50_Vibe soft 1.xpm
+2025-07-04 12:26:50,886 - INFO - Generated preview for S50_Trompet.xpm
+2025-07-04 12:26:50,923 - INFO - Generated preview for S50_Picked Bass.xpm
+2025-07-04 12:26:50,973 - INFO - Generated preview for S50_FrtlsBas uni.xpm
+2025-07-04 12:26:51,014 - INFO - Generated preview for S50_E.Piano2 Hpf 1.xpm
+2025-07-04 12:26:51,053 - INFO - Generated preview for S50_Timpani.xpm
+2025-07-04 12:26:51,088 - INFO - Generated preview for S50_Layered XFad.xpm
+2025-07-04 12:26:51,138 - INFO - Generated preview for S50_Mute_5ths Sw.xpm
+2025-07-04 12:26:51,190 - INFO - Generated preview for S50_Splash ST 1.xpm
+2025-07-04 12:26:51,240 - INFO - Generated preview for S50_Wonderland 2.xpm
+2025-07-04 12:26:51,280 - INFO - Generated preview for S50_SoundEffect1.xpm
+2025-07-04 12:26:51,322 - INFO - Generated preview for S50_Cello volume.xpm
+2025-07-04 12:26:51,359 - INFO - Generated preview for S50_Upright Bass 1.xpm
+2025-07-04 12:26:51,398 - INFO - Generated preview for S50_Fretless B.3.xpm
+2025-07-04 12:26:51,452 - INFO - Generated preview for S50_Trombone 3.xpm
+2025-07-04 12:26:51,503 - INFO - Generated preview for S50_Pc soft V-sw 1.xpm
+2025-07-04 12:26:51,553 - INFO - Generated preview for S50_Trompet V-sw.xpm
+2025-07-04 12:26:51,604 - INFO - Generated preview for S50_KICKS 7.xpm
+2025-07-04 12:26:51,655 - INFO - Generated preview for S50_Female AAH.xpm
+2025-07-04 12:26:51,703 - INFO - Generated preview for S50_8161_Bass 2.xpm
+2025-07-04 12:26:51,738 - INFO - Generated preview for S50_Low!.xpm
+2025-07-04 12:26:51,781 - INFO - Generated preview for S50_Wave 3.xpm
+2025-07-04 12:26:51,812 - INFO - Generated preview for S50_Marimba.xpm
+2025-07-04 12:26:51,855 - INFO - Generated preview for S50_Brite E.Pno.xpm
+2025-07-04 12:26:51,892 - INFO - Generated preview for S50_1st Violin.xpm
+2025-07-04 12:26:51,930 - INFO - Generated preview for S50_Tabla_Gpchnt.xpm
+2025-07-04 12:26:51,968 - INFO - Generated preview for S50_V-Mix Bass 2.xpm
+2025-07-04 12:26:52,019 - INFO - Generated preview for S50_A.Sax ff uni.xpm
+2025-07-04 12:26:52,070 - INFO - Generated preview for S50_C.Gt1_F.Gt1.xpm
+2025-07-04 12:26:52,121 - INFO - Generated preview for S50_Choir_Strngs.xpm
+2025-07-04 12:26:52,155 - INFO - Generated preview for S50_A.Sax V-sw 1.xpm
+2025-07-04 12:26:52,196 - INFO - Generated preview for S50_Zip Gun.xpm
+2025-07-04 12:26:52,231 - INFO - Generated preview for S50_Honky-tonk 3.xpm
+2025-07-04 12:26:52,283 - INFO - Generated preview for S50_Pc hard V-sw.xpm
+2025-07-04 12:26:52,337 - INFO - Generated preview for S50_Castanets 2.xpm
+2025-07-04 12:26:52,392 - INFO - Generated preview for S50_Slap Bass 3.xpm
+2025-07-04 12:26:52,436 - INFO - Generated preview for S50_E.Piano_Bs 2.xpm
+2025-07-04 12:26:52,473 - INFO - Generated preview for S50_Wild Kingdom.xpm
+2025-07-04 12:26:52,514 - INFO - Generated preview for S50_UpperGrand 1.xpm
+2025-07-04 12:26:52,546 - INFO - Generated preview for S50_P5 _ Rub.xpm
+2025-07-04 12:26:52,583 - INFO - Generated preview for S50_Super Chorus.xpm
+2025-07-04 12:26:52,652 - INFO - Generated preview for S50_Elec. PnoDtn 1.xpm
+2025-07-04 12:26:52,703 - INFO - Generated preview for S50_Str Machine1.xpm
+2025-07-04 12:26:52,753 - INFO - Generated preview for S50_Jungle Life.xpm
+2025-07-04 12:26:52,789 - INFO - Generated preview for S50_Anklungs 3.xpm
+2025-07-04 12:26:52,829 - INFO - Generated preview for S50_Wet CongasST.xpm
+2025-07-04 12:26:52,862 - INFO - Generated preview for S50_MiniMoogBS13.xpm
+2025-07-04 12:26:52,922 - INFO - Generated preview for S50_Gate Guitar2.xpm
+2025-07-04 12:26:52,968 - INFO - Generated preview for S50_Grand Saz 1.xpm
+2025-07-04 12:26:53,018 - INFO - Generated preview for S50_Funk Guitar.xpm
+2025-07-04 12:26:53,069 - INFO - Generated preview for S50_P2 _ Shot2.xpm
+2025-07-04 12:26:53,106 - INFO - Generated preview for S50_KICKS 3.xpm
+2025-07-04 12:26:53,146 - INFO - Generated preview for S50_Nohkan V_P.xpm
+2025-07-04 12:26:53,180 - INFO - Generated preview for S50_Synth B. Uni.xpm
+2025-07-04 12:26:53,217 - INFO - Generated preview for S50_Harpsi 1_3.xpm
+2025-07-04 12:26:53,253 - INFO - Generated preview for S50_Glckn 1 uni 1.xpm
+2025-07-04 12:26:53,285 - INFO - Generated preview for S50_Electr-DR.xpm
+2025-07-04 12:26:53,320 - INFO - Generated preview for S50_Noizee 1.xpm
+2025-07-04 12:26:53,358 - INFO - Generated preview for S50_Sanza 2.xpm
+2025-07-04 12:26:53,441 - INFO - Generated preview for S50_SBass_Xylo.xpm
+2025-07-04 12:26:53,499 - INFO - Generated preview for S50_Jet Stng3 ST.xpm
+2025-07-04 12:26:53,536 - INFO - Generated preview for S50_Drums_Flute.xpm
+2025-07-04 12:26:53,587 - INFO - Generated preview for S50_Gender 2.xpm
+2025-07-04 12:26:53,636 - INFO - Generated preview for S50_Gender 3.xpm
+2025-07-04 12:26:53,673 - INFO - Generated preview for S50_Solo Trumpet.xpm
+2025-07-04 12:26:53,713 - INFO - Generated preview for S50_UpGrnd2noTVF.xpm
+2025-07-04 12:26:53,747 - INFO - Generated preview for S50_Gate City 1.xpm
+2025-07-04 12:26:53,784 - INFO - Generated preview for S50_Cello 1 1.xpm
+2025-07-04 12:26:53,821 - INFO - Generated preview for S50_Synth Bass 1.xpm
+2025-07-04 12:26:53,856 - INFO - Generated preview for S50_Sanza 3.xpm
+2025-07-04 12:26:53,908 - INFO - Generated preview for S50_Temple Bloks.xpm
+2025-07-04 12:26:53,947 - INFO - Generated preview for S50_Koto2.xpm
+2025-07-04 12:26:53,989 - INFO - Generated preview for S50_E.Piano2.xpm
+2025-07-04 12:26:54,061 - INFO - Generated preview for S50_Fretles Bass.xpm
+2025-07-04 12:26:54,099 - INFO - Generated preview for S50_KICKS 2.xpm
+2025-07-04 12:26:54,163 - INFO - Generated preview for S50_WGong & Bata.xpm
+2025-07-04 12:26:54,220 - INFO - Generated preview for S50_P2 _ Shot3.xpm
+2025-07-04 12:26:54,268 - INFO - Generated preview for S50_Drums _ Perc.xpm
+2025-07-04 12:26:54,308 - INFO - Generated preview for S50_Taruka 2.xpm
+2025-07-04 12:26:54,346 - INFO - Generated preview for S50_Gate Guitar3.xpm
+2025-07-04 12:26:54,379 - INFO - Generated preview for S50_Anklungs 2.xpm
+2025-07-04 12:26:54,415 - INFO - Generated preview for S50_MiniMoogBS12.xpm
+2025-07-04 12:26:54,481 - INFO - Generated preview for S50_Music Box 2.xpm
+2025-07-04 12:26:54,537 - INFO - Generated preview for S50_Percussion.xpm
+2025-07-04 12:26:54,591 - INFO - Generated preview for S50_Concert BD 2 1.xpm
+2025-07-04 12:26:54,623 - INFO - Generated preview for S50_E.Piano1 mp 1.xpm
+2025-07-04 12:26:54,664 - INFO - Generated preview for S50_FM BS_ROADS2.xpm
+2025-07-04 12:26:54,694 - INFO - Generated preview for S50_Koto2 Var.xpm
+2025-07-04 12:26:54,750 - INFO - Generated preview for S50_Lo Tom.xpm
+2025-07-04 12:26:54,802 - INFO - Generated preview for S50_Whistler.xpm
+2025-07-04 12:26:54,838 - INFO - Generated preview for S50_Destructo!.xpm
+2025-07-04 12:26:54,901 - INFO - Generated preview for S50_4 Horns.xpm
+2025-07-04 12:26:54,953 - INFO - Generated preview for S50_French Horn1.xpm
+2025-07-04 12:26:54,988 - INFO - Generated preview for S50_Slap Bass 2.xpm
+2025-07-04 12:26:55,066 - INFO - Generated preview for S50_Waterphone 2.xpm
+2025-07-04 12:26:55,119 - INFO - Generated preview for S50_Castanets 3.xpm
+2025-07-04 12:26:55,174 - INFO - Generated preview for S50_A.Sax V-sw 1 1.xpm
+2025-07-04 12:26:55,214 - INFO - Generated preview for S50_Combo Drone.xpm
+2025-07-04 12:26:55,269 - INFO - Generated preview for S50_Brazilian.xpm
+2025-07-04 12:26:55,305 - INFO - Generated preview for S50_Ac Piano Lpf 2.xpm
+2025-07-04 12:26:55,345 - INFO - Generated preview for S50_Ac.Piano ff.xpm
+2025-07-04 12:26:55,383 - INFO - Generated preview for S50_THX 4 ST.xpm
+2025-07-04 12:26:55,434 - INFO - Generated preview for S50_E.Piano_Bs 1.xpm
+2025-07-04 12:26:55,485 - INFO - Generated preview for S50_Castanets 1.xpm
+2025-07-04 12:26:55,536 - INFO - Generated preview for S50_Slap B. Uni.xpm
+2025-07-04 12:26:55,587 - INFO - Generated preview for S50_Anarchy Time.xpm
+2025-07-04 12:26:55,636 - INFO - Generated preview for S50_Slow sw Full 1.xpm
+2025-07-04 12:26:55,685 - INFO - Generated preview for S50_Gate Guitar1.xpm
+2025-07-04 12:26:55,744 - INFO - Generated preview for S50_MiniMoogBS10.xpm
+2025-07-04 12:26:55,780 - INFO - Generated preview for S50_Assorted.xpm
+2025-07-04 12:26:55,817 - INFO - Generated preview for S50_Synth 2 V-sw.xpm
+2025-07-04 12:26:55,894 - INFO - Generated preview for S50_Fretless B.4.xpm
+2025-07-04 12:26:55,949 - INFO - Generated preview for S50_P2 _ Shot1.xpm
+2025-07-04 12:26:55,985 - INFO - Generated preview for S50_Trombone 4.xpm
+2025-07-04 12:26:56,053 - INFO - Generated preview for S50_MIDI Harp.xpm
+2025-07-04 12:26:56,103 - INFO - Generated preview for S50_Brass Sec. 1.xpm
+2025-07-04 12:26:56,153 - INFO - Generated preview for S50_Guitoto.xpm
+2025-07-04 12:26:56,202 - INFO - Generated preview for S50_Cello.xpm
+2025-07-04 12:26:56,239 - INFO - Generated preview for S50_Shaku Licks.xpm
+2025-07-04 12:26:56,279 - INFO - Generated preview for S50_Fret_Thumb 1 1.xpm
+2025-07-04 12:26:56,321 - INFO - Generated preview for S50_2nd Violin 1.xpm
+2025-07-04 12:26:56,366 - INFO - Generated preview for S50_Sanza 1.xpm
+2025-07-04 12:26:56,418 - INFO - Generated preview for S50_H2O + Wind.xpm
+2025-07-04 12:26:56,469 - INFO - Generated preview for S50_Forte  Piano.xpm
+2025-07-04 12:26:56,519 - INFO - Generated preview for S50_Super Mix 1.xpm
+2025-07-04 12:26:56,570 - INFO - Generated preview for S50_Gender 1.xpm
+2025-07-04 12:26:56,619 - INFO - Generated preview for S50_Dumbek 1.xpm
+2025-07-04 12:26:56,669 - INFO - Generated preview for S50_Fl hard V-sw.xpm
+2025-07-04 12:26:56,706 - INFO - Generated preview for S50_Steamer 1 1.xpm
+2025-07-04 12:26:56,747 - INFO - Generated preview for S50_Pizzicato.xpm
+2025-07-04 12:26:56,778 - INFO - Generated preview for S50_Syn.Sax wc.xpm
+2025-07-04 12:26:56,832 - INFO - Generated preview for S50_Synth Bass 2.xpm
+2025-07-04 12:26:56,888 - INFO - Generated preview for S50_E.Piano 1 vs.xpm
+2025-07-04 12:26:56,936 - INFO - Generated preview for S50_Koto1.xpm
+2025-07-04 12:26:56,987 - INFO - Generated preview for S50_Toys 1.xpm
+2025-07-04 12:26:57,035 - INFO - Generated preview for S50_Music Box 2 1.xpm
+2025-07-04 12:26:57,072 - INFO - Generated preview for S50_Loud Jap Flt.xpm
+2025-07-04 12:26:57,115 - INFO - Generated preview for S50_Slow Sicu 1.xpm
+2025-07-04 12:26:57,145 - INFO - Generated preview for S50_Taiko.xpm
+2025-07-04 12:26:57,199 - INFO - Generated preview for S50_Brass dual.xpm
+2025-07-04 12:26:57,236 - INFO - Generated preview for S50_Tsugaru uni.xpm
+2025-07-04 12:26:57,302 - INFO - Generated preview for S50_KICKS 1.xpm
+2025-07-04 12:26:57,351 - INFO - Generated preview for S50_Strings L_R 1.xpm
+2025-07-04 12:26:57,403 - INFO - Generated preview for S50_A.Sax pp.xpm
+2025-07-04 12:26:57,445 - INFO - Generated preview for S50_REEDS.xpm
+2025-07-04 12:26:57,511 - INFO - Generated preview for S50_S.Bass uni.xpm
+2025-07-04 12:26:57,548 - INFO - Generated preview for S50_Koto(Organ).xpm
+2025-07-04 12:26:57,584 - INFO - Generated preview for S50_Clean Strat.xpm
+2025-07-04 12:26:57,621 - INFO - Generated preview for S50_Brass Sect.xpm
+2025-07-04 12:26:57,652 - INFO - Generated preview for S50_MiniMoogBS11.xpm
+2025-07-04 12:26:57,688 - INFO - Generated preview for S50_Anklungs 1.xpm
+2025-07-04 12:26:57,735 - INFO - Generated preview for S50_Taruka 1.xpm
+2025-07-04 12:26:57,789 - INFO - Generated preview for S50_Flange Vox.xpm
+2025-07-04 12:26:57,836 - INFO - Generated preview for S50_Drums_Per RM.xpm
+2025-07-04 12:26:57,868 - INFO - Generated preview for S50_Slow +  soft 1.xpm
+2025-07-04 12:26:57,904 - INFO - Generated preview for S50_HarmonMuteB.xpm
+2025-07-04 12:26:57,961 - INFO - Generated preview for S50_Music Box 1.xpm
+2025-07-04 12:26:57,997 - INFO - Generated preview for S50_Layered Mix1.xpm
+2025-07-04 12:26:58,035 - INFO - Generated preview for S50_UpperGrand 3.xpm
+2025-07-04 12:26:58,069 - INFO - Generated preview for S50_Sax ff.xpm
+2025-07-04 12:26:58,120 - INFO - Generated preview for S50_Sdrum.xpm
+2025-07-04 12:26:58,168 - INFO - Generated preview for S50_FRENCH HORNS.xpm
+2025-07-04 12:26:58,218 - INFO - Generated preview for S50_5'sAgogo uni.xpm
+2025-07-04 12:26:58,270 - INFO - Generated preview for S50_Slap Bass 1.xpm
+2025-07-04 12:26:58,312 - INFO - Generated preview for S50_Flute V-sw 1.xpm
+2025-07-04 12:26:58,349 - INFO - Generated preview for S50_Tsuzumi.xpm
+2025-07-04 12:26:58,391 - INFO - Generated preview for S50_Ac Piano Lpf 1.xpm
+2025-07-04 12:26:58,431 - INFO - Generated preview for S50_RamaCymbal 1.xpm
+2025-07-04 12:26:58,489 - INFO - Generated preview for S50_Fast Vox.xpm
+2025-07-04 12:26:58,535 - INFO - Generated preview for S50_Choir 1.xpm
+2025-07-04 12:26:58,569 - INFO - Generated preview for S50_Trompet uni.xpm
+2025-07-04 12:26:58,606 - INFO - Generated preview for S50_Accent Vibra.xpm
+2025-07-04 12:26:58,646 - INFO - Generated preview for S50_Steamer 1.xpm
+2025-07-04 12:26:58,686 - INFO - Generated preview for S50_Wonderland.xpm
+2025-07-04 12:26:58,721 - INFO - Generated preview for S50_Drums_Per LL.xpm
+2025-07-04 12:26:58,764 - INFO - Generated preview for S50_SteelString1.xpm
+2025-07-04 12:26:58,794 - INFO - Generated preview for S50_EQ Kit 10A.xpm
+2025-07-04 12:26:58,850 - INFO - Generated preview for S50_Accordian.xpm
+2025-07-04 12:26:58,901 - INFO - Generated preview for S50_Clarinet 1 1.xpm
+2025-07-04 12:26:58,936 - INFO - Generated preview for S50_Fight!.xpm
+2025-07-04 12:26:58,979 - INFO - Generated preview for S50_Tenor Sax 1.xpm
+2025-07-04 12:26:59,053 - INFO - Generated preview for S50_Reed Solo.xpm
+2025-07-04 12:26:59,103 - INFO - Generated preview for S50_Strings 2.xpm
+2025-07-04 12:26:59,152 - INFO - Generated preview for S50_SuperBass 2 1.xpm
+2025-07-04 12:26:59,187 - INFO - Generated preview for S50_Positv+Chrch 1.xpm
+2025-07-04 12:26:59,229 - INFO - Generated preview for S50_RattleKalmba.xpm
+2025-07-04 12:26:59,264 - INFO - Generated preview for S50_Oooze 1.xpm
+2025-07-04 12:26:59,316 - INFO - Generated preview for S50_E.Piano2 Hmp 1.xpm
+2025-07-04 12:26:59,353 - INFO - Generated preview for S50_Strike!.xpm
+2025-07-04 12:26:59,418 - INFO - Generated preview for S50_Bell Piano.xpm
+2025-07-04 12:26:59,468 - INFO - Generated preview for S50_Piano+String.xpm
+2025-07-04 12:26:59,519 - INFO - Generated preview for S50_Slap Bass sw.xpm
+2025-07-04 12:26:59,564 - INFO - Generated preview for S50_Wonderland3S.xpm
+2025-07-04 12:26:59,646 - INFO - Generated preview for S50_UUHH!.xpm
+2025-07-04 12:26:59,685 - INFO - Generated preview for S50_Mridangam 2.xpm
+2025-07-04 12:26:59,735 - INFO - Generated preview for S50_Pulling.xpm
+2025-07-04 12:26:59,769 - INFO - Generated preview for S50_Theater Cymb.xpm
+2025-07-04 12:26:59,835 - INFO - Generated preview for S50_Timpani roll.xpm
+2025-07-04 12:26:59,873 - INFO - Generated preview for S50_LoopedGuitar.xpm
+2025-07-04 12:26:59,913 - INFO - Generated preview for S50_Nylon Unis 1.xpm
+2025-07-04 12:26:59,944 - INFO - Generated preview for S50_Stereo Set2A.xpm
+2025-07-04 12:26:59,981 - INFO - Generated preview for S50_W.Bass_Vibe.xpm
+2025-07-04 12:27:00,051 - INFO - Generated preview for S50_Wood Bass1pf.xpm
+2025-07-04 12:27:00,103 - INFO - Generated preview for S50_Soprano Sax2 1.xpm
+2025-07-04 12:27:00,152 - INFO - Generated preview for S50_Blow Hard.xpm
+2025-07-04 12:27:00,207 - INFO - Generated preview for S50_Slow Flute 1.xpm
+2025-07-04 12:27:00,252 - INFO - Generated preview for S50_808 Perc.xpm
+2025-07-04 12:27:00,289 - INFO - Generated preview for S50_Timpani 1 pf.xpm
+2025-07-04 12:27:00,329 - INFO - Generated preview for S50_Clav  4.xpm
+2025-07-04 12:27:00,363 - INFO - Generated preview for S50_Clavi-no-B 1.xpm
+2025-07-04 12:27:00,401 - INFO - Generated preview for S50_Glocken 2.xpm
+2025-07-04 12:27:00,437 - INFO - Generated preview for S50_Low!_oooze.xpm
+2025-07-04 12:27:00,473 - INFO - Generated preview for S50_Sitar 1.xpm
+2025-07-04 12:27:00,526 - INFO - Generated preview for S50_Yangchin 2.xpm
+2025-07-04 12:27:00,578 - INFO - Generated preview for S50_Positv uni 1.xpm
+2025-07-04 12:27:00,616 - INFO - Generated preview for S50_Fretless B.1 1.xpm
+2025-07-04 12:27:00,654 - INFO - Generated preview for S50_Shawm 1.xpm
+2025-07-04 12:27:00,738 - INFO - Generated preview for S50_Vocoder +.xpm
+2025-07-04 12:27:00,784 - INFO - Generated preview for S50_Crash 1.xpm
+2025-07-04 12:27:00,834 - INFO - Generated preview for S50_Trompet wc.xpm
+2025-07-04 12:27:00,886 - INFO - Generated preview for S50_Picked Bass2 1.xpm
+2025-07-04 12:27:00,937 - INFO - Generated preview for S50_Strings 3.xpm
+2025-07-04 12:27:00,975 - INFO - Generated preview for S50_1st Violin 1.xpm
+2025-07-04 12:27:01,013 - INFO - Generated preview for S50_TROMBONE.xpm
+2025-07-04 12:27:01,044 - INFO - Generated preview for S50_Trompet V-sw 1.xpm
+2025-07-04 12:27:01,082 - INFO - Generated preview for S50_Matsumushi 1.xpm
+2025-07-04 12:27:01,177 - INFO - Generated preview for S50_Morning Set.xpm
+2025-07-04 12:27:01,250 - INFO - Generated preview for S50_Soprano Pad2.xpm
+2025-07-04 12:27:01,303 - INFO - Generated preview for S50_Ride Rev  ST.xpm
+2025-07-04 12:27:01,359 - INFO - Generated preview for S50_Hollow Pad 1.xpm
+2025-07-04 12:27:01,403 - INFO - Generated preview for S50_DesignerSet1.xpm
+2025-07-04 12:27:01,438 - INFO - Generated preview for S50_Drums_Per LM.xpm
+2025-07-04 12:27:01,478 - INFO - Generated preview for S50_Soprano Sax1.xpm
+2025-07-04 12:27:01,514 - INFO - Generated preview for S50_Madal 1.xpm
+2025-07-04 12:27:01,550 - INFO - Generated preview for S50_Soft Hoso.xpm
+2025-07-04 12:27:01,584 - INFO - Generated preview for S50_TIMP & SNARE.xpm
+2025-07-04 12:27:01,636 - INFO - Generated preview for S50_Reverb Set2.xpm
+2025-07-04 12:27:01,672 - INFO - Generated preview for S50_Choir 2.xpm
+2025-07-04 12:27:01,711 - INFO - Generated preview for S50_Biwa 1 p_f.xpm
+2025-07-04 12:27:01,745 - INFO - Generated preview for S50_Steamer 2.xpm
+2025-07-04 12:27:01,784 - INFO - Generated preview for S50_Hi Tom.xpm
+2025-07-04 12:27:01,856 - INFO - Generated preview for S50_Nylon Bando4.xpm
+2025-07-04 12:27:01,887 - INFO - Generated preview for S50_Medley.xpm
+2025-07-04 12:27:01,924 - INFO - Generated preview for S50_SteelString2.xpm
+2025-07-04 12:27:01,961 - INFO - Generated preview for S50_EQ Kit 7A.xpm
+2025-07-04 12:27:02,002 - INFO - Generated preview for S50_Pan Pipes 5.xpm
+2025-07-04 12:27:02,052 - INFO - Generated preview for S50_Vibe uni 1.xpm
+2025-07-04 12:27:02,103 - INFO - Generated preview for S50_Strings 1.xpm
+2025-07-04 12:27:02,153 - INFO - Generated preview for S50_Crash Boom!.xpm
+2025-07-04 12:27:02,203 - INFO - Generated preview for S50_Oooze 2.xpm
+2025-07-04 12:27:02,252 - INFO - Generated preview for S50_Shaku V_O.xpm
+2025-07-04 12:27:02,303 - INFO - Generated preview for S50_Clavi-no-B.xpm
+2025-07-04 12:27:02,346 - INFO - Generated preview for S50_Hi GoGo.xpm
+2025-07-04 12:27:02,422 - INFO - Generated preview for S50_Dyno-My-DX 1.xpm
+2025-07-04 12:27:02,456 - INFO - Generated preview for S50_Timpani pf.xpm
+2025-07-04 12:27:02,516 - INFO - Generated preview for S50_Chorus Guit.xpm
+2025-07-04 12:27:02,552 - INFO - Generated preview for S50_JP  Perc 2.xpm
+2025-07-04 12:27:02,615 - INFO - Generated preview for S50_Mridangam 1.xpm
+2025-07-04 12:27:02,670 - INFO - Generated preview for S50_Space Mystry.xpm
+2025-07-04 12:27:02,718 - INFO - Generated preview for S50_E.Piano 2 mp.xpm
+2025-07-04 12:27:02,754 - INFO - Generated preview for S50_A.Sax ff uni 1.xpm
+2025-07-04 12:27:02,796 - INFO - Generated preview for S50_Slow Train 1.xpm
+2025-07-04 12:27:02,828 - INFO - Generated preview for S50_V-Sw Trill.xpm
+2025-07-04 12:27:02,881 - INFO - Generated preview for S50_Nylon Class1.xpm
+2025-07-04 12:27:02,919 - INFO - Generated preview for S50_Synth 2 saw.xpm
+2025-07-04 12:27:02,988 - INFO - Generated preview for S50_Dry Bongos 1.xpm
+2025-07-04 12:27:03,035 - INFO - Generated preview for S50_Vibe uni.xpm
+2025-07-04 12:27:03,086 - INFO - Generated preview for S50_Steamer.xpm
+2025-07-04 12:27:03,122 - INFO - Generated preview for S50_Stereo Set2B.xpm
+2025-07-04 12:27:03,161 - INFO - Generated preview for S50_Nylon Unis 2.xpm
+2025-07-04 12:27:03,196 - INFO - Generated preview for S50_Positv Organ.xpm
+2025-07-04 12:27:03,235 - INFO - Generated preview for S50_Nohkan Phras.xpm
+2025-07-04 12:27:03,269 - INFO - Generated preview for S50_BrassQuartet.xpm
+2025-07-04 12:27:03,318 - INFO - Generated preview for S50_Fg.B1_Sl.B1.xpm
+2025-07-04 12:27:03,352 - INFO - Generated preview for S50_Clarecorder.xpm
+2025-07-04 12:27:03,394 - INFO - Generated preview for S50_Glocken 1.xpm
+2025-07-04 12:27:03,430 - INFO - Generated preview for S50_Piano+St.Dr.xpm
+2025-07-04 12:27:03,473 - INFO - Generated preview for S50_Yangchin 1.xpm
+2025-07-04 12:27:03,534 - INFO - Generated preview for S50_Sitar 2.xpm
+2025-07-04 12:27:03,584 - INFO - Generated preview for S50_Cello dual.xpm
+2025-07-04 12:27:03,635 - INFO - Generated preview for S50_HARPSICORD.xpm
+2025-07-04 12:27:03,670 - INFO - Generated preview for S50_Tsuzumi _Rei.xpm
+2025-07-04 12:27:03,713 - INFO - Generated preview for S50_Underwater.xpm
+2025-07-04 12:27:03,744 - INFO - Generated preview for S50_Shawm 2.xpm
+2025-07-04 12:27:03,782 - INFO - Generated preview for S50_Crash.xpm
+2025-07-04 12:27:03,819 - INFO - Generated preview for S50_Slow Strings.xpm
+2025-07-04 12:27:03,852 - INFO - Generated preview for S50_Birimbau 1.xpm
+2025-07-04 12:27:03,885 - INFO - Generated preview for S50_Combi.3-DR.xpm
+2025-07-04 12:27:03,951 - INFO - Generated preview for S50_C.Gt1+F.Gt1.xpm
+2025-07-04 12:27:04,007 - INFO - Generated preview for S50_Crash 2.xpm
+2025-07-04 12:27:04,052 - INFO - Generated preview for S50_Md Tom.xpm
+2025-07-04 12:27:04,091 - INFO - Generated preview for S50_Bowls&Files1.xpm
+2025-07-04 12:27:04,128 - INFO - Generated preview for S50_Harpsi 8'I.xpm
+2025-07-04 12:27:04,164 - INFO - Generated preview for S50_Recorder 1 1.xpm
+2025-07-04 12:27:04,202 - INFO - Generated preview for S50_Jete.xpm
+2025-07-04 12:27:04,267 - INFO - Generated preview for S50_Pan Pipes 4.xpm
+2025-07-04 12:27:04,320 - INFO - Generated preview for S50_Woops!.xpm
+2025-07-04 12:27:04,351 - INFO - Generated preview for S50_Soprano Pad1.xpm
+2025-07-04 12:27:04,418 - INFO - Generated preview for S50_Soprano Sax2.xpm
+2025-07-04 12:27:04,469 - INFO - Generated preview for S50_Matsumushi.xpm
+2025-07-04 12:27:04,504 - INFO - Generated preview for S50_Steamer 3.xpm
+2025-07-04 12:27:04,588 - INFO - Generated preview for S50_SURF GUITAR.xpm
+2025-07-04 12:27:04,633 - INFO - Generated preview for S50_Reverb Set1.xpm
+2025-07-04 12:27:04,686 - INFO - Generated preview for S50_Jup Sync 2.xpm
+2025-07-04 12:27:04,738 - INFO - Generated preview for S50_All aboard!.xpm
+2025-07-04 12:27:04,792 - INFO - Generated preview for S50_JX-10 SynBow.xpm
+2025-07-04 12:27:04,836 - INFO - Generated preview for S50_Vibraphone.xpm
+2025-07-04 12:27:04,870 - INFO - Generated preview for S50_Sax V-mix.xpm
+2025-07-04 12:27:04,947 - INFO - Generated preview for S50_E.Organ 8.xpm
+2025-07-04 12:27:04,996 - INFO - Generated preview for S50_Nylon Bando1.xpm
+2025-07-04 12:27:05,051 - INFO - Generated preview for S50_Cimbalom 1.xpm
+2025-07-04 12:27:05,099 - INFO - Generated preview for S50_Chuzao 1.xpm
+2025-07-04 12:27:05,161 - INFO - Generated preview for S50_V-Switch 1.xpm
+2025-07-04 12:27:05,223 - INFO - Generated preview for S50_Tmbra_Sitar2.xpm
+2025-07-04 12:27:05,268 - INFO - Generated preview for S50_Angklung 2.xpm
+2025-07-04 12:27:05,317 - INFO - Generated preview for S50_Timpani 2.xpm
+2025-07-04 12:27:05,368 - INFO - Generated preview for S50_Harpsi 8'+8'.xpm
+2025-07-04 12:27:05,419 - INFO - Generated preview for S50_Yangchin.xpm
+2025-07-04 12:27:05,455 - INFO - Generated preview for S50_Violin 1.xpm
+2025-07-04 12:27:05,529 - INFO - Generated preview for S50_E.Piano1 pf.xpm
+2025-07-04 12:27:05,568 - INFO - Generated preview for S50_Alto Sax 1.xpm
+2025-07-04 12:27:05,603 - INFO - Generated preview for S50_TrmptSect.f1.xpm
+2025-07-04 12:27:05,645 - INFO - Generated preview for S50_Harmonics.xpm
+2025-07-04 12:27:05,684 - INFO - Generated preview for S50_Tom-Tom Town.xpm
+2025-07-04 12:27:05,736 - INFO - Generated preview for S50_Rabab 2.xpm
+2025-07-04 12:27:05,790 - INFO - Generated preview for S50_Fast Flute 1.xpm
+2025-07-04 12:27:05,851 - INFO - Generated preview for S50_Bansri 1.xpm
+2025-07-04 12:27:05,887 - INFO - Generated preview for S50_Oud 2.xpm
+2025-07-04 12:27:05,918 - INFO - Generated preview for S50_MIDI E.Piano.xpm
+2025-07-04 12:27:05,954 - INFO - Generated preview for S50_A.Sax V-sw 2 1.xpm
+2025-07-04 12:27:06,005 - INFO - Generated preview for S50_SynthBells.xpm
+2025-07-04 12:27:06,057 - INFO - Generated preview for S50_Shaku Accent.xpm
+2025-07-04 12:27:06,096 - INFO - Generated preview for S50_Clav  3.xpm
+2025-07-04 12:27:06,161 - INFO - Generated preview for S50_Flute V-sw.xpm
+2025-07-04 12:27:06,198 - INFO - Generated preview for S50_E.Piano2 Hmp.xpm
+2025-07-04 12:27:06,236 - INFO - Generated preview for S50_Grand Sitar1.xpm
+2025-07-04 12:27:06,279 - INFO - Generated preview for S50_Xylophone 1.xpm
+2025-07-04 12:27:06,314 - INFO - Generated preview for S50_Trane T.sax.xpm
+2025-07-04 12:27:06,356 - INFO - Generated preview for S50_Soft sw Full.xpm
+2025-07-04 12:27:06,418 - INFO - Generated preview for S50_Concert BD 1 1.xpm
+2025-07-04 12:27:06,471 - INFO - Generated preview for S50_Crash ST  1.xpm
+2025-07-04 12:27:06,502 - INFO - Generated preview for S50_Trompet 1.xpm
+2025-07-04 12:27:06,535 - INFO - Generated preview for S50_Female OOOH.xpm
+2025-07-04 12:27:06,570 - INFO - Generated preview for S50_Ynchin_Minti.xpm
+2025-07-04 12:27:06,634 - INFO - Generated preview for S50_Voicey 1.xpm
+2025-07-04 12:27:06,684 - INFO - Generated preview for S50_Tubular Bell.xpm
+2025-07-04 12:27:06,716 - INFO - Generated preview for S50_Positv+Choir 1.xpm
+2025-07-04 12:27:06,752 - INFO - Generated preview for S50_P2 _ P3.xpm
+2025-07-04 12:27:06,803 - INFO - Generated preview for S50_GT SET.xpm
+2025-07-04 12:27:06,841 - INFO - Generated preview for S50_Santur 1.xpm
+2025-07-04 12:27:06,887 - INFO - Generated preview for S50_JP Perc 1A.xpm
+2025-07-04 12:27:06,926 - INFO - Generated preview for S50_Funko Drums.xpm
+2025-07-04 12:27:06,964 - INFO - Generated preview for S50_Funky Grnd 1.xpm
+2025-07-04 12:27:07,017 - INFO - Generated preview for S50_Nylon Mix #2.xpm
+2025-07-04 12:27:07,067 - INFO - Generated preview for S50_JavaGamelan1.xpm
+2025-07-04 12:27:07,119 - INFO - Generated preview for S50_Ocarina 1 1.xpm
+2025-07-04 12:27:07,168 - INFO - Generated preview for S50_Clav  2.xpm
+2025-07-04 12:27:07,203 - INFO - Generated preview for S50_Combi.1-DR.xpm
+2025-07-04 12:27:07,245 - INFO - Generated preview for S50_Full Strings.xpm
+2025-07-04 12:27:07,282 - INFO - Generated preview for S50_THX 2 ST.xpm
+2025-07-04 12:27:07,332 - INFO - Generated preview for S50_SNARES 8.xpm
+2025-07-04 12:27:07,368 - INFO - Generated preview for S50_Harpsi 8'I 1.xpm
+2025-07-04 12:27:07,439 - INFO - Generated preview for S50_Synth Bell.xpm
+2025-07-04 12:27:07,487 - INFO - Generated preview for S50_ST.MarkTree1.xpm
+2025-07-04 12:27:07,535 - INFO - Generated preview for S50_BIG STRINGS.xpm
+2025-07-04 12:27:07,569 - INFO - Generated preview for S50_Nylon Spain1.xpm
+2025-07-04 12:27:07,610 - INFO - Generated preview for S50_Bassoon 1 1.xpm
+2025-07-04 12:27:07,647 - INFO - Generated preview for S50_Oz 1.xpm
+2025-07-04 12:27:07,682 - INFO - Generated preview for S50_Nylon String.xpm
+2025-07-04 12:27:07,720 - INFO - Generated preview for S50_Pipe Organ 1.xpm
+2025-07-04 12:27:07,769 - INFO - Generated preview for S50_E.Piano 1.xpm
+2025-07-04 12:27:07,801 - INFO - Generated preview for S50_Pan Pipes 1.xpm
+2025-07-04 12:27:07,837 - INFO - Generated preview for S50_Full Strings 1.xpm
+2025-07-04 12:27:07,868 - INFO - Generated preview for S50_Angklung 3.xpm
+2025-07-04 12:27:07,911 - INFO - Generated preview for S50_Celesta 1.xpm
+2025-07-04 12:27:07,952 - INFO - Generated preview for S50_E.Piano.xpm
+2025-07-04 12:27:08,005 - INFO - Generated preview for S50_China & Gong.xpm
+2025-07-04 12:27:08,084 - INFO - Generated preview for S50_Fl hard V-sw 1.xpm
+2025-07-04 12:27:08,120 - INFO - Generated preview for S50_Mandolin.xpm
+2025-07-04 12:27:08,157 - INFO - Generated preview for S50_EQ Kit 6A.xpm
+2025-07-04 12:27:08,195 - INFO - Generated preview for S50_Mallet Cymb.xpm
+2025-07-04 12:27:08,262 - INFO - Generated preview for S50_Zuruna 2.xpm
+2025-07-04 12:27:08,316 - INFO - Generated preview for S50_8va Swell.xpm
+2025-07-04 12:27:08,367 - INFO - Generated preview for S50_Industry Tek.xpm
+2025-07-04 12:27:08,400 - INFO - Generated preview for S50_Reed Solo sw.xpm
+2025-07-04 12:27:08,434 - INFO - Generated preview for S50_Positv_Chrch 1.xpm
+2025-07-04 12:27:08,490 - INFO - Generated preview for S50_Flute s uni.xpm
+2025-07-04 12:27:08,535 - INFO - Generated preview for S50_Choir 4.xpm
+2025-07-04 12:27:08,584 - INFO - Generated preview for S50_Nylon Switch.xpm
+2025-07-04 12:27:08,634 - INFO - Generated preview for S50_Mini MoogBS9.xpm
+2025-07-04 12:27:08,671 - INFO - Generated preview for S50_Zap! Perc.xpm
+2025-07-04 12:27:08,750 - INFO - Generated preview for S50_V-Switch 2.xpm
+2025-07-04 12:27:08,801 - INFO - Generated preview for S50_Cimbalom 2.xpm
+2025-07-04 12:27:08,848 - INFO - Generated preview for S50_Celesta 3.xpm
+2025-07-04 12:27:08,902 - INFO - Generated preview for S50_Music Box 1 1.xpm
+2025-07-04 12:27:08,937 - INFO - Generated preview for S50_Nylon Bando2.xpm
+2025-07-04 12:27:08,977 - INFO - Generated preview for S50_Ryan Toot.xpm
+2025-07-04 12:27:09,015 - INFO - Generated preview for S50_Battle Zone.xpm
+2025-07-04 12:27:09,071 - INFO - Generated preview for S50_Angklung 1.xpm
+2025-07-04 12:27:09,118 - INFO - Generated preview for S50_Tmbra_Sitar1.xpm
+2025-07-04 12:27:09,168 - INFO - Generated preview for S50_FLBass_SBell.xpm
+2025-07-04 12:27:09,202 - INFO - Generated preview for S50_Synth 1 1.xpm
+2025-07-04 12:27:09,244 - INFO - Generated preview for S50_E.Piano 3.xpm
+2025-07-04 12:27:09,280 - INFO - Generated preview for S50_Pan Pipes 3.xpm
+2025-07-04 12:27:09,317 - INFO - Generated preview for S50_Pipe Organ 3.xpm
+2025-07-04 12:27:09,383 - INFO - Generated preview for S50_Harpsi 8'+4' 1.xpm
+2025-07-04 12:27:09,434 - INFO - Generated preview for S50_Mute_Har. Sw.xpm
+2025-07-04 12:27:09,484 - INFO - Generated preview for S50_Soft +  Full.xpm
+2025-07-04 12:27:09,520 - INFO - Generated preview for S50_Violin 2.xpm
+2025-07-04 12:27:09,597 - INFO - Generated preview for S50_TrmptSect.f2.xpm
+2025-07-04 12:27:09,639 - INFO - Generated preview for S50_Harpsi 8'+4'.xpm
+2025-07-04 12:27:09,701 - INFO - Generated preview for S50_ST.MarkTree3.xpm
+2025-07-04 12:27:09,751 - INFO - Generated preview for S50_606 Perc.xpm
+2025-07-04 12:27:09,803 - INFO - Generated preview for S50_Kalimba 3.xpm
+2025-07-04 12:27:09,835 - INFO - Generated preview for S50_Bansri 2.xpm
+2025-07-04 12:27:09,878 - INFO - Generated preview for S50_Oud 1.xpm
+2025-07-04 12:27:09,914 - INFO - Generated preview for S50_Bell  ST  1.xpm
+2025-07-04 12:27:09,965 - INFO - Generated preview for S50_Rabab 1.xpm
+2025-07-04 12:27:10,017 - INFO - Generated preview for S50_Marimba Uni.xpm
+2025-07-04 12:27:10,051 - INFO - Generated preview for S50_J.Wind Bell.xpm
+2025-07-04 12:27:10,087 - INFO - Generated preview for S50_E.P.1 mf uni 1.xpm
+2025-07-04 12:27:10,126 - INFO - Generated preview for S50_Vibe V-Mix.xpm
+2025-07-04 12:27:10,173 - INFO - Generated preview for S50_Flute f uni.xpm
+2025-07-04 12:27:10,217 - INFO - Generated preview for S50_Harpsi 8'+8' 1.xpm
+2025-07-04 12:27:10,268 - INFO - Generated preview for S50_E.Piano 1 pf.xpm
+2025-07-04 12:27:10,307 - INFO - Generated preview for S50_Crash ST  2.xpm
+2025-07-04 12:27:10,344 - INFO - Generated preview for S50_Kalimba 1 pf.xpm
+2025-07-04 12:27:10,380 - INFO - Generated preview for S50_Tenor Sax 1 1.xpm
+2025-07-04 12:27:10,417 - INFO - Generated preview for S50_Tsugaru 1.xpm
+2025-07-04 12:27:10,451 - INFO - Generated preview for S50_Toot + Vox.xpm
+2025-07-04 12:27:10,501 - INFO - Generated preview for S50_Mdln & Bass.xpm
+2025-07-04 12:27:10,538 - INFO - Generated preview for S50_Viola 1.xpm
+2025-07-04 12:27:10,578 - INFO - Generated preview for S50_Gopichant 1.xpm
+2025-07-04 12:27:10,610 - INFO - Generated preview for S50_Funky Grnd 2.xpm
+2025-07-04 12:27:10,652 - INFO - Generated preview for S50_Nylon Mix #1.xpm
+2025-07-04 12:27:10,689 - INFO - Generated preview for S50_Pop N Jar.xpm
+2025-07-04 12:27:10,728 - INFO - Generated preview for S50_JP Perc 1B.xpm
+2025-07-04 12:27:10,765 - INFO - Generated preview for S50_Santur 2.xpm
+2025-07-04 12:27:10,817 - INFO - Generated preview for S50_Clav  1.xpm
+2025-07-04 12:27:10,869 - INFO - Generated preview for S50_Bendir _ Req.xpm
+2025-07-04 12:27:10,917 - INFO - Generated preview for S50_Koto1 Var.xpm
+2025-07-04 12:27:10,969 - INFO - Generated preview for S50_Plunger Wah.xpm
+2025-07-04 12:27:11,017 - INFO - Generated preview for S50_Trompet dual 1.xpm
+2025-07-04 12:27:11,054 - INFO - Generated preview for S50_LA SET.xpm
+2025-07-04 12:27:11,131 - INFO - Generated preview for S50_Ooohs & Mmms.xpm
+2025-07-04 12:27:11,169 - INFO - Generated preview for S50_Port Bottle1.xpm
+2025-07-04 12:27:11,210 - INFO - Generated preview for S50_Hyoshigi.xpm
+2025-07-04 12:27:11,251 - INFO - Generated preview for S50_TrmptSect.f3.xpm
+2025-07-04 12:27:11,301 - INFO - Generated preview for S50_Nylon Spain2.xpm
+2025-07-04 12:27:11,353 - INFO - Generated preview for S50_ST.MarkTree2.xpm
+2025-07-04 12:27:11,402 - INFO - Generated preview for S50_Pizz Violins.xpm
+2025-07-04 12:27:11,451 - INFO - Generated preview for S50_Slap Bass.xpm
+2025-07-04 12:27:11,490 - INFO - Generated preview for S50_Soundtrack 1.xpm
+2025-07-04 12:27:11,527 - INFO - Generated preview for S50_Pipe Organ 2.xpm
+2025-07-04 12:27:11,563 - INFO - Generated preview for S50_Pan Pipes 2.xpm
+2025-07-04 12:27:11,601 - INFO - Generated preview for S50_E.Piano 2.xpm
+2025-07-04 12:27:11,664 - INFO - Generated preview for S50_Timpani f.xpm
+2025-07-04 12:27:11,716 - INFO - Generated preview for S50_A.Sax ff 1.xpm
+2025-07-04 12:27:11,772 - INFO - Generated preview for S50_Nylon Bando3.xpm
+2025-07-04 12:27:11,816 - INFO - Generated preview for S50_V-Switch 3.xpm
+2025-07-04 12:27:11,867 - INFO - Generated preview for S50_EQ Kit 11A.xpm
+2025-07-04 12:27:11,903 - INFO - Generated preview for S50_Celesta 2.xpm
+2025-07-04 12:27:11,946 - INFO - Generated preview for S50_Mini MoogBS8.xpm
+2025-07-04 12:27:11,977 - INFO - Generated preview for S50_Zuruna 1.xpm
+2025-07-04 12:27:12,013 - INFO - Generated preview for S50_Mini Organ.xpm
+2025-07-04 12:27:12,051 - INFO - Generated preview for S50_Sync Lead  1.xpm
+2025-07-04 12:27:12,083 - INFO - Generated preview for S50_E.Piano1 pf 1.xpm
+2025-07-04 12:27:47,584 - INFO - Batch process 'split_files_smartly' completed. 2564 item(s) affected.
+2025-07-04 12:29:23,880 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/vocal
+2025-07-04 12:29:23,920 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/strings
+2025-07-04 12:29:23,932 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/piano
+2025-07-04 12:29:23,934 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/lead
+2025-07-04 12:29:23,936 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/keys
+2025-07-04 12:29:23,937 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/horn
+2025-07-04 12:29:23,949 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/guitar
+2025-07-04 12:29:23,951 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/drum
+2025-07-04 12:29:23,953 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/brass
+2025-07-04 12:29:23,966 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/bell
+2025-07-04 12:29:23,968 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/bass
+2025-07-04 12:29:23,971 - INFO - Removed empty subfolder: /Volumes/MPC SSD/Expansions/S-50 Factory/S 50 Factory
+2025-07-04 12:29:23,981 - INFO - Batch process 'merge_subfolders_to_root' completed. 2564 item(s) affected.
