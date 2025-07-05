@@ -936,7 +936,7 @@ class MergeSubfoldersWindow(tk.Toplevel):
         self.geometry("400x220")
         self.master = master
         self.target_depth = tk.IntVar(value=0)
-        self.max_depth = tk.IntVar(value=2)
+        self.max_depth = tk.IntVar(value=5)
         self.create_widgets()
 
     def create_widgets(self):
@@ -951,7 +951,7 @@ class MergeSubfoldersWindow(tk.Toplevel):
         opt_frame = ttk.Frame(frame)
         opt_frame.pack(anchor="w", pady=(10,0))
         ttk.Label(opt_frame, text="Max depth to scan:").pack(side="left")
-        ttk.Spinbox(opt_frame, from_=1, to=10, textvariable=self.max_depth, width=4).pack(side="left")
+        ttk.Spinbox(opt_frame, from_=1, to=20, textvariable=self.max_depth, width=4).pack(side="left")
 
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(fill="x", pady=(20,0))
@@ -961,6 +961,13 @@ class MergeSubfoldersWindow(tk.Toplevel):
     def apply_merge(self):
         depth = self.target_depth.get()
         max_depth = self.max_depth.get()
+        if max_depth <= depth:
+            messagebox.showerror(
+                "Invalid Depth",
+                "Max depth must be greater than the target level.",
+                parent=self,
+            )
+            return
         self.destroy()
         self.master.run_batch_process(
             merge_subfolders,
