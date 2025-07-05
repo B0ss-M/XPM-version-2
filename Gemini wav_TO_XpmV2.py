@@ -13,6 +13,12 @@ import subprocess
 import threading
 from dataclasses import dataclass, field
 from tkinter import ttk, filedialog, messagebox
+from xpm_parameter_editor import (
+    set_layer_keytrack,
+    set_volume_adsr,
+    load_mod_matrix,
+    apply_mod_matrix,
+)
 from tkinter.ttk import Treeview
 from collections import defaultdict
 import struct
@@ -853,7 +859,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
         super().__init__(master.root)
         self.master = master
         self.title("Batch Program Editor")
-        self.geometry("400x260")
+        self.geometry("400x360")
         self.resizable(False, False)
         self.create_widgets()
 
@@ -879,8 +885,28 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
         self.config_btn.grid(row=3, column=1, sticky="e")
 
+        ttk.Label(frame, text="KeyTrack:").grid(row=4, column=0, sticky="w", pady=(10,0))
+        self.keytrack_var = tk.StringVar(value="on")
+        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=4, column=1, sticky="ew", pady=(10,0))
+
+        ttk.Label(frame, text="Volume ADSR:").grid(row=5, column=0, sticky="w", pady=(10,0))
+        adsr = ttk.Frame(frame)
+        adsr.grid(row=5, column=1, sticky="ew", pady=(10,0))
+        self.attack_var = tk.StringVar()
+        self.decay_var = tk.StringVar()
+        self.sustain_var = tk.StringVar()
+        self.release_var = tk.StringVar()
+        ttk.Entry(adsr, width=4, textvariable=self.attack_var).pack(side="left")
+        ttk.Entry(adsr, width=4, textvariable=self.decay_var).pack(side="left", padx=2)
+        ttk.Entry(adsr, width=4, textvariable=self.sustain_var).pack(side="left")
+        ttk.Entry(adsr, width=4, textvariable=self.release_var).pack(side="left", padx=2)
+
+        ttk.Label(frame, text="Mod Matrix File:").grid(row=6, column=0, sticky="w", pady=(10,0))
+        self.mod_matrix_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.mod_matrix_var).grid(row=6, column=1, sticky="ew", pady=(10,0))
+
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=4, column=0, columnspan=2, pady=(15,0), sticky="e")
+        btn_frame.grid(row=7, column=0, columnspan=2, pady=(15,0), sticky="e")
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
 
@@ -899,7 +925,13 @@ class BatchProgramEditorWindow(tk.Toplevel):
             self.rename_var.get(),
             self.version_var.get().strip() or None,
             self.creative_var.get(),
-            self.master.creative_config
+            self.master.creative_config,
+            self.keytrack_var.get() == "on",
+            float(self.attack_var.get()) if self.attack_var.get() else None,
+            float(self.decay_var.get()) if self.decay_var.get() else None,
+            float(self.sustain_var.get()) if self.sustain_var.get() else None,
+            float(self.release_var.get()) if self.release_var.get() else None,
+            self.mod_matrix_var.get().strip() or None,
         )
         self.destroy()
 
@@ -1821,12 +1853,25 @@ def split_files_smartly(folder_path, mode):
 
     return moved_count
 
-def batch_edit_programs(folder_path, rename=False, version=None, creative_mode='off', creative_config=None):
+def batch_edit_programs(
+    folder_path,
+    rename=False,
+    version=None,
+    creative_mode='off',
+    creative_config=None,
+    keytrack=None,
+    attack=None,
+    decay=None,
+    sustain=None,
+    release=None,
+    mod_matrix_file=None,
+):
     """Batch edit XPM files with rename/version and creative tweaks."""
     edited = 0
     options = InstrumentOptions(creative_mode=creative_mode,
                                creative_config=creative_config or {})
     builder = InstrumentBuilder(folder_path, None, options)
+    matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
     for root_dir, _dirs, files in os.walk(folder_path):
         for file in files:
             if not file.lower().endswith('.xpm'):
@@ -1860,6 +1905,18 @@ def batch_edit_programs(folder_path, rename=False, version=None, creative_mode='
                         for idx, layer in enumerate(layers):
                             builder.apply_creative_mode(inst, layer, idx, total_layers)
                             changed = True
+
+                if keytrack is not None:
+                    if set_layer_keytrack(root, keytrack):
+                        changed = True
+
+                if any(v is not None for v in (attack, decay, sustain, release)):
+                    if set_volume_adsr(root, attack, decay, sustain, release):
+                        changed = True
+
+                if matrix:
+                    if apply_mod_matrix(root, matrix):
+                        changed = True
 
                 if changed:
                     ET.indent(tree, space="  ")
