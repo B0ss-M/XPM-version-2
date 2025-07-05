@@ -928,6 +928,47 @@ class SmartSplitWindow(tk.Toplevel):
         mode = self.split_mode.get()
         self.destroy()
         self.master.run_batch_process(split_files_smartly, mode)
+
+class MergeSubfoldersWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root)
+        self.title("Merge Subfolders")
+        self.geometry("400x220")
+        self.master = master
+        self.target_depth = tk.IntVar(value=0)
+        self.max_depth = tk.IntVar(value=2)
+        self.create_widgets()
+
+    def create_widgets(self):
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill="both", expand=True)
+
+        ttk.Label(frame, text="Move files up to level:").pack(anchor="w")
+        ttk.Radiobutton(frame, text="Root", variable=self.target_depth, value=0).pack(anchor="w")
+        ttk.Radiobutton(frame, text="1st Level", variable=self.target_depth, value=1).pack(anchor="w")
+        ttk.Radiobutton(frame, text="2nd Level", variable=self.target_depth, value=2).pack(anchor="w")
+
+        opt_frame = ttk.Frame(frame)
+        opt_frame.pack(anchor="w", pady=(10,0))
+        ttk.Label(opt_frame, text="Max depth to scan:").pack(side="left")
+        ttk.Spinbox(opt_frame, from_=1, to=10, textvariable=self.max_depth, width=4).pack(side="left")
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill="x", pady=(20,0))
+        ttk.Button(btn_frame, text="Merge", command=self.apply_merge).pack(side="right")
+        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=5)
+
+    def apply_merge(self):
+        depth = self.target_depth.get()
+        max_depth = self.max_depth.get()
+        self.destroy()
+        self.master.run_batch_process(
+            merge_subfolders,
+            depth,
+            max_depth,
+            confirm=True,
+            confirm_message="This will move all files up and remove empty folders. This can't be undone. Continue?",
+        )
 #</editor-fold>
 
 @dataclass
@@ -1488,7 +1529,7 @@ class App(tk.Tk):
         for i in range(4): frame.grid_columnconfigure(i, weight=1)
         ttk.Button(frame, text="Expansion Doctor", command=self.open_expansion_doctor).grid(row=0, column=0, sticky="ew", padx=2)
         ttk.Button(frame, text="File Renamer", command=self.open_file_renamer).grid(row=0, column=1, sticky="ew", padx=2)
-        ttk.Button(frame, text="Merge Subfolders", command=self.merge_subfolders).grid(row=1, column=0, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Merge Subfolders", command=self.open_merge_subfolders).grid(row=1, column=0, sticky="ew", padx=2, pady=2)
         ttk.Button(frame, text="Smart Split...", command=self.open_smart_split_window).grid(row=1, column=1, sticky="ew", padx=2, pady=2)
         
         ttk.Button(frame, text="Generate All Previews", command=self.generate_previews).grid(row=0, column=2, sticky="ew", padx=2)
@@ -1610,12 +1651,8 @@ class App(tk.Tk):
         self.status_text.set(f"Running {process_func.__name__}...")
         threading.Thread(target=run, daemon=True).start()
 
-    def merge_subfolders(self):
-        self.run_batch_process(
-            merge_subfolders_to_root, 
-            confirm=True, 
-            confirm_message="This will move all .wav files from subfolders into the main folder, renaming any duplicates. This can't be undone. Continue?"
-        )
+    def open_merge_subfolders(self):
+        self.open_window(MergeSubfoldersWindow)
 
     def generate_previews(self):
         builder = InstrumentBuilder(self.folder_path.get(), self, InstrumentOptions())
@@ -1670,37 +1707,39 @@ class App(tk.Tk):
 
         threading.Thread(target=run, daemon=True).start()
 
-def merge_subfolders_to_root(folder_path, max_depth=2):
-    """Moves WAV files from subfolders into the root, renaming to avoid conflicts."""
+def merge_subfolders(folder_path, target_depth=0, max_depth=2):
+    """Moves files from subfolders up to the specified depth."""
     moved_count = 0
-    subfolders_to_clean = set()
-    for root, dirs, files in os.walk(folder_path):
-        depth = root.replace(folder_path, '').count(os.sep)
-        if 0 < depth <= max_depth:
-            subfolders_to_clean.add(root)
-            for file in files:
-                if file.lower().endswith('.wav'):
-                    src_path = os.path.join(root, file)
-                    dest_path = os.path.join(folder_path, file)
-                    if os.path.exists(dest_path):
-                        subfolder_name = os.path.basename(root)
-                        name, ext = os.path.splitext(file)
-                        new_name = f"{subfolder_name}_{name}{ext}"
-                        dest_path = os.path.join(folder_path, new_name)
-                    try:
-                        shutil.move(src_path, dest_path)
-                        moved_count += 1
-                    except Exception as e:
-                        logging.error(f"Could not move {src_path}: {e}")
-    
-    for subfolder in sorted(list(subfolders_to_clean), reverse=True):
-        if not os.listdir(subfolder):
+    for root, dirs, files in os.walk(folder_path, topdown=False):
+        rel = os.path.relpath(root, folder_path)
+        depth = 0 if rel == '.' else len(rel.split(os.sep))
+        if depth == 0 or depth > max_depth or depth <= target_depth:
+            continue
+        dest_dir = folder_path if target_depth == 0 else os.path.join(folder_path, *rel.split(os.sep)[:target_depth])
+        os.makedirs(dest_dir, exist_ok=True)
+        for file in files:
+            src_path = os.path.join(root, file)
+            dest_path = os.path.join(dest_dir, file)
+            if os.path.exists(dest_path):
+                subfolder_name = os.path.basename(root)
+                name, ext = os.path.splitext(file)
+                dest_path = os.path.join(dest_dir, f"{subfolder_name}_{name}{ext}")
             try:
-                os.rmdir(subfolder)
-                logging.info(f"Removed empty subfolder: {subfolder}")
+                shutil.move(src_path, dest_path)
+                moved_count += 1
+            except Exception as e:
+                logging.error(f"Could not move {src_path}: {e}")
+        if not os.listdir(root):
+            try:
+                os.rmdir(root)
+                logging.info(f"Removed empty subfolder: {root}")
             except OSError as e:
-                logging.warning(f"Could not remove directory {subfolder}: {e}")
+                logging.warning(f"Could not remove directory {root}: {e}")
     return moved_count
+
+def merge_subfolders_to_root(folder_path, max_depth=2):
+    """Backward compatible wrapper for merging to the root folder."""
+    return merge_subfolders(folder_path, 0, max_depth)
 
 def split_files_smartly(folder_path, mode):
     """Organizes XPMs and WAVs into subfolders based on the chosen mode."""
