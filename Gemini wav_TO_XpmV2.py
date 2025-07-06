@@ -42,7 +42,7 @@ except ImportError as e:
 
 
 # --- Application Configuration ---
-APP_VERSION = "22.6"
+APP_VERSION = "23.0"
 
 # --- Global Constants ---
 MPC_BEIGE = '#EAE6DA'
@@ -111,35 +111,47 @@ def build_program_pads_json(firmware, mappings=None, engine_override=None):
     return xml_escape(json_str)
 
 def validate_xpm_file(xpm_path, expected_samples):
-    """Validate a generated XPM against keygroup guide rules."""
+    """
+    Validate a generated XPM file. It checks for the modern ProgramPads section
+    first. If that's not found, it falls back to checking for the legacy
+    Instruments section. This ensures both modern and legacy-formatted XPMs
+    can be validated correctly.
+    """
     try:
         with open(xpm_path, "r", encoding="utf-8") as f:
             xml_text = f.read()
         root = ET.fromstring(xml_text)
 
-        pads_elem = root.find('.//ProgramPads-v2.10')
-        if pads_elem is None:
-            pads_elem = root.find('.//ProgramPads')
+        # Check for modern ProgramPads section
+        pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+        if pads_elem is not None and pads_elem.text:
+            # If it exists, validate its contents
+            json_text = xml_unescape(pads_elem.text)
+            data = json.loads(json_text)
+            pads = data.get('pads', {})
+            entries = [v for v in pads.values() if isinstance(v, dict) and v.get('samplePath')]
+            
+            if expected_samples > 0 and len(entries) == 0:
+                logging.warning(f"Validation failed for {os.path.basename(xpm_path)}: ProgramPads exists but has no sample entries.")
+                return False
+            
+            logging.info(f"Modern validation successful for {os.path.basename(xpm_path)}.")
+            return True
 
-        if pads_elem is None or not pads_elem.text:
-            logging.warning(f"Validation failed for {os.path.basename(xpm_path)}: ProgramPads section not found.")
-            return False
+        # If ProgramPads is missing, check for legacy Instruments section as a fallback
+        inst_elem = root.find('.//Instruments/Instrument/Layers/Layer/SampleFile')
+        if inst_elem is not None:
+            logging.info(f"Legacy validation successful for {os.path.basename(xpm_path)} (found Instruments section).")
+            return True
 
-        json_text = xml_unescape(pads_elem.text)
-        data = json.loads(json_text)
+        # If neither is found, then it's a real failure.
+        logging.warning(f"Validation failed for {os.path.basename(xpm_path)}: Neither ProgramPads nor Instruments section found.")
+        return False
 
-        pads = data.get('pads', {})
-        entries = [v for v in pads.values() if isinstance(v, dict)]
-
-        if expected_samples > 0 and len(entries) == 0:
-            logging.warning(f"Validation failed for {os.path.basename(xpm_path)}: Expected >0 pad entries, found {len(entries)}.")
-            return False
-
-        logging.info(f"Validation successful for {os.path.basename(xpm_path)}.")
-        return True
     except Exception as e:
         logging.error(f"XPM validation error for {os.path.basename(xpm_path)}: {e}")
         return False
+
 
 def name_to_midi(note_name):
     """Converts a note name (e.g., 'C#4', 'Db-1') to a MIDI note number."""
@@ -1031,7 +1043,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
     def create_widgets(self):
         main_frame = ttk.Frame(self, padding="10")
         main_frame.pack(fill="both", expand=True)
-        main_frame.grid_rowconfigure(2, weight=1)
+        main_frame.grid_rowconfigure(1, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
 
         # Top bar for folder selection and scanning
@@ -1082,6 +1094,33 @@ class BatchProgramFixerWindow(tk.Toplevel):
         ttk.Button(actions_frame, text="Deselect All", command=lambda: self.toggle_all_checks(False)).pack(side="left", padx=5)
         ttk.Button(actions_frame, text="Analyze & Relink Selected", command=self.run_relink_thread).pack(side="left", padx=20)
         ttk.Button(actions_frame, text="Rebuild Selected", command=self.run_rebuild_thread).pack(side="left", padx=5)
+
+    def _show_info_safe(self, title, message):
+        self.master.root.after(0, lambda: messagebox.showinfo(title, message, parent=self))
+
+    def _ask_yesno_safe(self, title, message):
+        """Safely ask a yes/no question from a background thread."""
+        result = threading.Event()
+        answer = tk.BooleanVar()
+        def ask():
+            answer.set(messagebox.askyesno(title, message, parent=self))
+            result.set()
+        self.master.root.after(0, ask)
+        result.wait()
+        return answer.get()
+
+    def _ask_directory_safe(self, title):
+        """Safely ask for a directory from a background thread."""
+        result = threading.Event()
+        path = tk.StringVar()
+        def ask():
+            res = filedialog.askdirectory(parent=self, title=title)
+            if res:
+                path.set(res)
+            result.set()
+        self.master.root.after(0, ask)
+        result.wait()
+        return path.get()
 
     def browse_folder(self):
         path = filedialog.askdirectory(parent=self, title="Select Folder Containing XPM Programs")
@@ -1178,15 +1217,15 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 logging.error(f"Error analyzing {xpm_path}: {e}")
 
         if not all_missing_samples:
-            messagebox.showinfo("Analysis Complete", "No missing samples found in selected programs.", parent=self)
+            self._show_info_safe("Analysis Complete", "No missing samples found in selected programs.")
             return
 
         # Step 2: Ask user for the location of the missing samples
         msg = f"Found {len(all_missing_samples)} unique missing samples across {len(programs_with_missing)} program(s).\n\nLocate the folder containing these samples?"
-        if not messagebox.askyesno("Missing Samples Found", msg, parent=self):
+        if not self._ask_yesno_safe("Missing Samples Found", msg):
             return
 
-        sample_folder = filedialog.askdirectory(parent=self, title="Select Folder Containing Missing Samples")
+        sample_folder = self._ask_directory_safe("Select Folder Containing Missing Samples")
         if not sample_folder:
             return
 
@@ -1220,15 +1259,14 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 self.tree.set(self.get_id_from_path(xpm_path), "Status", "Relink Error")
                 logging.error(f"Error relinking {xpm_path}: {e}")
         
-        messagebox.showinfo("Relink Complete", f"Finished. Relinked {total_relinked} sample instances.", parent=self)
+        self._show_info_safe("Relink Complete", f"Finished. Relinked {total_relinked} sample instances.")
 
     def rebuild_batch(self, item_ids):
         target_firmware = self.firmware_var.get()
         target_format = self.format_var.get()
-        if not messagebox.askyesno(
+        if not self._ask_yesno_safe(
             "Confirm Rebuild",
-            f"This will rebuild {len(item_ids)} program(s) for firmware {target_firmware} in {target_format} format. Backups will be created. Continue?",
-            parent=self
+            f"This will rebuild {len(item_ids)} program(s) for firmware {target_firmware} in {target_format} format. Backups will be created. Continue?"
         ):
             return
 
@@ -1269,7 +1307,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 self.tree.set(item_id, "Status", "Rebuild Error")
                 logging.error(f"Critical error rebuilding {xpm_path}: {e}\n{traceback.format_exc()}")
         
-        messagebox.showinfo("Rebuild Complete", "Finished rebuilding selected programs.", parent=self)
+        self._show_info_safe("Rebuild Complete", "Finished rebuilding selected programs.")
 
     def _parse_any_xpm(self, xpm_path):
         mappings = []
@@ -1299,14 +1337,15 @@ class BatchProgramFixerWindow(tk.Toplevel):
         # Legacy XML format
         for inst in root.findall('.//Instrument'):
             low_note_elem, high_note_elem = inst.find('LowNote'), inst.find('HighNote')
-            if low_note_elem is None or high_note_elem is None: continue
+            if low_note_elem is None or high_note_elem is None or not low_note_elem.text or not high_note_elem.text:
+                continue
 
             for layer in inst.findall('.//Layer'):
                 sample_file_elem = layer.find('SampleFile')
                 root_note_elem = layer.find('RootNote')
                 vel_start_elem = layer.find('VelStart')
                 vel_end_elem = layer.find('VelEnd')
-                if sample_file_elem is None or root_note_elem is None:
+                if sample_file_elem is None or root_note_elem is None or not sample_file_elem.text or not root_note_elem.text:
                     continue
 
                 sample_file = sample_file_elem.text
@@ -1316,8 +1355,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
                         'root_note': int(root_note_elem.text),
                         'low_note': int(low_note_elem.text),
                         'high_note': int(high_note_elem.text),
-                        'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None else 0,
-                        'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None else 127,
+                        'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
+                        'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127,
                     })
         return mappings
 
