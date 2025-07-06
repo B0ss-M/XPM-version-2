@@ -11,6 +11,11 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename and firmware version changes.
   This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
 
+### New in this update
+- Batch Program Fixer rebuild option now includes firmware and format selectors. You
+  can rebuild programs into legacy (v2) or advanced (v3) formats while preserving
+  all sample layers.
+
 ## Recent Changes
 - Build Instruments window now lists `.wav` files regardless of case so samples with `.WAV` extensions appear correctly.
 - Expansion Doctor displays invalid or corrupt `.xpm` files instead of skipping them.
