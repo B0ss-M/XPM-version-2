@@ -2,7 +2,7 @@
 
 This repository contains tools for working with Akai MPC Keygroup programs.
 
-Additional documentation can be found in the `docs` folder, including a summary of the differences between drum and instrument keygroups.
+Additional documentation can be found in the [docs/](docs/) directory, including a summary of the differences between drum and instrument keygroups.
 
 ## Scripts
 
