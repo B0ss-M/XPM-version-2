@@ -69,10 +69,11 @@ class TextHandler(logging.Handler):
             self.text_widget.yview(tk.END)
         self.text_widget.after(0, append)
 
-def build_program_pads_json(firmware, mappings=None):
+def build_program_pads_json(firmware, mappings=None, engine_override=None):
     """Return ProgramPads JSON escaped for XML embedding."""
-    if not IMPORTS_SUCCESSFUL: return "{}"
-    pad_cfg = get_pad_settings(firmware)
+    if not IMPORTS_SUCCESSFUL:
+        return "{}"
+    pad_cfg = get_pad_settings(firmware, engine_override)
     pads_type = pad_cfg['type']
     universal_pad = pad_cfg['universal_pad']
     engine = pad_cfg.get('engine')
@@ -1021,6 +1022,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
         self.geometry("800x600")
         self.master = master
         self.folder_path = tk.StringVar()
+        self.firmware_var = tk.StringVar(value=master.firmware_version.get())
+        self.format_var = tk.StringVar(value="advanced")
         self.check_vars = {}
         self.xpm_map = {} # Maps treeview item ID to absolute path
         self.create_widgets()
@@ -1066,6 +1069,15 @@ class BatchProgramFixerWindow(tk.Toplevel):
         actions_frame.grid(row=2, column=0, sticky="ew", pady=5)
         actions_frame.grid_columnconfigure(1, weight=1)
         actions_frame.grid_columnconfigure(2, weight=1)
+        options_frame = ttk.Frame(actions_frame)
+        options_frame.pack(side="left", padx=5)
+        ttk.Label(options_frame, text="Firmware:").grid(row=0, column=0, sticky="e")
+        ttk.Combobox(options_frame, textvariable=self.firmware_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'],
+                     state='readonly', width=10).grid(row=0, column=1)
+        ttk.Label(options_frame, text="Format:").grid(row=1, column=0, sticky="e")
+        ttk.Combobox(options_frame, textvariable=self.format_var,
+                     values=['legacy','advanced'], state='readonly', width=10).grid(row=1, column=1)
         ttk.Button(actions_frame, text="Select All", command=lambda: self.toggle_all_checks(True)).pack(side="left", padx=5)
         ttk.Button(actions_frame, text="Deselect All", command=lambda: self.toggle_all_checks(False)).pack(side="left", padx=5)
         ttk.Button(actions_frame, text="Analyze & Relink Selected", command=self.run_relink_thread).pack(side="left", padx=20)
@@ -1211,8 +1223,13 @@ class BatchProgramFixerWindow(tk.Toplevel):
         messagebox.showinfo("Relink Complete", f"Finished. Relinked {total_relinked} sample instances.", parent=self)
 
     def rebuild_batch(self, item_ids):
-        target_firmware = self.master.firmware_version.get()
-        if not messagebox.askyesno("Confirm Rebuild", f"This will rebuild {len(item_ids)} program(s) for firmware {target_firmware}. Backups will be created. Continue?", parent=self):
+        target_firmware = self.firmware_var.get()
+        target_format = self.format_var.get()
+        if not messagebox.askyesno(
+            "Confirm Rebuild",
+            f"This will rebuild {len(item_ids)} program(s) for firmware {target_firmware} in {target_format} format. Backups will be created. Continue?",
+            parent=self
+        ):
             return
 
         for item_id in item_ids:
@@ -1230,13 +1247,18 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 options = InstrumentOptions(
                     firmware_version=target_firmware,
                     polyphony=self.master.polyphony_var.get(),
+                    format_version=target_format,
                 )
                 builder = InstrumentBuilder(output_folder, self.master, options)
-                sample_files = [m['sample_path'] for m in sample_mappings]
-                midi_notes = [m['root_note'] for m in sample_mappings]
 
                 shutil.copy2(xpm_path, xpm_path + f".rebuild-{target_firmware}.bak")
-                success = builder._create_xpm(program_name, sample_files, output_folder, mode='multi-sample', midi_notes=midi_notes)
+                success = builder._create_xpm(
+                    program_name,
+                    [],
+                    output_folder,
+                    mode='multi-sample',
+                    mappings=sample_mappings
+                )
                 
                 if success:
                     self.tree.set(item_id, "Status", f"Rebuilt for {target_firmware}")
@@ -1268,7 +1290,9 @@ class BatchProgramFixerWindow(tk.Toplevel):
                             'sample_path': os.path.join(xpm_dir, sample_path_text),
                             'root_note': pad_data.get('rootNote', 60),
                             'low_note': pad_data.get('lowNote', 0),
-                            'high_note': pad_data.get('highNote', 127)
+                            'high_note': pad_data.get('highNote', 127),
+                            'velocity_low': pad_data.get('velocityLow', 0),
+                            'velocity_high': pad_data.get('velocityHigh', 127)
                         })
             if mappings: return mappings
 
@@ -1278,16 +1302,22 @@ class BatchProgramFixerWindow(tk.Toplevel):
             if low_note_elem is None or high_note_elem is None: continue
 
             for layer in inst.findall('.//Layer'):
-                sample_file_elem, root_note_elem = layer.find('SampleFile'), layer.find('RootNote')
-                if sample_file_elem is None or root_note_elem is None: continue
-                
+                sample_file_elem = layer.find('SampleFile')
+                root_note_elem = layer.find('RootNote')
+                vel_start_elem = layer.find('VelStart')
+                vel_end_elem = layer.find('VelEnd')
+                if sample_file_elem is None or root_note_elem is None:
+                    continue
+
                 sample_file = sample_file_elem.text
                 if sample_file and sample_file.strip():
                     mappings.append({
                         'sample_path': os.path.join(xpm_dir, sample_file),
                         'root_note': int(root_note_elem.text),
                         'low_note': int(low_note_elem.text),
-                        'high_note': int(high_note_elem.text)
+                        'high_note': int(high_note_elem.text),
+                        'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None else 0,
+                        'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None else 127,
                     })
         return mappings
 
@@ -1306,6 +1336,7 @@ class InstrumentOptions:
     recursive_scan: bool = True
     firmware_version: str = '3.5.0'
     polyphony: int = 16
+    format_version: str = 'advanced'
     creative_config: dict = field(default_factory=dict)
 
 #<editor-fold desc="InstrumentBuilder Class">
@@ -1406,37 +1437,67 @@ class InstrumentBuilder:
         finally:
             self.app.progress["value"] = 0
 
-    def _create_xpm(self, program_name, sample_files, output_folder, mode, midi_notes=None):
-        """Creates a single XPM file from a group of samples using robust XML construction."""
-        logging.info("_create_xpm building '%s' with %d sample(s)", program_name, len(sample_files))
+    def _create_xpm(self, program_name, sample_files, output_folder, mode,
+                    midi_notes=None, mappings=None):
+        """Create a single XPM file from samples or an existing mapping."""
+        if mappings:
+            logging.info("_create_xpm rebuilding '%s' using mapping with %d entry(ies)",
+                         program_name, len(mappings))
+        else:
+            logging.info("_create_xpm building '%s' with %d sample(s)", program_name,
+                         len(sample_files))
         try:
             sample_infos = []
             start_note = 60
-            for idx, file_path in enumerate(sample_files):
-                abs_path = os.path.join(self.folder_path, file_path) if not os.path.isabs(file_path) else file_path
-                info = self.validate_sample_info(abs_path)
-                if info.get('is_valid'):
-                    if midi_notes and idx < len(midi_notes):
-                        midi_note = midi_notes[idx]
-                    elif mode == 'drum-kit':
-                        midi_note = min(start_note + idx, 127)
-                    elif mode == 'one-shot':
-                        midi_note = start_note
-                    else:
-                        midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
-                    info['midi_note'] = midi_note
-                    info['sample_path'] = os.path.basename(file_path)
+            if mappings:
+                for m in mappings:
+                    abs_path = m['sample_path']
+                    info = self.validate_sample_info(abs_path)
+                    if not info.get('is_valid'):
+                        continue
+                    info['midi_note'] = m.get('root_note', info.get('root_note', start_note))
+                    info['low_note'] = m.get('low_note', info['midi_note'])
+                    info['high_note'] = m.get('high_note', info['midi_note'])
+                    info['velocity_low'] = m.get('velocity_low', 0)
+                    info['velocity_high'] = m.get('velocity_high', 127)
+                    info['sample_path'] = os.path.basename(abs_path)
                     sample_infos.append(info)
+            else:
+                for idx, file_path in enumerate(sample_files):
+                    abs_path = os.path.join(self.folder_path, file_path) if not os.path.isabs(file_path) else file_path
+                    info = self.validate_sample_info(abs_path)
+                    if info.get('is_valid'):
+                        if midi_notes and idx < len(midi_notes):
+                            midi_note = midi_notes[idx]
+                        elif mode == 'drum-kit':
+                            midi_note = min(start_note + idx, 127)
+                        elif mode == 'one-shot':
+                            midi_note = start_note
+                        else:
+                            midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
+                        info['midi_note'] = midi_note
+                        info['low_note'] = midi_note
+                        info['high_note'] = midi_note
+                        info['velocity_low'] = 0
+                        info['velocity_high'] = 127
+                        info['sample_path'] = os.path.basename(file_path)
+                        sample_infos.append(info)
 
             if not sample_infos:
                 logging.warning(f"No valid samples for program: {program_name}")
                 return False
 
-            note_layers = defaultdict(list)
-            for info in sample_infos:
-                note_layers[info['midi_note']].append(info)
-
-            keygroup_count = len(note_layers)
+            if mappings:
+                note_layers = defaultdict(list)
+                for info in sample_infos:
+                    key = (info['low_note'], info['high_note'])
+                    note_layers[key].append(info)
+                keygroup_count = len(note_layers)
+            else:
+                note_layers = defaultdict(list)
+                for info in sample_infos:
+                    note_layers[(info['midi_note'], info['midi_note'])].append(info)
+                keygroup_count = len(note_layers)
 
             root = ET.Element('MPCVObject')
             version = ET.SubElement(root, 'Version')
@@ -1451,45 +1512,72 @@ class InstrumentBuilder:
             pad_mappings = []
             for info in sample_infos:
                 pad_mappings.append({
-                    'pad': info['midi_note'], 'sample_path': info['sample_path'],
-                    'midi_note': info['midi_note'], 'low_note': info['midi_note'], 'high_note': info['midi_note'],
-                    'velocity_low': 0, 'velocity_high': 127, 'layer': 1
+                    'pad': info['midi_note'],
+                    'sample_path': info['sample_path'],
+                    'midi_note': info['midi_note'],
+                    'low_note': info.get('low_note', info['midi_note']),
+                    'high_note': info.get('high_note', info['midi_note']),
+                    'velocity_low': info.get('velocity_low', 0),
+                    'velocity_high': info.get('velocity_high', 127),
                 })
 
             fw = self.options.firmware_version
             pads_tag = 'ProgramPads-v2.10' if fw in ['3.4.0', '3.5.0'] else 'ProgramPads'
 
-            pads_json_str = build_program_pads_json(fw, pad_mappings)
+            pads_json_str = build_program_pads_json(
+                fw, pad_mappings, engine_override=self.options.format_version)
             ET.SubElement(program, pads_tag).text = pads_json_str
 
             program_params = self.get_program_parameters(keygroup_count)
+            program_params['KeygroupLegacyMode'] = (
+                'True' if self.options.format_version == 'legacy' else 'False'
+            )
             for key, val in program_params.items():
                 ET.SubElement(program, key).text = val
 
             instruments = ET.SubElement(program, 'Instruments')
-            sorted_notes = sorted(note_layers.keys())
-            for i, note in enumerate(sorted_notes, start=1):
-                if mode == 'drum-kit':
-                    low_key = high_key = note
-                elif mode == 'one-shot' and keygroup_count == 1:
-                    low_key, high_key = 0, 127
-                else:
-                    high_key = (sorted_notes[i-1] + sorted_notes[i]) // 2 if i < len(sorted_notes) else 127
-                    low_key = ((sorted_notes[i-2] + sorted_notes[i-1]) // 2) + 1 if i > 1 else 0
+            sorted_keys = sorted(note_layers.keys())
+            for i, key in enumerate(sorted_keys, start=1):
+                low_key, high_key = key
+                if not mappings:
+                    # Derive instrument ranges automatically
+                    if mode == 'drum-kit':
+                        low_key = high_key = low_key
+                    elif mode == 'one-shot' and keygroup_count == 1:
+                        low_key, high_key = 0, 127
+                    else:
+                        if i < len(sorted_keys):
+                            next_low, _ = sorted_keys[i]
+                            high_key = (low_key + next_low) // 2
+                        else:
+                            high_key = 127
+                        if i > 1:
+                            prev_low, _ = sorted_keys[i-2]
+                            low_key = ((prev_low + low_key) // 2) + 1
+                        else:
+                            low_key = 0
 
                 inst = self.build_instrument_element(instruments, i, low_key, high_key)
                 layers_elem = ET.SubElement(inst, 'Layers')
 
-                layers_for_note = note_layers[note]
+                layers_for_note = sorted(note_layers[key], key=lambda x: x.get('velocity_low', 0))
                 num_layers = min(len(layers_for_note), 8)
-                vel_split = 128 // num_layers
 
-                for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
-                    layer = ET.SubElement(layers_elem, 'Layer', {'number': str(lidx + 1)})
-                    vel_start = lidx * vel_split
-                    vel_end = (lidx + 1) * vel_split - 1 if lidx < num_layers - 1 else 127
-                    self.add_layer_parameters(layer, sample_info, vel_start, vel_end)
-                    self.apply_creative_mode(inst, layer, lidx, num_layers)
+                if mappings:
+                    for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
+                        layer = ET.SubElement(layers_elem, 'Layer', {'number': str(lidx + 1)})
+                        vel_start = sample_info.get('velocity_low', 0)
+                        vel_end = sample_info.get('velocity_high', 127)
+                        self.add_layer_parameters(layer, sample_info, vel_start, vel_end)
+                        self.apply_creative_mode(inst, layer, lidx, num_layers)
+                else:
+                    vel_split = 128 // num_layers
+                    for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
+                        layer = ET.SubElement(layers_elem, 'Layer', {'number': str(lidx + 1)})
+                        vel_start = lidx * vel_split
+                        vel_end = (lidx + 1) * vel_split - 1 if lidx < num_layers - 1 else 127
+                        self.add_layer_parameters(layer, sample_info, vel_start, vel_end)
+                        self.apply_creative_mode(inst, layer, lidx, num_layers)
 
             output_path = os.path.join(output_folder, f"{program_name}.xpm")
             tree = ET.ElementTree(root)
@@ -1516,7 +1604,10 @@ class InstrumentBuilder:
             # Fallback for missing imports
             params = {'Polyphony': str(self.options.polyphony), 'LowNote': str(low), 'HighNote': str(high)}
         else:
-            engine = get_pad_settings(self.options.firmware_version).get('engine')
+            engine = get_pad_settings(
+                self.options.firmware_version,
+                self.options.format_version
+            ).get('engine')
             if engine == 'advanced' and ADVANCED_INSTRUMENT_PARAMS:
                 params = ADVANCED_INSTRUMENT_PARAMS.copy()
                 params.update({

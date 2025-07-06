@@ -95,9 +95,18 @@ LEGACY_REMOVE_KEYS = {
     '2.6.0.17': ['KeygroupWheelToLfo2', 'KeygroupAftertouchToFilter2'],
 }
 
-def get_pad_settings(firmware: str):
-    """Return pad settings dict for a firmware version."""
-    return PAD_SETTINGS.get(firmware, PAD_SETTINGS['3.5.0'])
+def get_pad_settings(firmware: str, engine_override: str | None = None):
+    """Return pad settings dict for a firmware version.
+
+    The optional ``engine_override`` parameter allows callers to force
+    the ``engine`` value regardless of the firmware's default. This is
+    used when rebuilding programs where the user wants to explicitly
+    choose between legacy (v2) and advanced (v3) formats.
+    """
+    settings = PAD_SETTINGS.get(firmware, PAD_SETTINGS['3.5.0']).copy()
+    if engine_override in {'legacy', 'advanced'}:
+        settings['engine'] = engine_override
+    return settings
 
 
 def get_program_parameters(firmware: str, num_keygroups: int) -> dict:
