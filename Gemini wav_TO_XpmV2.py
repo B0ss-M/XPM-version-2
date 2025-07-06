@@ -13,23 +13,36 @@ import subprocess
 import threading
 from dataclasses import dataclass, field
 from tkinter import ttk, filedialog, messagebox
-from xpm_parameter_editor import (
-    set_layer_keytrack,
-    set_volume_adsr,
-    load_mod_matrix,
-    apply_mod_matrix,
-)
 from tkinter.ttk import Treeview
 from collections import defaultdict
 import struct
 import re
 import json
 import zipfile
-from drumkit_grouping import group_similar_files
-from multi_sample_builder import MultiSampleBuilderWindow
+
+# Attempt to import optional dependencies, handle if they are not present
+try:
+    from xpm_parameter_editor import (
+        set_layer_keytrack,
+        set_volume_adsr,
+        load_mod_matrix,
+        apply_mod_matrix,
+    )
+    from drumkit_grouping import group_similar_files
+    from multi_sample_builder import MultiSampleBuilderWindow
+    from firmware_profiles import (
+        get_pad_settings,
+        get_program_parameters as fw_program_parameters,
+        ADVANCED_INSTRUMENT_PARAMS,
+    )
+    IMPORTS_SUCCESSFUL = True
+except ImportError as e:
+    IMPORTS_SUCCESSFUL = False
+    MISSING_MODULE = str(e)
+
 
 # --- Application Configuration ---
-APP_VERSION = "22.4"
+APP_VERSION = "22.6"
 
 # --- Global Constants ---
 MPC_BEIGE = '#EAE6DA'
@@ -56,15 +69,9 @@ class TextHandler(logging.Handler):
             self.text_widget.yview(tk.END)
         self.text_widget.after(0, append)
 
-from firmware_profiles import (
-    get_pad_settings,
-    get_program_parameters as fw_program_parameters,
-    ADVANCED_INSTRUMENT_PARAMS,
-)
-
-
 def build_program_pads_json(firmware, mappings=None):
     """Return ProgramPads JSON escaped for XML embedding."""
+    if not IMPORTS_SUCCESSFUL: return "{}"
     pad_cfg = get_pad_settings(firmware)
     pads_type = pad_cfg['type']
     universal_pad = pad_cfg['universal_pad']
@@ -108,7 +115,7 @@ def validate_xpm_file(xpm_path, expected_samples):
         with open(xpm_path, "r", encoding="utf-8") as f:
             xml_text = f.read()
         root = ET.fromstring(xml_text)
-        
+
         pads_elem = root.find('.//ProgramPads-v2.10')
         if pads_elem is None:
             pads_elem = root.find('.//ProgramPads')
@@ -116,17 +123,17 @@ def validate_xpm_file(xpm_path, expected_samples):
         if pads_elem is None or not pads_elem.text:
             logging.warning(f"Validation failed for {os.path.basename(xpm_path)}: ProgramPads section not found.")
             return False
-        
+
         json_text = xml_unescape(pads_elem.text)
         data = json.loads(json_text)
-        
+
         pads = data.get('pads', {})
         entries = [v for v in pads.values() if isinstance(v, dict)]
 
         if expected_samples > 0 and len(entries) == 0:
             logging.warning(f"Validation failed for {os.path.basename(xpm_path)}: Expected >0 pad entries, found {len(entries)}.")
             return False
-        
+
         logging.info(f"Validation successful for {os.path.basename(xpm_path)}.")
         return True
     except Exception as e:
@@ -303,7 +310,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.tree.column("Version", width=80, anchor="center")
         self.tree.column("Valid", width=60, anchor="center")
         self.tree.column("Missing Samples", width=320)
-        
+
         vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
@@ -327,16 +334,16 @@ class ExpansionDoctorWindow(tk.Toplevel):
         folder = filedialog.askdirectory(parent=self, title="Select Folder Containing Missing Samples")
         if not folder:
             return
-        
+
         fixed_count = 0
         for xpm_path, missing_list in self.broken_links.items():
             try:
                 tree = ET.parse(xpm_path)
                 root = tree.getroot()
                 changed = False
-                
+
                 samples_to_find = set(missing_list)
-                
+
                 for elem in root.findall('.//SampleFile'):
                     if elem is not None and elem.text:
                         sample_basename = os.path.basename(elem.text.replace('/', os.sep))
@@ -355,7 +362,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                     fixed_count += 1
             except Exception as e:
                 logging.error(f"Error relinking samples for {xpm_path}: {e}")
-        
+
         self.status.set(f"Relinked samples for {fixed_count} XPM(s). Rescanning...")
         self.scan_broken_links()
 
@@ -450,20 +457,20 @@ class ExpansionBuilderWindow(tk.Toplevel):
         ttk.Label(frame, text="Expansion Name:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
         self.name_var = tk.StringVar()
         ttk.Entry(frame, textvariable=self.name_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=2)
-        
+
         ttk.Label(frame, text="Author:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
         self.author_var = tk.StringVar()
         ttk.Entry(frame, textvariable=self.author_var).grid(row=1, column=1, columnspan=2, sticky="ew", pady=2)
-        
+
         ttk.Label(frame, text="Description:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
         self.desc_var = tk.StringVar()
         ttk.Entry(frame, textvariable=self.desc_var).grid(row=2, column=1, columnspan=2, sticky="ew", pady=2)
-        
+
         ttk.Label(frame, text="Image (JPG/PNG):").grid(row=3, column=0, sticky="e", padx=5, pady=2)
         self.image_var = tk.StringVar()
         ttk.Entry(frame, textvariable=self.image_var).grid(row=3, column=1, sticky="ew", pady=2)
         ttk.Button(frame, text="Browse...", command=self.browse_image).grid(row=3, column=2, padx=5, pady=2)
-        
+
         ttk.Button(frame, text="Create Expansion.xml", command=self.create_file).grid(row=4, column=0, columnspan=3, pady=10)
 
     def browse_image(self):
@@ -480,17 +487,17 @@ class ExpansionBuilderWindow(tk.Toplevel):
         if not name:
             messagebox.showerror("Error", "Expansion name is required.", parent=self)
             return
-            
+
         author = self.author_var.get().strip()
         desc = self.desc_var.get().strip()
         image_path = self.image_var.get().strip()
-        
+
         xml_path = os.path.join(folder, "Expansion.xml")
         root = ET.Element('Expansion')
         ET.SubElement(root, 'Name').text = name
         ET.SubElement(root, 'Author').text = author
         ET.SubElement(root, 'Description').text = desc
-        
+
         if image_path and os.path.exists(image_path):
             image_basename = os.path.basename(image_path)
             ET.SubElement(root, 'Image').text = image_basename
@@ -499,7 +506,7 @@ class ExpansionBuilderWindow(tk.Toplevel):
             except Exception as e:
                 logging.error(f"Failed to copy image: {e}")
                 messagebox.showerror("Image Error", f"Failed to copy image to expansion folder:\n{e}", parent=self)
-        
+
         tree = ET.ElementTree(root)
         ET.indent(tree, space="  ")
         tree.write(xml_path, encoding='utf-8', xml_declaration=True)
@@ -530,7 +537,7 @@ class FileRenamerWindow(tk.Toplevel):
         top_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         ttk.Button(top_frame, text="Rescan Files", command=self.scan_files).pack(side="left")
         ttk.Checkbutton(top_frame, text="Include Folder Name in Suggestion", variable=self.include_folder_var, command=self.update_all_suggestions).pack(side="left", padx=10)
-        
+
         batch_frame = ttk.LabelFrame(main_frame, text="Batch Operations", padding="5")
         batch_frame.grid(row=1, column=0, sticky="ew", pady=(0,5))
         ttk.Label(batch_frame, text="Remove chars:").pack(side="left")
@@ -579,14 +586,14 @@ class FileRenamerWindow(tk.Toplevel):
         parts = []
         if self.include_folder_var.get():
             parts.append(info['folder'].strip())
-        
+
         base_name_cleaned = re.sub(r'([A-G][#b]?\-?\d+)', '', info['base'], flags=re.IGNORECASE).strip()
         base_name_cleaned = re.sub(r'\b(\d{2,3})\b', '', base_name_cleaned).strip()
         parts.append(base_name_cleaned)
-        
+
         if note_str:
             parts.append(note_str)
-        
+
         final_base = ' '.join(filter(None, parts))
         return f"{final_base}{info['ext']}"
 
@@ -627,7 +634,7 @@ class FileRenamerWindow(tk.Toplevel):
         for i, proposal in enumerate(self.rename_proposals):
             row_id = self.tree.insert('', 'end', values=("No", proposal['original_name'], proposal['new_name']))
             self.check_vars[row_id] = tk.BooleanVar(value=False)
-            
+
         self.apply_button.config(state="normal" if self.rename_proposals else "disabled")
 
     def on_tree_click(self, event):
@@ -702,14 +709,14 @@ class FileRenamerWindow(tk.Toplevel):
         if not selected_proposals:
             messagebox.showinfo("No Selection", "No files were selected to rename.", parent=self)
             return
-            
+
         if not messagebox.askyesno("Confirm Rename", f"This will rename {len(selected_proposals)} file(s) and modify all affected .xpm programs. This action CANNOT be undone. Are you sure?", parent=self):
             return
 
         rename_map = {item['original_path']: os.path.join(os.path.dirname(item['original_path']), item['new_name']) for item in selected_proposals}
-        
+
         all_xpms = glob.glob(os.path.join(self.folder_path, '**', '*.xpm'), recursive=True)
-        
+
         for xpm_path in all_xpms:
             try:
                 tree = ET.parse(xpm_path)
@@ -723,7 +730,7 @@ class FileRenamerWindow(tk.Toplevel):
                             new_sample_path = rename_map[original_sample_path]
                             new_rel_path = os.path.relpath(new_sample_path, os.path.dirname(xpm_path))
                             elem.text = new_rel_path.replace(os.sep, '/')
-                            
+
                             parent_layer = root.find(f".//Layer[SampleFile='{elem.text}']")
                             if parent_layer is not None:
                                 sample_name_elem = parent_layer.find('SampleName')
@@ -744,7 +751,7 @@ class FileRenamerWindow(tk.Toplevel):
                     logging.warning(f"Original file not found for renaming: {original}")
             except Exception as e:
                 logging.error(f"Error renaming {original} to {new}: {e}")
-                
+
         messagebox.showinfo("Success", "Files renamed and programs updated.", parent=self)
         self.scan_files()
 
@@ -790,7 +797,7 @@ class CreativeModeConfigWindow(tk.Toplevel):
             self.config = {'resonance': self.resonance.get(), 'release': self.release.get()}
         elif self.mode == 'lofi':
             self.config = {'cutoff': self.cutoff.get(), 'pitch_wobble': self.pitch_wobble.get()}
-        
+
         self.master.creative_config[self.mode] = self.config
         logging.info(f"Updated creative config for '{self.mode}': {self.config}")
         self.destroy()
@@ -809,7 +816,7 @@ class SCWToolWindow(tk.Toplevel):
         frame = ttk.Frame(self, padding="10")
         frame.pack(fill="both", expand=True)
         ttk.Label(frame, text=f"Found potential SCWs (WAV files < {SCW_FRAME_THRESHOLD} frames):").pack(anchor='w')
-        
+
         list_frame = ttk.Frame(frame)
         list_frame.pack(fill='both', expand=True, pady=5)
         self.listbox = tk.Listbox(list_frame, selectmode='extended')
@@ -817,7 +824,7 @@ class SCWToolWindow(tk.Toplevel):
         vsb = ttk.Scrollbar(list_frame, orient='vertical', command=self.listbox.yview)
         vsb.pack(side='right', fill='y')
         self.listbox.config(yscrollcommand=vsb.set)
-        
+
         ttk.Button(frame, text="Create Looped Instruments from Selected", command=self.create_instruments).pack(pady=5)
 
     def scan_for_scw(self):
@@ -827,32 +834,31 @@ class SCWToolWindow(tk.Toplevel):
             if get_wav_frames(wav_path) < SCW_FRAME_THRESHOLD:
                 self.scw_files.append(wav_path)
                 self.listbox.insert(tk.END, os.path.relpath(wav_path, folder))
-    
+
     def create_instruments(self):
         selected_indices = self.listbox.curselection()
         if not selected_indices:
             messagebox.showwarning("No Selection", "Please select one or more files from the list.", parent=self)
             return
-        
+
         selected_files = [self.scw_files[i] for i in selected_indices]
-        
+
         options = InstrumentOptions(
             loop_one_shots=True,
             polyphony=1,
             firmware_version=self.master.firmware_version.get()
         )
-        
+
         builder = InstrumentBuilder(self.master.folder_path.get(), self.master, options)
-        
+
         for file_path in selected_files:
             rel_path = os.path.relpath(file_path, self.master.folder_path.get())
             program_name = os.path.splitext(os.path.basename(file_path))[0]
             output_folder = os.path.dirname(file_path)
             builder._create_xpm(program_name, [rel_path], output_folder, mode='one-shot')
-            
+
         messagebox.showinfo("Success", f"Created {len(selected_files)} looped instruments.", parent=self)
         self.destroy()
-
 
 class BatchProgramEditorWindow(tk.Toplevel):
     def __init__(self, master):
@@ -1004,6 +1010,292 @@ class MergeSubfoldersWindow(tk.Toplevel):
             confirm=True,
             confirm_message="This will move all files up and remove empty folders. This can't be undone. Continue?",
         )
+
+#</editor-fold>
+
+#<editor-fold desc="REVISED: BatchProgramFixerWindow">
+class BatchProgramFixerWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root if hasattr(master, 'root') else master)
+        self.title("Batch Program Fixer")
+        self.geometry("800x600")
+        self.master = master
+        self.folder_path = tk.StringVar()
+        self.check_vars = {}
+        self.xpm_map = {} # Maps treeview item ID to absolute path
+        self.create_widgets()
+
+    def create_widgets(self):
+        main_frame = ttk.Frame(self, padding="10")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_rowconfigure(2, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+
+        # Top bar for folder selection and scanning
+        top_bar = ttk.Frame(main_frame)
+        top_bar.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        top_bar.grid_columnconfigure(1, weight=1)
+        ttk.Label(top_bar, text="Program Folder:").pack(side="left", padx=(0,5))
+        ttk.Entry(top_bar, textvariable=self.folder_path).pack(side="left", expand=True, fill="x")
+        ttk.Button(top_bar, text="Browse...", command=self.browse_folder).pack(side="left", padx=5)
+        ttk.Button(top_bar, text="Scan Folder", command=self.scan_folder).pack(side="left")
+
+        # Treeview for displaying XPM files
+        tree_frame = ttk.Frame(main_frame)
+        tree_frame.grid(row=1, column=0, sticky="nsew", pady=5)
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
+        self.tree = Treeview(tree_frame, columns=("Select", "File", "Version", "Status"), show="headings")
+        self.tree.heading("Select", text="Select")
+        self.tree.heading("File", text="Program File")
+        self.tree.heading("Version", text="Version")
+        self.tree.heading("Status", text="Status")
+        self.tree.column("Select", width=60, anchor="center", stretch=False)
+        self.tree.column("File", width=350)
+        self.tree.column("Version", width=100, anchor="center")
+        self.tree.column("Status", width=200)
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        self.tree.bind("<Button-1>", self.on_tree_click)
+        main_frame.grid_rowconfigure(1, weight=1)
+
+        # Action buttons
+        actions_frame = ttk.LabelFrame(main_frame, text="Batch Actions", padding="10")
+        actions_frame.grid(row=2, column=0, sticky="ew", pady=5)
+        actions_frame.grid_columnconfigure(1, weight=1)
+        actions_frame.grid_columnconfigure(2, weight=1)
+        ttk.Button(actions_frame, text="Select All", command=lambda: self.toggle_all_checks(True)).pack(side="left", padx=5)
+        ttk.Button(actions_frame, text="Deselect All", command=lambda: self.toggle_all_checks(False)).pack(side="left", padx=5)
+        ttk.Button(actions_frame, text="Analyze & Relink Selected", command=self.run_relink_thread).pack(side="left", padx=20)
+        ttk.Button(actions_frame, text="Rebuild Selected", command=self.run_rebuild_thread).pack(side="left", padx=5)
+
+    def browse_folder(self):
+        path = filedialog.askdirectory(parent=self, title="Select Folder Containing XPM Programs")
+        if path:
+            self.folder_path.set(path)
+            self.scan_folder()
+
+    def scan_folder(self):
+        folder = self.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "Please select a valid folder first.", parent=self)
+            return
+
+        for i in self.tree.get_children():
+            self.tree.delete(i)
+        self.check_vars.clear()
+        self.xpm_map.clear()
+
+        xpm_files = glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True)
+        for path in xpm_files:
+            version = get_xpm_version(path)
+            rel_path = os.path.relpath(path, folder)
+            item_id = self.tree.insert('', 'end', values=("No", rel_path, version, "Ready"))
+            self.check_vars[item_id] = tk.BooleanVar(value=False)
+            self.xpm_map[item_id] = path
+
+    def get_selected_items(self):
+        selected = []
+        for item_id, var in self.check_vars.items():
+            if var.get():
+                selected.append(item_id)
+        return selected
+
+    def on_tree_click(self, event):
+        region = self.tree.identify("region", event.x, event.y)
+        if region != "cell": return
+        col = self.tree.identify_column(event.x)
+        row_id = self.tree.identify_row(event.y)
+        if not row_id: return
+
+        if col == "#1":
+            current_val = self.check_vars[row_id].get()
+            self.check_vars[row_id].set(not current_val)
+            self.tree.set(row_id, "Select", "Yes" if not current_val else "No")
+
+    def toggle_all_checks(self, select_all):
+        for row_id in self.tree.get_children():
+            if row_id in self.check_vars:
+                self.check_vars[row_id].set(select_all)
+                self.tree.set(row_id, "Select", "Yes" if select_all else "No")
+
+    def run_relink_thread(self):
+        selected_ids = self.get_selected_items()
+        if not selected_ids:
+            messagebox.showwarning("No Selection", "Please select at least one program to analyze.", parent=self)
+            return
+        threading.Thread(target=self.analyze_and_relink_batch, args=(selected_ids,), daemon=True).start()
+
+    def run_rebuild_thread(self):
+        selected_ids = self.get_selected_items()
+        if not selected_ids:
+            messagebox.showwarning("No Selection", "Please select at least one program to rebuild.", parent=self)
+            return
+        threading.Thread(target=self.rebuild_batch, args=(selected_ids,), daemon=True).start()
+
+    def analyze_and_relink_batch(self, item_ids):
+        all_missing_samples = set()
+        programs_with_missing = defaultdict(list)
+
+        # Step 1: Gather all missing samples from all selected programs
+        for item_id in item_ids:
+            xpm_path = self.xpm_map[item_id]
+            self.tree.set(item_id, "Status", "Analyzing...")
+            try:
+                tree = ET.parse(xpm_path)
+                root = tree.getroot()
+                xpm_dir = os.path.dirname(xpm_path)
+                
+                found_missing_for_this_file = False
+                for elem in root.findall('.//SampleFile'):
+                    if elem is not None and elem.text:
+                        sample_rel_path = elem.text.replace('/', os.sep)
+                        sample_abs_path = os.path.normpath(os.path.join(xpm_dir, sample_rel_path))
+                        if not os.path.exists(sample_abs_path):
+                            sample_basename = os.path.basename(elem.text)
+                            all_missing_samples.add(sample_basename)
+                            programs_with_missing[xpm_path].append(sample_basename)
+                            found_missing_for_this_file = True
+                
+                self.tree.set(item_id, "Status", "Missing samples" if found_missing_for_this_file else "OK")
+
+            except Exception as e:
+                self.tree.set(item_id, "Status", "XML Error")
+                logging.error(f"Error analyzing {xpm_path}: {e}")
+
+        if not all_missing_samples:
+            messagebox.showinfo("Analysis Complete", "No missing samples found in selected programs.", parent=self)
+            return
+
+        # Step 2: Ask user for the location of the missing samples
+        msg = f"Found {len(all_missing_samples)} unique missing samples across {len(programs_with_missing)} program(s).\n\nLocate the folder containing these samples?"
+        if not messagebox.askyesno("Missing Samples Found", msg, parent=self):
+            return
+
+        sample_folder = filedialog.askdirectory(parent=self, title="Select Folder Containing Missing Samples")
+        if not sample_folder:
+            return
+
+        # Step 3: Relink and copy
+        total_relinked = 0
+        for xpm_path, missing_list in programs_with_missing.items():
+            self.tree.set(self.get_id_from_path(xpm_path), "Status", "Relinking...")
+            try:
+                tree = ET.parse(xpm_path)
+                root = tree.getroot()
+                changed = False
+                xpm_dir = os.path.dirname(xpm_path)
+
+                for elem in root.findall('.//SampleFile'):
+                    sample_basename = os.path.basename(elem.text.replace('/', os.sep))
+                    if sample_basename in missing_list:
+                        found_path = os.path.join(sample_folder, sample_basename)
+                        if os.path.exists(found_path):
+                            dest_path = os.path.join(xpm_dir, sample_basename)
+                            shutil.copy2(found_path, dest_path)
+                            elem.text = sample_basename # Update path to be relative to XPM
+                            changed = True
+                            total_relinked += 1
+                
+                if changed:
+                    shutil.copy2(xpm_path, xpm_path + ".bak")
+                    ET.indent(tree, space="  ")
+                    tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
+                    self.tree.set(self.get_id_from_path(xpm_path), "Status", "Relinked")
+            except Exception as e:
+                self.tree.set(self.get_id_from_path(xpm_path), "Status", "Relink Error")
+                logging.error(f"Error relinking {xpm_path}: {e}")
+        
+        messagebox.showinfo("Relink Complete", f"Finished. Relinked {total_relinked} sample instances.", parent=self)
+
+    def rebuild_batch(self, item_ids):
+        target_firmware = self.master.firmware_version.get()
+        if not messagebox.askyesno("Confirm Rebuild", f"This will rebuild {len(item_ids)} program(s) for firmware {target_firmware}. Backups will be created. Continue?", parent=self):
+            return
+
+        for item_id in item_ids:
+            xpm_path = self.xpm_map[item_id]
+            self.tree.set(item_id, "Status", "Rebuilding...")
+            try:
+                sample_mappings = self._parse_any_xpm(xpm_path)
+                if not sample_mappings:
+                    self.tree.set(item_id, "Status", "Parse Error")
+                    continue
+
+                program_name = os.path.splitext(os.path.basename(xpm_path))[0]
+                output_folder = os.path.dirname(xpm_path)
+                
+                options = InstrumentOptions(
+                    firmware_version=target_firmware,
+                    polyphony=self.master.polyphony_var.get(),
+                )
+                builder = InstrumentBuilder(output_folder, self.master, options)
+                sample_files = [m['sample_path'] for m in sample_mappings]
+                midi_notes = [m['root_note'] for m in sample_mappings]
+
+                shutil.copy2(xpm_path, xpm_path + f".rebuild-{target_firmware}.bak")
+                success = builder._create_xpm(program_name, sample_files, output_folder, mode='multi-sample', midi_notes=midi_notes)
+                
+                if success:
+                    self.tree.set(item_id, "Status", f"Rebuilt for {target_firmware}")
+                    self.tree.set(item_id, "Version", target_firmware)
+                else:
+                    self.tree.set(item_id, "Status", "Rebuild Failed")
+            except Exception as e:
+                self.tree.set(item_id, "Status", "Rebuild Error")
+                logging.error(f"Critical error rebuilding {xpm_path}: {e}\n{traceback.format_exc()}")
+        
+        messagebox.showinfo("Rebuild Complete", "Finished rebuilding selected programs.", parent=self)
+
+    def _parse_any_xpm(self, xpm_path):
+        mappings = []
+        xpm_dir = os.path.dirname(xpm_path)
+        tree = ET.parse(xpm_path)
+        root = tree.getroot()
+
+        # Modern JSON-based format (v3.4+)
+        pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+        if pads_elem is not None and pads_elem.text:
+            data = json.loads(xml_unescape(pads_elem.text))
+            pads = data.get('pads', {})
+            for pad_data in pads.values():
+                if isinstance(pad_data, dict) and pad_data.get('samplePath'):
+                    sample_path_text = pad_data['samplePath']
+                    if sample_path_text and sample_path_text.strip():
+                        mappings.append({
+                            'sample_path': os.path.join(xpm_dir, sample_path_text),
+                            'root_note': pad_data.get('rootNote', 60),
+                            'low_note': pad_data.get('lowNote', 0),
+                            'high_note': pad_data.get('highNote', 127)
+                        })
+            if mappings: return mappings
+
+        # Legacy XML format
+        for inst in root.findall('.//Instrument'):
+            low_note_elem, high_note_elem = inst.find('LowNote'), inst.find('HighNote')
+            if low_note_elem is None or high_note_elem is None: continue
+
+            for layer in inst.findall('.//Layer'):
+                sample_file_elem, root_note_elem = layer.find('SampleFile'), layer.find('RootNote')
+                if sample_file_elem is None or root_note_elem is None: continue
+                
+                sample_file = sample_file_elem.text
+                if sample_file and sample_file.strip():
+                    mappings.append({
+                        'sample_path': os.path.join(xpm_dir, sample_file),
+                        'root_note': int(root_note_elem.text),
+                        'low_note': int(low_note_elem.text),
+                        'high_note': int(high_note_elem.text)
+                    })
+        return mappings
+
+    def get_id_from_path(self, path):
+        for item_id, item_path in self.xpm_map.items():
+            if item_path == path:
+                return item_id
+        return None
 #</editor-fold>
 
 @dataclass
@@ -1059,7 +1351,7 @@ class InstrumentBuilder:
             self.app.status_text.set("Analyzing files...")
 
             if mode == 'drum-kit':
-                instrument_groups = group_similar_files(self.folder_path)
+                instrument_groups = group_similar_files(self.folder_path) if IMPORTS_SUCCESSFUL else {}
             else:
                 instrument_groups = self.group_wav_files(mode)
             if not instrument_groups:
@@ -1069,7 +1361,7 @@ class InstrumentBuilder:
 
             total_groups = len(instrument_groups)
             self.app.progress["maximum"] = total_groups
-            
+
             for i, (program_name, files) in enumerate(instrument_groups.items()):
                 try:
                     self.app.status_text.set(f"Creating: {program_name}")
@@ -1078,7 +1370,7 @@ class InstrumentBuilder:
                     sanitized_name = re.sub(r'[\\/*?:"<>|]', "", program_name)
                     first_file_abs_path = os.path.join(self.folder_path, files[0])
                     output_folder = os.path.dirname(first_file_abs_path)
-                    
+
                     if self._create_xpm(sanitized_name, files, output_folder, mode):
                         created_count += 1
                         created_xpms.append(os.path.join(output_folder, f"{sanitized_name}.xpm"))
@@ -1087,7 +1379,7 @@ class InstrumentBuilder:
                 except Exception as e:
                     logging.error(f"Error processing group {program_name}: {e}\n{traceback.format_exc()}")
                     error_count += 1
-            
+
             with open("xpm_output.log", "w", encoding="utf-8") as f:
                 f.write(f"--- XPM Creation Summary ---\n")
                 f.write(f"Created: {created_count}, Failed: {error_count}\n\n")
@@ -1113,7 +1405,7 @@ class InstrumentBuilder:
             self._show_error_safe("Error", f"An unexpected error occurred: {e}")
         finally:
             self.app.progress["value"] = 0
-            
+
     def _create_xpm(self, program_name, sample_files, output_folder, mode, midi_notes=None):
         """Creates a single XPM file from a group of samples using robust XML construction."""
         logging.info("_create_xpm building '%s' with %d sample(s)", program_name, len(sample_files))
@@ -1145,14 +1437,14 @@ class InstrumentBuilder:
                 note_layers[info['midi_note']].append(info)
 
             keygroup_count = len(note_layers)
-            
+
             root = ET.Element('MPCVObject')
             version = ET.SubElement(root, 'Version')
             ET.SubElement(version, 'File_Version').text = '2.1'
             ET.SubElement(version, 'Application').text = 'MPC-V'
             ET.SubElement(version, 'Application_Version').text = self.options.firmware_version
             ET.SubElement(version, 'Platform').text = 'Linux'
-            
+
             program = ET.SubElement(root, 'Program', {'type': 'Keygroup'})
             ET.SubElement(program, 'ProgramName').text = xml_escape(program_name)
 
@@ -1163,17 +1455,17 @@ class InstrumentBuilder:
                     'midi_note': info['midi_note'], 'low_note': info['midi_note'], 'high_note': info['midi_note'],
                     'velocity_low': 0, 'velocity_high': 127, 'layer': 1
                 })
-            
+
             fw = self.options.firmware_version
             pads_tag = 'ProgramPads-v2.10' if fw in ['3.4.0', '3.5.0'] else 'ProgramPads'
-                
+
             pads_json_str = build_program_pads_json(fw, pad_mappings)
             ET.SubElement(program, pads_tag).text = pads_json_str
-            
+
             program_params = self.get_program_parameters(keygroup_count)
             for key, val in program_params.items():
                 ET.SubElement(program, key).text = val
-                
+
             instruments = ET.SubElement(program, 'Instruments')
             sorted_notes = sorted(note_layers.keys())
             for i, note in enumerate(sorted_notes, start=1):
@@ -1187,7 +1479,7 @@ class InstrumentBuilder:
 
                 inst = self.build_instrument_element(instruments, i, low_key, high_key)
                 layers_elem = ET.SubElement(inst, 'Layers')
-                
+
                 layers_for_note = note_layers[note]
                 num_layers = min(len(layers_for_note), 8)
                 vel_split = 128 // num_layers
@@ -1198,12 +1490,12 @@ class InstrumentBuilder:
                     vel_end = (lidx + 1) * vel_split - 1 if lidx < num_layers - 1 else 127
                     self.add_layer_parameters(layer, sample_info, vel_start, vel_end)
                     self.apply_creative_mode(inst, layer, lidx, num_layers)
-            
+
             output_path = os.path.join(output_folder, f"{program_name}.xpm")
             tree = ET.ElementTree(root)
             ET.indent(tree, space="  ")
             tree.write(output_path, encoding='utf-8', xml_declaration=True)
-            
+
             if not validate_xpm_file(output_path, len(pad_mappings)):
                 logging.warning(f"Post-creation validation failed for {os.path.basename(output_path)}")
 
@@ -1214,43 +1506,48 @@ class InstrumentBuilder:
             return False
 
     def get_program_parameters(self, num_keygroups):
+        if not IMPORTS_SUCCESSFUL: return {}
         firmware = self.options.firmware_version
         return fw_program_parameters(firmware, num_keygroups)
 
     def build_instrument_element(self, parent, num, low, high):
         instrument = ET.SubElement(parent, 'Instrument', {'number': str(num)})
-        engine = get_pad_settings(self.options.firmware_version).get('engine')
-        if engine == 'advanced' and ADVANCED_INSTRUMENT_PARAMS:
-            params = ADVANCED_INSTRUMENT_PARAMS.copy()
-            params.update({
-                'Polyphony': str(self.options.polyphony),
-                'LowNote': str(low),
-                'HighNote': str(high),
-            })
+        if not IMPORTS_SUCCESSFUL:
+            # Fallback for missing imports
+            params = {'Polyphony': str(self.options.polyphony), 'LowNote': str(low), 'HighNote': str(high)}
         else:
-            params = {
-                'Polyphony': str(self.options.polyphony),
-                'LowNote': str(low),
-                'HighNote': str(high),
-                'Volume': '1.0',
-                'Pan': '0.5',
-                'Tune': '0.0',
-                'MuteGroup': '0',
-                'VoiceOverlap': 'Poly',
-                'VolumeAttack': '0.0',
-                'VolumeDecay': '0.0',
-                'VolumeSustain': '1.0',
-                'VolumeRelease': '0.05',
-                'FilterType': 'Off',
-                'Cutoff': '1.0',
-                'Resonance': '0.0',
-                'FilterKeytrack': '0.0',
-                'FilterAttack': '0.0',
-                'FilterDecay': '0.0',
-                'FilterSustain': '1.0',
-                'FilterRelease': '0.0',
-                'FilterEnvAmount': '0.0',
-            }
+            engine = get_pad_settings(self.options.firmware_version).get('engine')
+            if engine == 'advanced' and ADVANCED_INSTRUMENT_PARAMS:
+                params = ADVANCED_INSTRUMENT_PARAMS.copy()
+                params.update({
+                    'Polyphony': str(self.options.polyphony),
+                    'LowNote': str(low),
+                    'HighNote': str(high),
+                })
+            else:
+                params = {
+                    'Polyphony': str(self.options.polyphony),
+                    'LowNote': str(low),
+                    'HighNote': str(high),
+                    'Volume': '1.0',
+                    'Pan': '0.5',
+                    'Tune': '0.0',
+                    'MuteGroup': '0',
+                    'VoiceOverlap': 'Poly',
+                    'VolumeAttack': '0.0',
+                    'VolumeDecay': '0.0',
+                    'VolumeSustain': '1.0',
+                    'VolumeRelease': '0.05',
+                    'FilterType': 'Off',
+                    'Cutoff': '1.0',
+                    'Resonance': '0.0',
+                    'FilterKeytrack': '0.0',
+                    'FilterAttack': '0.0',
+                    'FilterDecay': '0.0',
+                    'FilterSustain': '1.0',
+                    'FilterRelease': '0.0',
+                    'FilterEnvAmount': '0.0',
+                }
         for key, val in params.items():
             ET.SubElement(instrument, key).text = val
         return instrument
@@ -1291,7 +1588,7 @@ class InstrumentBuilder:
             params['Direction'] = '1'
         if mode == 'stereo_spread' and total_layers > 1:
             params['Pan'] = str(round(layer_index / (total_layers - 1), 3))
-        
+
         if layer_index == 0:
             if mode == 'subtle':
                 params['Cutoff'] = str(round(1.0 + random.uniform(-0.05, 0.05), 3))
@@ -1335,7 +1632,7 @@ class InstrumentBuilder:
             try:
                 preview_folder_path = os.path.join(os.path.dirname(xpm_path), "[Previews]")
                 os.makedirs(preview_folder_path, exist_ok=True)
-                
+
                 tree = ET.parse(xpm_path)
                 root = tree.getroot()
                 preview_sample_name = None
@@ -1351,7 +1648,7 @@ class InstrumentBuilder:
                         if isinstance(pad, dict) and pad.get('samplePath'):
                             preview_sample_name = pad['samplePath']
                             break
-                
+
                 # Legacy format check (if no ProgramPads or no sample found in it)
                 if not preview_sample_name:
                     first_sample_elem = root.find('.//Layer/SampleName')
@@ -1388,13 +1685,13 @@ class InstrumentBuilder:
         """Groups WAV files by instrument name for XPM creation."""
         search_path = os.path.join(self.folder_path, '**', '*.wav') if self.options.recursive_scan else os.path.join(self.folder_path, '*.wav')
         all_wavs = glob.glob(search_path, recursive=self.options.recursive_scan)
-        
+
         groups = defaultdict(list)
         for wav_path in all_wavs:
             if '.xpm.wav' in wav_path.lower(): continue
-            
+
             relative_path = os.path.relpath(wav_path, self.folder_path)
-            
+
             if mode == 'one-shot':
                 instrument_name = os.path.splitext(os.path.basename(wav_path))[0]
                 groups[instrument_name].append(relative_path)
@@ -1430,13 +1727,21 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.root = self
+        if not IMPORTS_SUCCESSFUL:
+            self.withdraw()
+            messagebox.showerror(
+                "Missing Dependencies",
+                f"A required file could not be found:\n\n{MISSING_MODULE}\n\nPlease make sure all script files are in the same directory."
+            )
+            sys.exit(1)
+
         self.firmware_version = tk.StringVar(value='3.5.0')
         self.title(f"Wav to XPM Converter v{APP_VERSION}")
         self.geometry("850x750")
         self.minsize(700, 600)
-        
+
         self.creative_config = {}
-        
+
         self.setup_retro_theme()
 
         main_frame = ttk.Frame(self, padding="10", style="Retro.TFrame")
@@ -1451,7 +1756,7 @@ class App(tk.Tk):
         self.create_batch_tools(main_frame)
         self.create_log_viewer(main_frame)
         self.create_status_bar(main_frame)
-        
+
         self.setup_logging()
 
     def setup_logging(self):
@@ -1463,11 +1768,11 @@ class App(tk.Tk):
         root_logger = logging.getLogger()
         if root_logger.hasHandlers():
             root_logger.handlers.clear()
-        
+
         file_handler = logging.FileHandler("converter.log", mode="a", encoding="utf-8")
         file_handler.setFormatter(log_format)
         root_logger.addHandler(file_handler)
-        
+
         root_logger.addHandler(text_handler)
         root_logger.setLevel(logging.INFO)
         logging.info(f"Application started. Version {APP_VERSION}.")
@@ -1509,18 +1814,18 @@ class App(tk.Tk):
         frame = ttk.LabelFrame(parent, text="Keygroup Options", padding="10")
         frame.grid(row=1, column=0, sticky='ew', pady=5)
         frame.grid_columnconfigure(1, weight=1)
-        
+
         ttk.Label(frame, text="Target Firmware:").grid(row=0, column=0, sticky='e', padx=5, pady=2)
         ttk.Combobox(frame, textvariable=self.firmware_version, values=['2.3.0.0', '2.6.0.17', '3.4.0', '3.5.0'], state='readonly').grid(row=0, column=1, sticky='ew')
-        
+
         ttk.Label(frame, text="Polyphony:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
         self.polyphony_var = tk.IntVar(value=16)
         ttk.Spinbox(frame, from_=1, to=64, textvariable=self.polyphony_var).grid(row=1, column=1, sticky="ew")
-        
+
         creative_frame = ttk.Frame(frame)
         creative_frame.grid(row=2, column=1, sticky='ew')
         creative_frame.grid_columnconfigure(0, weight=1)
-        
+
         ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
         self.creative_mode_var = tk.StringVar(value="off")
         creative_modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
@@ -1530,7 +1835,7 @@ class App(tk.Tk):
 
         self.creative_config_btn = ttk.Button(creative_frame, text="Configure...", command=self.open_creative_config, state='disabled')
         self.creative_config_btn.grid(row=0, column=1, padx=(5,0))
-        
+
         check_frame = ttk.Frame(frame)
         check_frame.grid(row=3, column=0, columnspan=2, sticky='w', pady=5)
         self.loop_one_shots_var = tk.BooleanVar(value=False)
@@ -1545,11 +1850,11 @@ class App(tk.Tk):
         frame.grid(row=2, column=0, sticky='ew', pady=5)
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
-        
+
         ttk.Button(frame, text="Build Multi-Sampled Instruments", command=self.build_multi_sample_instruments, style="Accent.TButton").grid(row=0, column=0, sticky="ew", padx=2, pady=2)
         ttk.Button(frame, text="Build One-Shot Instruments", command=self.build_one_shot_instruments).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
         ttk.Button(frame, text="Build Drum Kit", command=self.build_drum_kit_instruments).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
-    
+
     def create_advanced_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Advanced Tools", padding="10")
         frame.grid(row=3, column=0, sticky="nsew", pady=5)
@@ -1557,6 +1862,7 @@ class App(tk.Tk):
         frame.grid_columnconfigure(1, weight=1)
         ttk.Button(frame, text="Single-Cycle Waveform (SCW) Tool...", command=lambda: self.open_window(SCWToolWindow)).grid(row=0, column=0, sticky="ew", padx=2, pady=2)
         ttk.Button(frame, text="Batch Program Editor...", command=lambda: self.open_window(BatchProgramEditorWindow)).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Batch Program Fixer...", command=lambda: self.open_window(BatchProgramFixerWindow)).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
 
     def create_batch_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Utilities & Batch Tools", padding="10")
@@ -1566,7 +1872,7 @@ class App(tk.Tk):
         ttk.Button(frame, text="File Renamer", command=self.open_file_renamer).grid(row=0, column=1, sticky="ew", padx=2)
         ttk.Button(frame, text="Merge Subfolders", command=self.open_merge_subfolders).grid(row=1, column=0, sticky="ew", padx=2, pady=2)
         ttk.Button(frame, text="Smart Split...", command=self.open_smart_split_window).grid(row=1, column=1, sticky="ew", padx=2, pady=2)
-        
+
         ttk.Button(frame, text="Generate All Previews", command=self.generate_previews).grid(row=0, column=2, sticky="ew", padx=2)
         ttk.Button(frame, text="Expansion Builder", command=self.open_expansion_builder).grid(row=0, column=3, sticky="ew", padx=2)
         ttk.Button(frame, text="Package Expansion (.zip)", command=self.package_expansion, style="Accent.TButton").grid(row=1, column=2, columnspan=2, sticky="ew", padx=2, pady=2)
@@ -1576,10 +1882,10 @@ class App(tk.Tk):
         log_frame.grid(row=5, column=0, sticky="nsew", pady=(10, 0))
         log_frame.grid_rowconfigure(0, weight=1)
         log_frame.grid_columnconfigure(0, weight=1)
-        
+
         self.log_text = tk.Text(log_frame, height=10, wrap="word", state="disabled", bg=MPC_WHITE, fg=MPC_DARK_GREY)
         self.log_text.grid(row=0, column=0, sticky="nsew")
-        
+
         scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.log_text.yview, style="Vertical.TScrollbar")
         scrollbar.grid(row=0, column=1, sticky="ns")
         self.log_text['yscrollcommand'] = scrollbar.set
@@ -1611,7 +1917,13 @@ class App(tk.Tk):
             self.creative_config_btn.config(state='disabled')
 
     def open_window(self, window_class, *args):
-        if window_class not in [ExpansionBuilderWindow, CreativeModeConfigWindow] and (
+        # List of windows that don't require a pre-selected folder
+        folder_independent_windows = [
+            ExpansionBuilderWindow,
+            CreativeModeConfigWindow,
+            BatchProgramFixerWindow
+        ]
+        if window_class not in folder_independent_windows and (
             not self.folder_path.get() or not os.path.isdir(self.folder_path.get())
         ):
             messagebox.showerror("Error", "Please select a valid source folder first.", parent=self.root)
@@ -1625,14 +1937,14 @@ class App(tk.Tk):
         except Exception as e:
             logging.error(f"Error opening {window_class.__name__}: {e}")
             messagebox.showerror("Error", f"Failed to open window.\n{e}", parent=self.root)
-    
+
     def open_expansion_doctor(self): self.open_window(ExpansionDoctorWindow)
     def open_file_renamer(self): self.open_window(FileRenamerWindow)
     def open_expansion_builder(self): self.open_window(ExpansionBuilderWindow)
     def open_smart_split_window(self): self.open_window(SmartSplitWindow)
     def open_creative_config(self): self.open_window(CreativeModeConfigWindow, self.creative_mode_var.get())
     #</editor-fold>
-    
+
     def build_instruments(self, mode):
         folder = self.folder_path.get()
         if not folder or not os.path.isdir(folder):
@@ -1651,7 +1963,11 @@ class App(tk.Tk):
         threading.Thread(target=builder.create_instruments, args=(mode,), daemon=True).start()
 
     def build_multi_sample_instruments(self):
-        self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions)
+        if IMPORTS_SUCCESSFUL:
+            self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions)
+        else:
+            self.build_instruments('multi-sample')
+
 
     def build_one_shot_instruments(self):
         self.build_instruments('one-shot')
@@ -1664,7 +1980,7 @@ class App(tk.Tk):
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "Please select a valid folder first.", parent=self.root)
             return
-        
+
         if confirm and not messagebox.askyesno("Confirm Action", confirm_message, parent=self.root):
             return
 
@@ -1682,7 +1998,7 @@ class App(tk.Tk):
                 self.progress.stop()
                 self.progress.config(mode='determinate')
                 self.status_text.set("Ready.")
-        
+
         self.status_text.set(f"Running {process_func.__name__}...")
         threading.Thread(target=run, daemon=True).start()
 
@@ -1692,7 +2008,7 @@ class App(tk.Tk):
     def generate_previews(self):
         builder = InstrumentBuilder(self.folder_path.get(), self, InstrumentOptions())
         threading.Thread(target=builder.process_previews_only, daemon=True).start()
-    
+
     def package_expansion(self):
         folder = self.folder_path.get()
         if not folder or not os.path.isdir(folder):
@@ -1714,7 +2030,7 @@ class App(tk.Tk):
             self.status_text.set("Packaging expansion...")
             try:
                 logging.info("Starting expansion packaging process...")
-                
+
                 if not os.path.exists(os.path.join(folder, "Expansion.xml")):
                    if messagebox.askyesno("Create Expansion File", "No Expansion.xml found. Would you like to create one now to include it in the package?", parent=self.root):
                         logging.warning("Expansion.xml missing. User prompted to create one.")
@@ -1725,8 +2041,8 @@ class App(tk.Tk):
                         for file in files:
                             if os.path.join(root, file) == save_path:
                                 continue
-                            zipf.write(os.path.join(root, file), 
-                                       os.path.relpath(os.path.join(root, file), 
+                            zipf.write(os.path.join(root, file),
+                                       os.path.relpath(os.path.join(root, file),
                                                        os.path.dirname(folder)))
 
                 logging.info(f"Expansion successfully packaged to {save_path}")
@@ -1868,6 +2184,10 @@ def batch_edit_programs(
 ):
     """Batch edit XPM files with rename/version and creative tweaks."""
     edited = 0
+    if not IMPORTS_SUCCESSFUL:
+        logging.error("Cannot run batch edit, required modules are missing.")
+        return 0
+
     options = InstrumentOptions(creative_mode=creative_mode,
                                creative_config=creative_config or {})
     builder = InstrumentBuilder(folder_path, None, options)
@@ -1935,7 +2255,7 @@ def main():
         except (FileNotFoundError, subprocess.CalledProcessError):
             print("ERROR: This application requires a graphical display. Please install Xvfb.", file=sys.stderr)
             sys.exit(1)
-            
+
     try:
         app = App()
         app.mainloop()
