@@ -1280,26 +1280,36 @@ class BatchProgramFixerWindow(tk.Toplevel):
         # Modern JSON-based format (v3.4+)
         pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
         if pads_elem is not None and pads_elem.text:
-            data = json.loads(xml_unescape(pads_elem.text))
+            try:
+                data = json.loads(xml_unescape(pads_elem.text))
+            except json.JSONDecodeError as exc:
+                logging.error(f"JSON decode error in {xpm_path}: {exc}")
+                data = {}
             pads = data.get('pads', {})
             for pad_data in pads.values():
                 if isinstance(pad_data, dict) and pad_data.get('samplePath'):
                     sample_path_text = pad_data['samplePath']
                     if sample_path_text and sample_path_text.strip():
-                        mappings.append({
-                            'sample_path': os.path.join(xpm_dir, sample_path_text),
-                            'root_note': pad_data.get('rootNote', 60),
-                            'low_note': pad_data.get('lowNote', 0),
-                            'high_note': pad_data.get('highNote', 127),
-                            'velocity_low': pad_data.get('velocityLow', 0),
-                            'velocity_high': pad_data.get('velocityHigh', 127)
-                        })
-            if mappings: return mappings
+                        try:
+                            mappings.append({
+                                'sample_path': os.path.join(xpm_dir, sample_path_text),
+                                'root_note': int(pad_data.get('rootNote', 60)),
+                                'low_note': int(pad_data.get('lowNote', 0)),
+                                'high_note': int(pad_data.get('highNote', 127)),
+                                'velocity_low': int(pad_data.get('velocityLow', 0)),
+                                'velocity_high': int(pad_data.get('velocityHigh', 127))
+                            })
+                        except (ValueError, TypeError):
+                            logging.warning(f"Invalid pad data in {xpm_path}: {pad_data}")
+            if mappings:
+                return mappings
 
         # Legacy XML format
         for inst in root.findall('.//Instrument'):
-            low_note_elem, high_note_elem = inst.find('LowNote'), inst.find('HighNote')
-            if low_note_elem is None or high_note_elem is None: continue
+            low_note_elem = inst.find('LowNote')
+            high_note_elem = inst.find('HighNote')
+            if low_note_elem is None or high_note_elem is None:
+                continue
 
             for layer in inst.findall('.//Layer'):
                 sample_file_elem = layer.find('SampleFile')
@@ -1311,14 +1321,17 @@ class BatchProgramFixerWindow(tk.Toplevel):
 
                 sample_file = sample_file_elem.text
                 if sample_file and sample_file.strip():
-                    mappings.append({
-                        'sample_path': os.path.join(xpm_dir, sample_file),
-                        'root_note': int(root_note_elem.text),
-                        'low_note': int(low_note_elem.text),
-                        'high_note': int(high_note_elem.text),
-                        'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None else 0,
-                        'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None else 127,
-                    })
+                    try:
+                        mappings.append({
+                            'sample_path': os.path.join(xpm_dir, sample_file),
+                            'root_note': int(root_note_elem.text),
+                            'low_note': int(low_note_elem.text),
+                            'high_note': int(high_note_elem.text),
+                            'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None else 0,
+                            'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None else 127,
+                        })
+                    except (ValueError, TypeError) as exc:
+                        logging.warning(f"Invalid legacy layer in {xpm_path}: {exc}")
         return mappings
 
     def get_id_from_path(self, path):
