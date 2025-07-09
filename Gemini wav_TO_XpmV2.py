@@ -422,7 +422,6 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 tree = ET.parse(path)
                 root = tree.getroot()
                 changed = False
-
                 ver_elem = root.find('.//Application_Version')
                 if ver_elem is None:
                     version_node = root.find('Version')
