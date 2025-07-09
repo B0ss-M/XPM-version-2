@@ -395,7 +395,12 @@ class ExpansionDoctorWindow(tk.Toplevel):
             messagebox.showerror("Error", "No valid folder selected.", parent=self)
             return
         target = self.master.firmware_version.get()
-        updated = batch_edit_programs(folder, rename=False, version=target)
+        updated = batch_edit_programs(
+            folder,
+            rename=False,
+            version=target,
+            firmware_version=target,
+        )
         self.status.set(f"Updated {updated} XPM(s) to version {target}. Rescanning...")
         self.scan_broken_links()
 
@@ -888,7 +893,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
         super().__init__(master.root)
         self.master = master
         self.title("Batch Program Editor")
-        self.geometry("400x360")
+        self.geometry("400x380")
         self.resizable(False, False)
         self.create_widgets()
 
@@ -900,27 +905,32 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.rename_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
 
-        ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
-        self.version_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.version_var).grid(row=1, column=1, sticky="ew", pady=(10,0))
+        ttk.Label(frame, text="Firmware:").grid(row=1, column=0, sticky="w", pady=(10,0))
+        self.firmware_var = tk.StringVar(value=self.master.firmware_version.get())
+        ttk.Combobox(frame, textvariable=self.firmware_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'], state='readonly').grid(row=1, column=1, sticky="ew", pady=(10,0))
 
-        ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Application Version:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        self.version_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.version_var).grid(row=2, column=1, sticky="ew", pady=(10,0))
+
+        ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
         modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
         self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
-        self.creative_combo.grid(row=2, column=1, sticky="ew", pady=(10,0))
+        self.creative_combo.grid(row=3, column=1, sticky="ew", pady=(10,0))
         self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
 
         self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
-        self.config_btn.grid(row=3, column=1, sticky="e")
+        self.config_btn.grid(row=4, column=1, sticky="e")
 
-        ttk.Label(frame, text="KeyTrack:").grid(row=4, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="KeyTrack:").grid(row=5, column=0, sticky="w", pady=(10,0))
         self.keytrack_var = tk.StringVar(value="on")
-        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=4, column=1, sticky="ew", pady=(10,0))
+        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=5, column=1, sticky="ew", pady=(10,0))
 
-        ttk.Label(frame, text="Volume ADSR:").grid(row=5, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Volume ADSR:").grid(row=6, column=0, sticky="w", pady=(10,0))
         adsr = ttk.Frame(frame)
-        adsr.grid(row=5, column=1, sticky="ew", pady=(10,0))
+        adsr.grid(row=6, column=1, sticky="ew", pady=(10,0))
         self.attack_var = tk.StringVar()
         self.decay_var = tk.StringVar()
         self.sustain_var = tk.StringVar()
@@ -930,12 +940,14 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Entry(adsr, width=4, textvariable=self.sustain_var).pack(side="left")
         ttk.Entry(adsr, width=4, textvariable=self.release_var).pack(side="left", padx=2)
 
-        ttk.Label(frame, text="Mod Matrix File:").grid(row=6, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Mod Matrix File:").grid(row=7, column=0, sticky="w", pady=(10,0))
         self.mod_matrix_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.mod_matrix_var).grid(row=6, column=1, sticky="ew", pady=(10,0))
+        entry = ttk.Entry(frame, textvariable=self.mod_matrix_var)
+        entry.grid(row=7, column=1, sticky="ew", pady=(10,0))
+        ttk.Button(frame, text="Browse...", command=self.browse_mod_matrix).grid(row=7, column=2, padx=(5,0), pady=(10,0))
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=7, column=0, columnspan=2, pady=(15,0), sticky="e")
+        btn_frame.grid(row=8, column=0, columnspan=3, pady=(15,0), sticky="e")
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
 
@@ -948,11 +960,21 @@ class BatchProgramEditorWindow(tk.Toplevel):
     def open_config(self):
         self.master.open_window(CreativeModeConfigWindow, self.creative_var.get())
 
+    def browse_mod_matrix(self):
+        path = filedialog.askopenfilename(
+            parent=self,
+            title="Select Mod Matrix JSON",
+            filetypes=[("JSON Files", "*.json"), ("All Files", "*")],
+        )
+        if path:
+            self.mod_matrix_var.set(path)
+
     def apply_edits(self):
         self.master.run_batch_process(
             batch_edit_programs,
             self.rename_var.get(),
             self.version_var.get().strip() or None,
+            self.firmware_var.get(),
             self.creative_var.get(),
             self.master.creative_config,
             self.keytrack_var.get() == "on",
@@ -1645,7 +1667,11 @@ class InstrumentBuilder:
     def get_program_parameters(self, num_keygroups):
         if not IMPORTS_SUCCESSFUL: return {}
         firmware = self.options.firmware_version
-        return fw_program_parameters(firmware, num_keygroups)
+        return fw_program_parameters(
+            firmware,
+            num_keygroups,
+            engine_override=self.options.format_version,
+        )
 
     def build_instrument_element(self, parent, num, low, high):
         instrument = ET.SubElement(parent, 'Instrument', {'number': str(num)})
@@ -2313,6 +2339,7 @@ def batch_edit_programs(
     folder_path,
     rename=False,
     version=None,
+    firmware_version='3.5.0',
     creative_mode='off',
     creative_config=None,
     keytrack=None,
@@ -2328,8 +2355,11 @@ def batch_edit_programs(
         logging.error("Cannot run batch edit, required modules are missing.")
         return 0
 
-    options = InstrumentOptions(creative_mode=creative_mode,
-                               creative_config=creative_config or {})
+    options = InstrumentOptions(
+        creative_mode=creative_mode,
+        creative_config=creative_config or {},
+        firmware_version=firmware_version,
+    )
     builder = InstrumentBuilder(folder_path, None, options)
     matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
     for root_dir, _dirs, files in os.walk(folder_path):
