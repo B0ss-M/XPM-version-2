@@ -2,6 +2,7 @@ import json
 import logging
 import xml.etree.ElementTree as ET
 from typing import Optional, Dict
+from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 
 def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
@@ -78,4 +79,36 @@ def apply_mod_matrix(root: ET.Element, matrix: Dict[int, Dict[str, str]]) -> boo
             if link.get(attr) != val:
                 link.set(attr, val)
                 changed = True
+    return changed
+
+
+def set_application_version(root: ET.Element, version: Optional[str]) -> bool:
+    """Set the Application_Version element."""
+    ver_elem = root.find('.//Application_Version')
+    return _update_text(ver_elem, version)
+
+
+def set_engine_mode(root: ET.Element, mode: str) -> bool:
+    """Update ProgramPads JSON and KeygroupLegacyMode for the desired engine."""
+    changed = False
+    if mode not in {'legacy', 'advanced'}:
+        return False
+
+    pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+    if pads_elem is not None and pads_elem.text:
+        try:
+            data = json.loads(xml_unescape(pads_elem.text))
+        except json.JSONDecodeError:
+            data = {}
+        if data.get('engine') != mode:
+            data['engine'] = mode
+            pads_elem.text = xml_escape(json.dumps(data, indent=4))
+            changed = True
+
+    legacy_elem = root.find('.//KeygroupLegacyMode')
+    if mode == 'legacy':
+        changed |= _update_text(legacy_elem, 'True')
+    else:
+        changed |= _update_text(legacy_elem, 'False')
+
     return changed

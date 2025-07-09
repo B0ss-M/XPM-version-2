@@ -7,6 +7,8 @@ from xpm_parameter_editor import (
     set_volume_adsr,
     load_mod_matrix,
     apply_mod_matrix,
+    set_engine_mode,
+    set_application_version,
 )
 
 
@@ -14,6 +16,7 @@ def edit_program(
     file_path: str,
     rename: bool,
     version: str | None,
+    format_version: str | None,
     keytrack: bool | None,
     attack: float | None,
     decay: float | None,
@@ -34,9 +37,11 @@ def edit_program(
             changed = True
 
     if version:
-        ver_elem = root.find('.//Application_Version')
-        if ver_elem is not None and ver_elem.text != version:
-            ver_elem.text = version
+        if set_application_version(root, version):
+            changed = True
+
+    if format_version:
+        if set_engine_mode(root, format_version):
             changed = True
 
     if keytrack is not None:
@@ -61,6 +66,7 @@ def process_folder(
     folder: str,
     rename: bool,
     version: str | None,
+    format_version: str | None,
     keytrack: bool | None,
     attack: float | None,
     decay: float | None,
@@ -78,6 +84,7 @@ def process_folder(
                     path,
                     rename,
                     version,
+                    format_version,
                     keytrack,
                     attack,
                     decay,
@@ -94,6 +101,7 @@ def main():
     parser.add_argument("folder", help="Folder containing .xpm files")
     parser.add_argument("--rename", action="store_true", help="Rename ProgramName to match file name")
     parser.add_argument("--set-version", dest="version", help="Set Application_Version value")
+    parser.add_argument("--format", choices=["legacy", "advanced"], help="Set engine format (legacy or advanced)")
     parser.add_argument("--keytrack", choices=["on", "off"], help="Set KeyTrack for all layers")
     parser.add_argument("--attack", type=float, help="Set VolumeAttack value")
     parser.add_argument("--decay", type=float, help="Set VolumeDecay value")
@@ -110,11 +118,13 @@ def main():
     if args.keytrack:
         keytrack = args.keytrack == "on"
     mod_matrix = load_mod_matrix(args.mod_matrix) if args.mod_matrix else None
+    fmt = args.format if args.format else None
 
     process_folder(
         args.folder,
         args.rename,
         args.version,
+        fmt,
         keytrack,
         args.attack,
         args.decay,
