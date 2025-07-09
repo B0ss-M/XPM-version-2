@@ -35,11 +35,17 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         left = ttk.Frame(main)
         left.pack(side="left", fill="both", expand=True)
         ttk.Label(left, text="Unassigned Samples:").pack(anchor="w")
-        self.file_list = tk.Listbox(left, selectmode="extended")
-        self.file_list.pack(fill="both", expand=True)
+        left_list_frame = ttk.Frame(left)
+        left_list_frame.pack(fill="both", expand=True)
+        self.file_list = tk.Listbox(left_list_frame, selectmode="extended")
+        vsb_left = ttk.Scrollbar(left_list_frame, orient="vertical", command=self.file_list.yview)
+        self.file_list.configure(yscrollcommand=vsb_left.set)
+        self.file_list.pack(side="left", fill="both", expand=True)
+        vsb_left.pack(side="right", fill="y")
         left_btns = ttk.Frame(left)
         left_btns.pack(fill="x", pady=5)
         ttk.Button(left_btns, text="Auto Group Prefix", command=self.auto_group).pack(side="left")
+        ttk.Button(left_btns, text="Auto Group Folders", command=self.auto_group_folders).pack(side="left", padx=(5,0))
         ttk.Button(left_btns, text="Add to Group →", command=self.add_selected).pack(side="right")
 
         right = ttk.Frame(main)
@@ -54,8 +60,13 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         ttk.Button(top, text="Remove Group", command=self.remove_group).pack(side="left")
 
         ttk.Label(right, text="Files in Group:").pack(anchor="w", pady=(5,0))
-        self.group_list = tk.Listbox(right, selectmode="extended")
-        self.group_list.pack(fill="both", expand=True)
+        group_list_frame = ttk.Frame(right)
+        group_list_frame.pack(fill="both", expand=True)
+        self.group_list = tk.Listbox(group_list_frame, selectmode="extended")
+        vsb_right = ttk.Scrollbar(group_list_frame, orient="vertical", command=self.group_list.yview)
+        self.group_list.configure(yscrollcommand=vsb_right.set)
+        self.group_list.pack(side="left", fill="both", expand=True)
+        vsb_right.pack(side="right", fill="y")
         group_btns = ttk.Frame(right)
         group_btns.pack(fill="x", pady=5)
         ttk.Button(group_btns, text="← Remove", command=self.remove_selected).pack(side="left")
@@ -135,6 +146,15 @@ class MultiSampleBuilderWindow(tk.Toplevel):
     def auto_group(self):
         for f in list(self.unassigned):
             name = os.path.basename(f)[:5].upper()
+            self.groups.setdefault(name, []).append(f)
+            self.unassigned.remove(f)
+        self.refresh_file_list()
+
+    def auto_group_folders(self):
+        """Group unassigned samples by their parent folder names."""
+        for f in list(self.unassigned):
+            folder = os.path.dirname(f)
+            name = os.path.basename(folder) if folder else os.path.basename(self.master.folder_path.get())
             self.groups.setdefault(name, []).append(f)
             self.unassigned.remove(f)
         self.refresh_file_list()
