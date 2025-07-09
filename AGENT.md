@@ -1,11 +1,11 @@
-\# Agent Collaboration Guide: Wav\_To\_Xpm\_Converter Project
+# Agent Collaboration Guide: Gemini wav_TO_XpmV2 Project
 
 \*\*Document Version:\*\* 1.1  
 \*\*Last Updated:\*\* July 4, 2025
 
 \#\# 1\. Project Objective
 
-The primary goal of this project is to develop and maintain a robust, feature-rich Python script (\`Wav\_To\_Xpm\_Converter\_v22\`) that serves as a comprehensive toolkit for creating and managing Akai MPC Keygroup programs (\`.xpm\` files).
+The primary goal of this project is to maintain a robust, feature-rich Python script. The stable GUI application is `Gemini wav_TO_XpmV2.py`, which supersedes the earlier `Wav_To_Xpm_Converter_v22.py` naming. This tool serves as a comprehensive toolkit for creating and managing Akai MPC Keygroup programs (`.xpm` files).
 
 The script must be:  
 \- \*\*User-Friendly\*\*: Operated via a clear Tkinter GUI.  
@@ -43,14 +43,14 @@ The script's functions must never delete \`.wav\`, \`.mp3\`, or any other non-te
 
 \#\# 4\. Integrating Additional Python Scripts (Modularity)
 
-To maintain stability and organization, new complex features should be developed in \*\*separate Python script files\*\*. These files must then be integrated into the main \`Wav\_To\_Xpm\_Converter\_v22.py\` script without breaking any existing functionality.
+To maintain stability and organization, new complex features should be developed in \*\*separate Python script files\*\*. These files must then be integrated into the main \`Gemini wav_TO_XpmV2.py\` script without breaking any existing functionality.
 
 \#\#\# Integration Protocol:
 
 1\.  \*\*Create a Separate \`.py\` File\*\*: Develop your new feature (e.g., a new batch tool) in its own file (e.g., \`new\_feature\_tool.py\`). This file should contain the necessary logic and any new GUI windows (as \`Toplevel\` classes).  
-2\.  \*\*Import into Main Script\*\*: In the main \`Wav\_To\_Xpm\_Converter\_v22.py\` script, import the necessary classes from your new file.  
+2\.  \*\*Import into Main Script\*\*: In the main \`Gemini wav_TO_XpmV2.py\` script, import the necessary classes from your new file.  
     \`\`\`python  
-    \# In Wav\_To\_Xpm\_Converter\_v22.py  
+    \# In Gemini wav_TO_XpmV2.py  
     from new\_feature\_tool import NewFeatureWindow  
     \`\`\`  
 3\.  \*\*Add a GUI Entry Point\*\*: In the \`App\` class within the main script, add a new \`ttk.Button\` to the appropriate frame (e.g., "Advanced Tools" or "Utilities").  
