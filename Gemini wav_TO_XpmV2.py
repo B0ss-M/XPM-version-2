@@ -901,8 +901,9 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
 
         ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
-        self.version_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.version_var).grid(row=1, column=1, sticky="ew", pady=(10,0))
+        self.version_var = tk.StringVar(value=self.master.firmware_version.get())
+        versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
+        ttk.Combobox(frame, textvariable=self.version_var, values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(10,0))
 
         ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
@@ -932,7 +933,11 @@ class BatchProgramEditorWindow(tk.Toplevel):
 
         ttk.Label(frame, text="Mod Matrix File:").grid(row=6, column=0, sticky="w", pady=(10,0))
         self.mod_matrix_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.mod_matrix_var).grid(row=6, column=1, sticky="ew", pady=(10,0))
+        mm_frame = ttk.Frame(frame)
+        mm_frame.grid(row=6, column=1, sticky="ew", pady=(10,0))
+        mm_frame.columnconfigure(0, weight=1)
+        ttk.Entry(mm_frame, textvariable=self.mod_matrix_var).grid(row=0, column=0, sticky="ew")
+        ttk.Button(mm_frame, text="Browse...", command=self.browse_mod_matrix).grid(row=0, column=1, padx=(5,0))
 
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=7, column=0, columnspan=2, pady=(15,0), sticky="e")
@@ -947,6 +952,15 @@ class BatchProgramEditorWindow(tk.Toplevel):
 
     def open_config(self):
         self.master.open_window(CreativeModeConfigWindow, self.creative_var.get())
+
+    def browse_mod_matrix(self):
+        path = filedialog.askopenfilename(
+            parent=self,
+            title="Select Mod Matrix JSON",
+            filetypes=[("JSON Files", "*.json"), ("All Files", "*")],
+        )
+        if path:
+            self.mod_matrix_var.set(path)
 
     def apply_edits(self):
         try:
