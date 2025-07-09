@@ -2334,7 +2334,7 @@ def batch_edit_programs(
     matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
     for root_dir, _dirs, files in os.walk(folder_path):
         for file in files:
-            if not file.lower().endswith('.xpm'):
+            if not file.lower().endswith('.xpm') or file.startswith('._'):
                 continue
             path = os.path.join(root_dir, file)
             try:

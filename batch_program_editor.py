@@ -70,22 +70,23 @@ def process_folder(
 ):
     for root_dir, _dirs, files in os.walk(folder):
         for file in files:
-            if file.lower().endswith('.xpm'):
-                path = os.path.join(root_dir, file)
-                try:
-                    edit_program(
-                        path,
-                        rename,
-                        version,
-                        keytrack,
-                        attack,
-                        decay,
-                        sustain,
-                        release,
-                        mod_matrix,
-                    )
-                except Exception as exc:
-                    logging.error("Failed to edit %s: %s", path, exc)
+            if file.startswith('._') or not file.lower().endswith('.xpm'):
+                continue
+            path = os.path.join(root_dir, file)
+            try:
+                edit_program(
+                    path,
+                    rename,
+                    version,
+                    keytrack,
+                    attack,
+                    decay,
+                    sustain,
+                    release,
+                    mod_matrix,
+                )
+            except Exception as exc:
+                logging.error("Failed to edit %s: %s", path, exc)
 
 
 def main():
