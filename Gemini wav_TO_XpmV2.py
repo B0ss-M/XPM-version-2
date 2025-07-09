@@ -1007,6 +1007,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
             batch_edit_programs,
             self.rename_var.get(),
             self.version_var.get().strip() or None,
+            None,
             self.creative_var.get(),
             self.master.creative_config,
             self.keytrack_var.get() == "on",
