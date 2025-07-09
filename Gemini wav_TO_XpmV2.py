@@ -60,6 +60,28 @@ SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
+
+def indent_tree(tree, space="  "):
+    """Indent an ElementTree for pretty printing, safe for Python <3.9."""
+    if hasattr(ET, "indent"):
+        ET.indent(tree, space=space)
+    else:
+        def _indent(elem, level=0):
+            i = "\n" + level * space
+            if len(elem):
+                if not elem.text or not elem.text.strip():
+                    elem.text = i + space
+                for child in elem:
+                    _indent(child, level + 1)
+                    if not child.tail or not child.tail.strip():
+                        child.tail = i + space
+                if not child.tail or not child.tail.strip():
+                    child.tail = i
+            elif level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+
+        _indent(tree.getroot())
+
 #<editor-fold desc="Logging and Core Helpers">
 class TextHandler(logging.Handler):
     """This handler sends logging records to a Tkinter Text widget."""
@@ -400,7 +422,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                                     samples_to_find.remove(sample_basename)
                                     break
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
                     fixed_count += 1
             except Exception as e:
@@ -442,7 +464,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                     changed = True
 
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(path, encoding='utf-8', xml_declaration=True)
                     updated += 1
             except Exception as exc:
@@ -617,7 +639,7 @@ class ExpansionBuilderWindow(tk.Toplevel):
                 messagebox.showerror("Image Error", f"Failed to copy image to expansion folder:\n{e}", parent=self)
 
         tree = ET.ElementTree(root)
-        ET.indent(tree, space="  ")
+        indent_tree(tree)
         tree.write(xml_path, encoding='utf-8', xml_declaration=True)
         messagebox.showinfo("Success", f"Expansion.xml created at {xml_path}", parent=self)
         self.destroy()
@@ -847,7 +869,7 @@ class FileRenamerWindow(tk.Toplevel):
                                     sample_name_elem.text = os.path.splitext(os.path.basename(new_sample_path))[0]
                             changed = True
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
             except Exception as e:
                 logging.error(f"Error updating XPM {xpm_path}: {e}")
@@ -1386,7 +1408,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 
                 if changed:
                     shutil.copy2(xpm_path, xpm_path + ".bak")
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
                     self.tree.set(self.get_id_from_path(xpm_path), "Status", "Relinked")
             except Exception as e:
@@ -1754,7 +1776,7 @@ class InstrumentBuilder:
 
             output_path = os.path.join(output_folder, f"{program_name}.xpm")
             tree = ET.ElementTree(root)
-            ET.indent(tree, space="  ")
+            indent_tree(tree)
             tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
             if not validate_xpm_file(output_path, len(pad_mappings)):
@@ -2509,7 +2531,7 @@ def batch_edit_programs(
                         changed = True
 
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(path, encoding='utf-8', xml_declaration=True)
                     edited += 1
             except Exception as exc:
