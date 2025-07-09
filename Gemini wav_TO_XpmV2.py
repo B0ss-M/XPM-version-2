@@ -138,10 +138,20 @@ def validate_xpm_file(xpm_path, expected_samples):
             logging.info(f"Modern validation successful for {os.path.basename(xpm_path)}.")
             return True
 
-        # If ProgramPads is missing, check for legacy Instruments section as a fallback
-        inst_elem = root.find('.//Instruments/Instrument/Layers/Layer/SampleFile')
-        if inst_elem is not None:
-            logging.info(f"Legacy validation successful for {os.path.basename(xpm_path)} (found Instruments section).")
+        # If ProgramPads is missing, search for legacy style sample references
+        inst_root = root.find('.//Instruments')
+        if inst_root is not None:
+            if inst_root.find('.//SampleFile') is not None or inst_root.find('.//SampleName') is not None:
+                logging.info(
+                    f"Legacy validation successful for {os.path.basename(xpm_path)} (found Instruments section)."
+                )
+                return True
+
+        # Final fallback: look for any SampleFile tags anywhere in the document
+        if root.find('.//SampleFile') is not None or root.find('.//SampleName') is not None:
+            logging.info(
+                f"Legacy validation successful for {os.path.basename(xpm_path)} (found sample references)."
+            )
             return True
 
         # If neither is found, then it's a real failure.
