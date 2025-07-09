@@ -301,6 +301,8 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.resizable(True, True)
         self.master = master
         self.status = tk.StringVar(value="Ready.")
+        self.version_var = tk.StringVar(value=master.firmware_version.get())
+        self.format_var = tk.StringVar(value="advanced")
         self.broken_links = {}
         self.file_info = {}
         self.create_widgets()
@@ -342,8 +344,19 @@ class ExpansionDoctorWindow(tk.Toplevel):
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
 
+        option_frame = ttk.Frame(frame)
+        option_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+        ttk.Label(option_frame, text="Firmware:").pack(side="left")
+        ttk.Combobox(option_frame, textvariable=self.version_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'], width=10,
+                     state='readonly').pack(side="left", padx=5)
+        ttk.Label(option_frame, text="Format:").pack(side="left")
+        ttk.Combobox(option_frame, textvariable=self.format_var,
+                     values=['legacy','advanced'], width=8,
+                     state='readonly').pack(side="left", padx=5)
+
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+        btn_frame.grid(row=3, column=0, sticky="ew", pady=(5, 0))
         ttk.Button(btn_frame, text="Relink Samples...", command=self.relink_samples).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Rewrite Versions", command=self.fix_versions).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Rescan", command=self.scan_broken_links).pack(side="left", padx=5)
@@ -394,10 +407,70 @@ class ExpansionDoctorWindow(tk.Toplevel):
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "No valid folder selected.", parent=self)
             return
-        target = self.master.firmware_version.get()
-        updated = batch_edit_programs(folder, rename=False, version=target)
-        self.status.set(f"Updated {updated} XPM(s) to version {target}. Rescanning...")
+        target_fw = self.version_var.get()
+        target_fmt = self.format_var.get()
+        updated = 0
+        for path in glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True):
+            try:
+                tree = ET.parse(path)
+                root = tree.getroot()
+                changed = False
+
+                ver_elem = root.find('.//Application_Version')
+                if ver_elem is None:
+                    version_node = root.find('Version')
+                    if version_node is None:
+                        version_node = ET.Element('Version')
+                        root.insert(0, version_node)
+                        ET.SubElement(version_node, 'File_Version').text = '2.1'
+                        ET.SubElement(version_node, 'Application').text = 'MPC-V'
+                        ET.SubElement(version_node, 'Platform').text = 'Linux'
+                    ver_elem = version_node.find('Application_Version')
+                    if ver_elem is None:
+                        ver_elem = ET.SubElement(version_node, 'Application_Version')
+                if ver_elem.text != target_fw:
+                    ver_elem.text = target_fw
+                    changed = True
+
+                if self._apply_format(root, target_fmt):
+                    changed = True
+
+                if changed:
+                    ET.indent(tree, space="  ")
+                    tree.write(path, encoding='utf-8', xml_declaration=True)
+                    updated += 1
+            except Exception as exc:
+                logging.error(f"Error updating {path}: {exc}")
+
+        self.status.set(f"Updated {updated} XPM(s) to version {target_fw} ({target_fmt}). Rescanning...")
         self.scan_broken_links()
+
+    def _apply_format(self, root, fmt):
+        changed = False
+        program = root.find('Program')
+        if program is None:
+            return changed
+
+        keygroup_mode = program.find('KeygroupLegacyMode')
+        if keygroup_mode is not None:
+            val = 'True' if fmt == 'legacy' else 'False'
+            if keygroup_mode.text != val:
+                keygroup_mode.text = val
+                changed = True
+
+        pads_elem = program.find('ProgramPads-v2.10') or program.find('ProgramPads')
+        if pads_elem is not None and pads_elem.text:
+            try:
+                data = json.loads(xml_unescape(pads_elem.text))
+                target_engine = 'legacy' if fmt == 'legacy' else 'advanced'
+                if data.get('engine') != target_engine:
+                    data['engine'] = target_engine
+                    pads_elem.text = xml_escape(json.dumps(data, indent=4))
+                    changed = True
+            except Exception as e:
+                logging.error(f"_apply_format JSON error: {e}")
+
+        return changed
 
     def scan_broken_links(self):
         for i in self.tree.get_children():
