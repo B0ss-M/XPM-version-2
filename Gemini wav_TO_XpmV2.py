@@ -949,6 +949,30 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.master.open_window(CreativeModeConfigWindow, self.creative_var.get())
 
     def apply_edits(self):
+        try:
+            attack = float(self.attack_var.get()) if self.attack_var.get() else None
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Attack must be a number.", parent=self)
+            return
+
+        try:
+            decay = float(self.decay_var.get()) if self.decay_var.get() else None
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Decay must be a number.", parent=self)
+            return
+
+        try:
+            sustain = float(self.sustain_var.get()) if self.sustain_var.get() else None
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Sustain must be a number.", parent=self)
+            return
+
+        try:
+            release = float(self.release_var.get()) if self.release_var.get() else None
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Release must be a number.", parent=self)
+            return
+
         self.master.run_batch_process(
             batch_edit_programs,
             self.rename_var.get(),
@@ -956,10 +980,10 @@ class BatchProgramEditorWindow(tk.Toplevel):
             self.creative_var.get(),
             self.master.creative_config,
             self.keytrack_var.get() == "on",
-            float(self.attack_var.get()) if self.attack_var.get() else None,
-            float(self.decay_var.get()) if self.decay_var.get() else None,
-            float(self.sustain_var.get()) if self.sustain_var.get() else None,
-            float(self.release_var.get()) if self.release_var.get() else None,
+            attack,
+            decay,
+            sustain,
+            release,
             self.mod_matrix_var.get().strip() or None,
         )
         self.destroy()
