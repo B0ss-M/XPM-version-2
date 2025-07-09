@@ -20,6 +20,12 @@ import re
 import json
 import zipfile
 
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except Exception:
+    PIL_AVAILABLE = False
+
 # Attempt to import optional dependencies, handle if they are not present
 try:
     from xpm_parameter_editor import (
@@ -52,6 +58,7 @@ MPC_RED = '#B91C1C'
 MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
+EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
 #<editor-fold desc="Logging and Core Helpers">
 class TextHandler(logging.Handler):
@@ -597,8 +604,15 @@ class ExpansionBuilderWindow(tk.Toplevel):
         if image_path and os.path.exists(image_path):
             image_basename = os.path.basename(image_path)
             ET.SubElement(root, 'Image').text = image_basename
+            dest_path = os.path.join(folder, image_basename)
             try:
-                shutil.copy2(image_path, os.path.join(folder, image_basename))
+                if PIL_AVAILABLE:
+                    img = Image.open(image_path)
+                    img = img.convert('RGB')
+                    img = img.resize(EXPANSION_IMAGE_SIZE, Image.LANCZOS)
+                    img.save(dest_path)
+                else:
+                    shutil.copy2(image_path, dest_path)
             except Exception as e:
                 logging.error(f"Failed to copy image: {e}")
                 messagebox.showerror("Image Error", f"Failed to copy image to expansion folder:\n{e}", parent=self)
