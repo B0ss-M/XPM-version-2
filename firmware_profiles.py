@@ -109,14 +109,21 @@ def get_pad_settings(firmware: str, engine_override: str | None = None):
     return settings
 
 
-def get_program_parameters(firmware: str, num_keygroups: int) -> dict:
-    """Return program parameter dictionary customized per firmware."""
+def get_program_parameters(
+    firmware: str, num_keygroups: int, engine_override: str | None = None
+) -> dict:
+    """Return program parameter dictionary customized per firmware and engine."""
     engine = PAD_SETTINGS.get(firmware, PAD_SETTINGS['3.5.0']).get('engine')
+    if engine_override in {'legacy', 'advanced'}:
+        engine = engine_override
+
     if engine == 'advanced' and ADVANCED_PROGRAM_PARAMS:
         params = ADVANCED_PROGRAM_PARAMS.copy()
     else:
         params = DEFAULT_PROGRAM_PARAMS.copy()
+
     params['KeygroupNumKeygroups'] = str(num_keygroups)
     for key in LEGACY_REMOVE_KEYS.get(firmware, []):
         params.pop(key, None)
+
     return params

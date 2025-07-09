@@ -1645,7 +1645,11 @@ class InstrumentBuilder:
     def get_program_parameters(self, num_keygroups):
         if not IMPORTS_SUCCESSFUL: return {}
         firmware = self.options.firmware_version
-        return fw_program_parameters(firmware, num_keygroups)
+        return fw_program_parameters(
+            firmware,
+            num_keygroups,
+            engine_override=self.options.format_version,
+        )
 
     def build_instrument_element(self, parent, num, low, high):
         instrument = ET.SubElement(parent, 'Instrument', {'number': str(num)})
