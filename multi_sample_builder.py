@@ -151,13 +151,38 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         self.refresh_file_list()
 
     def auto_group_folders(self):
-        """Group unassigned samples by their parent folder names."""
-        for f in list(self.unassigned):
+        """Preview and group unassigned samples by their parent folders."""
+        counts = {}
+        for f in self.unassigned:
             folder = os.path.dirname(f)
             name = os.path.basename(folder) if folder else os.path.basename(self.master.folder_path.get())
-            self.groups.setdefault(name, []).append(f)
-            self.unassigned.remove(f)
-        self.refresh_file_list()
+            counts[name] = counts.get(name, 0) + 1
+
+        preview = tk.Toplevel(self)
+        preview.title("Auto Group Folders")
+        preview.geometry("300x300")
+
+        tree = ttk.Treeview(preview, columns=("count"), show="headings")
+        tree.heading("#1", text="Folder")
+        tree.heading("count", text="Files")
+        for folder, cnt in sorted(counts.items()):
+            tree.insert("", "end", values=(folder, cnt))
+        tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+        btns = ttk.Frame(preview)
+        btns.pack(fill="x", padx=10, pady=5)
+
+        def do_group():
+            for f in list(self.unassigned):
+                folder = os.path.dirname(f)
+                name = os.path.basename(folder) if folder else os.path.basename(self.master.folder_path.get())
+                self.groups.setdefault(name, []).append(f)
+                self.unassigned.remove(f)
+            self.refresh_file_list()
+            preview.destroy()
+
+        ttk.Button(btns, text="Group", command=do_group).pack(side="right")
+        ttk.Button(btns, text="Cancel", command=preview.destroy).pack(side="right", padx=(0,5))
 
     def generate_notes(self, count, mode):
         notes, note = [], 60
@@ -176,21 +201,35 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         if not self.groups:
             messagebox.showwarning("No Groups", "No groups defined.", parent=self)
             return
-        logging.info("MultiSampleBuilderWindow.build starting")
-        options = self.options_cls(
-            loop_one_shots=self.master.loop_one_shots_var.get(),
-            analyze_scw=self.master.analyze_scw_var.get(),
-            creative_mode=self.master.creative_mode_var.get(),
-            recursive_scan=False,
-            firmware_version=self.master.firmware_version.get(),
-            polyphony=self.master.polyphony_var.get(),
-            creative_config=self.master.creative_config
-        )
-        builder = self.builder_cls(self.master.folder_path.get(), self.master, options)
-        mode = self.map_var.get()
-        for name, files in self.groups.items():
-            logging.info("Building group '%s' with %d file(s)", name, len(files))
-            notes = self.generate_notes(len(files), mode)
-            builder._create_xpm(name, files, self.master.folder_path.get(), 'multi-sample', midi_notes=notes)
-        messagebox.showinfo("Done", "Instruments created.", parent=self)
-        self.destroy()
+
+        popup = tk.Toplevel(self)
+        popup.title("Select Build Mode")
+        mode_var = tk.StringVar(value="multi-sample")
+        ttk.Radiobutton(popup, text="Instrument Keygroup", variable=mode_var, value="multi-sample").pack(anchor="w", padx=10, pady=5)
+        ttk.Radiobutton(popup, text="Drum Program", variable=mode_var, value="drum-kit").pack(anchor="w", padx=10)
+        btn_frame = ttk.Frame(popup)
+        btn_frame.pack(fill="x", padx=10, pady=5)
+
+        def start_build():
+            popup.destroy()
+            logging.info("MultiSampleBuilderWindow.build starting")
+            options = self.options_cls(
+                loop_one_shots=self.master.loop_one_shots_var.get(),
+                analyze_scw=self.master.analyze_scw_var.get(),
+                creative_mode=self.master.creative_mode_var.get(),
+                recursive_scan=False,
+                firmware_version=self.master.firmware_version.get(),
+                polyphony=self.master.polyphony_var.get(),
+                creative_config=self.master.creative_config
+            )
+            builder = self.builder_cls(self.master.folder_path.get(), self.master, options)
+            map_mode = self.map_var.get()
+            for name, files in self.groups.items():
+                logging.info("Building group '%s' with %d file(s)", name, len(files))
+                notes = self.generate_notes(len(files), map_mode)
+                builder._create_xpm(name, files, self.master.folder_path.get(), mode_var.get(), midi_notes=notes)
+            messagebox.showinfo("Done", "Instruments created.", parent=self)
+            self.destroy()
+
+        ttk.Button(btn_frame, text="Build", command=start_build).pack(side="right")
+        ttk.Button(btn_frame, text="Cancel", command=popup.destroy).pack(side="right", padx=(0,5))

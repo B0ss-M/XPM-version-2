@@ -19,3 +19,5 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 ## Recent Changes
 - Build Instruments window now lists `.wav` files regardless of case so samples with `.WAV` extensions appear correctly.
 - Expansion Doctor displays invalid or corrupt `.xpm` files instead of skipping them.
+- Auto Group Folders now previews folder names with sample counts before grouping.
+- Multi-sample builder prompts for Drum Program or Instrument Keygroup when building.
