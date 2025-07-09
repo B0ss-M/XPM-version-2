@@ -869,7 +869,8 @@ class SCWToolWindow(tk.Toplevel):
         options = InstrumentOptions(
             loop_one_shots=True,
             polyphony=1,
-            firmware_version=self.master.firmware_version.get()
+            firmware_version=self.master.firmware_version.get(),
+            voice_mode=self.master.voice_mode_var.get()
         )
 
         builder = InstrumentBuilder(self.master.folder_path.get(), self.master, options)
@@ -1295,6 +1296,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 options = InstrumentOptions(
                     firmware_version=target_firmware,
                     polyphony=self.master.polyphony_var.get(),
+                    voice_mode=self.master.voice_mode_var.get(),
                     format_version=target_format,
                 )
                 builder = InstrumentBuilder(output_folder, self.master, options)
@@ -1385,6 +1387,7 @@ class InstrumentOptions:
     recursive_scan: bool = True
     firmware_version: str = '3.5.0'
     polyphony: int = 16
+    voice_mode: str = 'Poly'
     format_version: str = 'advanced'
     creative_config: dict = field(default_factory=dict)
 
@@ -1673,7 +1676,7 @@ class InstrumentBuilder:
                     'Pan': '0.5',
                     'Tune': '0.0',
                     'MuteGroup': '0',
-                    'VoiceOverlap': 'Poly',
+                    'VoiceOverlap': self.options.voice_mode,
                     'VolumeAttack': '0.0',
                     'VolumeDecay': '0.0',
                     'VolumeSustain': '1.0',
@@ -1962,11 +1965,15 @@ class App(tk.Tk):
         self.polyphony_var = tk.IntVar(value=16)
         ttk.Spinbox(frame, from_=1, to=64, textvariable=self.polyphony_var).grid(row=1, column=1, sticky="ew")
 
+        ttk.Label(frame, text="Voice Mode:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
+        self.voice_mode_var = tk.StringVar(value="Poly")
+        ttk.Combobox(frame, textvariable=self.voice_mode_var, values=["Poly", "Mono"], state="readonly").grid(row=2, column=1, sticky="ew")
+
         creative_frame = ttk.Frame(frame)
-        creative_frame.grid(row=2, column=1, sticky='ew')
+        creative_frame.grid(row=3, column=1, sticky='ew')
         creative_frame.grid_columnconfigure(0, weight=1)
 
-        ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
+        ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="e", padx=5, pady=2)
         self.creative_mode_var = tk.StringVar(value="off")
         creative_modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
         self.creative_combo = ttk.Combobox(creative_frame, textvariable=self.creative_mode_var, values=creative_modes, state="readonly")
@@ -1977,7 +1984,7 @@ class App(tk.Tk):
         self.creative_config_btn.grid(row=0, column=1, padx=(5,0))
 
         check_frame = ttk.Frame(frame)
-        check_frame.grid(row=3, column=0, columnspan=2, sticky='w', pady=5)
+        check_frame.grid(row=4, column=0, columnspan=2, sticky='w', pady=5)
         self.loop_one_shots_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(check_frame, text="Loop One-Shots", variable=self.loop_one_shots_var).pack(side='left', padx=5)
         self.analyze_scw_var = tk.BooleanVar(value=True)
@@ -2097,6 +2104,7 @@ class App(tk.Tk):
             recursive_scan=self.recursive_scan_var.get(),
             firmware_version=self.firmware_version.get(),
             polyphony=self.polyphony_var.get(),
+            voice_mode=self.voice_mode_var.get(),
             creative_config=self.creative_config
         )
         builder = InstrumentBuilder(folder, self, options=options)
@@ -2146,7 +2154,11 @@ class App(tk.Tk):
         self.open_window(MergeSubfoldersWindow)
 
     def generate_previews(self):
-        builder = InstrumentBuilder(self.folder_path.get(), self, InstrumentOptions())
+        builder = InstrumentBuilder(
+            self.folder_path.get(),
+            self,
+            InstrumentOptions(voice_mode=self.voice_mode_var.get())
+        )
         threading.Thread(target=builder.process_previews_only, daemon=True).start()
 
     def package_expansion(self):
@@ -2328,8 +2340,11 @@ def batch_edit_programs(
         logging.error("Cannot run batch edit, required modules are missing.")
         return 0
 
-    options = InstrumentOptions(creative_mode=creative_mode,
-                               creative_config=creative_config or {})
+    options = InstrumentOptions(
+        creative_mode=creative_mode,
+        creative_config=creative_config or {},
+        voice_mode='Poly'
+    )
     builder = InstrumentBuilder(folder_path, None, options)
     matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
     for root_dir, _dirs, files in os.walk(folder_path):

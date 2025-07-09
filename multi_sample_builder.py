@@ -74,7 +74,8 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         bottom = ttk.Frame(self, padding=10)
         bottom.pack(fill="x")
         ttk.Label(bottom, text="Key Mapping:").pack(side="left")
-        ttk.Combobox(bottom, textvariable=self.map_var, state="readonly", values=["all", "white", "black"]).pack(side="left")
+        ttk.Combobox(bottom, textvariable=self.map_var, state="readonly",
+                    values=["all", "white", "black", "filename"]).pack(side="left")
         ttk.Button(bottom, text="Build Instruments", command=self.build).pack(side="right")
 
     def load_files(self):
@@ -184,13 +185,20 @@ class MultiSampleBuilderWindow(tk.Toplevel):
             recursive_scan=False,
             firmware_version=self.master.firmware_version.get(),
             polyphony=self.master.polyphony_var.get(),
+            voice_mode=self.master.voice_mode_var.get(),
             creative_config=self.master.creative_config
         )
         builder = self.builder_cls(self.master.folder_path.get(), self.master, options)
         mode = self.map_var.get()
         for name, files in self.groups.items():
             logging.info("Building group '%s' with %d file(s)", name, len(files))
-            notes = self.generate_notes(len(files), mode)
-            builder._create_xpm(name, files, self.master.folder_path.get(), 'multi-sample', midi_notes=notes)
+            notes = None if mode == 'filename' else self.generate_notes(len(files), mode)
+            builder._create_xpm(
+                name,
+                files,
+                self.master.folder_path.get(),
+                'multi-sample',
+                midi_notes=notes,
+            )
         messagebox.showinfo("Done", "Instruments created.", parent=self)
         self.destroy()
