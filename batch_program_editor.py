@@ -14,6 +14,7 @@ def edit_program(
     file_path: str,
     rename: bool,
     version: str | None,
+    format_version: str | None,
     keytrack: bool | None,
     attack: float | None,
     decay: float | None,
@@ -39,6 +40,18 @@ def edit_program(
             ver_elem.text = version
             changed = True
 
+    if format_version:
+        mode_elem = root.find('.//KeygroupLegacyMode')
+        if mode_elem is None:
+            prog_elem = root.find('Program')
+            if prog_elem is not None:
+                mode_elem = ET.SubElement(prog_elem, 'KeygroupLegacyMode')
+        if mode_elem is not None:
+            val = 'True' if format_version == 'legacy' else 'False'
+            if mode_elem.text != val:
+                mode_elem.text = val
+                changed = True
+
     if keytrack is not None:
         if set_layer_keytrack(root, keytrack):
             changed = True
@@ -61,6 +74,7 @@ def process_folder(
     folder: str,
     rename: bool,
     version: str | None,
+    format_version: str | None,
     keytrack: bool | None,
     attack: float | None,
     decay: float | None,
@@ -78,6 +92,7 @@ def process_folder(
                     path,
                     rename,
                     version,
+                    format_version,
                     keytrack,
                     attack,
                     decay,
@@ -94,6 +109,7 @@ def main():
     parser.add_argument("folder", help="Folder containing .xpm files")
     parser.add_argument("--rename", action="store_true", help="Rename ProgramName to match file name")
     parser.add_argument("--set-version", dest="version", help="Set Application_Version value")
+    parser.add_argument("--format", dest="format_version", choices=["legacy", "advanced"], help="Set KeygroupLegacyMode")
     parser.add_argument("--keytrack", choices=["on", "off"], help="Set KeyTrack for all layers")
     parser.add_argument("--attack", type=float, help="Set VolumeAttack value")
     parser.add_argument("--decay", type=float, help="Set VolumeDecay value")
@@ -115,6 +131,7 @@ def main():
         args.folder,
         args.rename,
         args.version,
+        args.format_version,
         keytrack,
         args.attack,
         args.decay,

@@ -10,15 +10,17 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - `batch_packager.py` – command-line tool to package each subfolder of a directory into its own expansion ZIP.
 - `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename and firmware version changes.
   This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
-  The editor now provides a drop-down list of common **Application Version** values
-  and a **Browse...** button for selecting a Mod Matrix JSON file. The matrix file
-  should be a `.json` list where each entry contains a `Num` value and the desired
-  parameters for that modulation slot.
+  The editor now provides drop-down lists for **Application Version** and **Program Format**
+  (legacy or advanced) along with a **Browse...** button for selecting a Mod Matrix JSON file.
+  The matrix file should be a `.json` list where each entry contains a `Num` value and the
+  desired parameters for that modulation slot.
 
 ### New in this update
 - Batch Program Fixer rebuild option now includes firmware and format selectors. You
   can rebuild programs into legacy (v2) or advanced (v3) formats while preserving
   all sample layers.
+- Build Instruments and Batch Program Editor now let you choose the **Program Format**
+  so you can create or edit keygroups in legacy or advanced modes.
 
 ## Recent Changes
 - Build Instruments window now lists `.wav` files regardless of case so samples with `.WAV` extensions appear correctly.

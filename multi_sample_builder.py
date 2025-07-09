@@ -220,6 +220,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
                 recursive_scan=False,
                 firmware_version=self.master.firmware_version.get(),
                 polyphony=self.master.polyphony_var.get(),
+                format_version=self.master.format_version.get(),
                 creative_config=self.master.creative_config
             )
             builder = self.builder_cls(self.master.folder_path.get(), self.master, options)

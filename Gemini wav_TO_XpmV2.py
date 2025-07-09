@@ -395,7 +395,12 @@ class ExpansionDoctorWindow(tk.Toplevel):
             messagebox.showerror("Error", "No valid folder selected.", parent=self)
             return
         target = self.master.firmware_version.get()
-        updated = batch_edit_programs(folder, rename=False, version=target)
+        updated = batch_edit_programs(
+            folder,
+            rename=False,
+            version=target,
+            format_version=self.master.format_version.get()
+        )
         self.status.set(f"Updated {updated} XPM(s) to version {target}. Rescanning...")
         self.scan_broken_links()
 
@@ -869,7 +874,8 @@ class SCWToolWindow(tk.Toplevel):
         options = InstrumentOptions(
             loop_one_shots=True,
             polyphony=1,
-            firmware_version=self.master.firmware_version.get()
+            firmware_version=self.master.firmware_version.get(),
+            format_version=self.master.format_version.get()
         )
 
         builder = InstrumentBuilder(self.master.folder_path.get(), self.master, options)
@@ -905,11 +911,15 @@ class BatchProgramEditorWindow(tk.Toplevel):
         versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
         ttk.Combobox(frame, textvariable=self.version_var, values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(10,0))
 
+        ttk.Label(frame, text="Program Format:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        self.format_var = tk.StringVar(value=self.master.format_version.get())
+        ttk.Combobox(frame, textvariable=self.format_var, values=['legacy','advanced'], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
+
         ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
         modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
         self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
-        self.creative_combo.grid(row=2, column=1, sticky="ew", pady=(10,0))
+        self.creative_combo.grid(row=3, column=1, sticky="ew", pady=(10,0))
         self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
 
         self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
@@ -991,6 +1001,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
             batch_edit_programs,
             self.rename_var.get(),
             self.version_var.get().strip() or None,
+            self.format_var.get(),
             self.creative_var.get(),
             self.master.creative_config,
             self.keytrack_var.get() == "on",
@@ -1918,6 +1929,7 @@ class App(tk.Tk):
             sys.exit(1)
 
         self.firmware_version = tk.StringVar(value='3.5.0')
+        self.format_version = tk.StringVar(value='advanced')
         self.title(f"Wav to XPM Converter v{APP_VERSION}")
         self.geometry("850x750")
         self.minsize(700, 600)
@@ -1998,17 +2010,23 @@ class App(tk.Tk):
         frame.grid_columnconfigure(1, weight=1)
 
         ttk.Label(frame, text="Target Firmware:").grid(row=0, column=0, sticky='e', padx=5, pady=2)
-        ttk.Combobox(frame, textvariable=self.firmware_version, values=['2.3.0.0', '2.6.0.17', '3.4.0', '3.5.0'], state='readonly').grid(row=0, column=1, sticky='ew')
+        ttk.Combobox(frame, textvariable=self.firmware_version,
+                     values=['2.3.0.0', '2.6.0.17', '3.4.0', '3.5.0'],
+                     state='readonly').grid(row=0, column=1, sticky='ew')
 
-        ttk.Label(frame, text="Polyphony:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
+        ttk.Label(frame, text="Program Format:").grid(row=1, column=0, sticky='e', padx=5, pady=2)
+        ttk.Combobox(frame, textvariable=self.format_version,
+                     values=['legacy', 'advanced'], state='readonly').grid(row=1, column=1, sticky='ew')
+
+        ttk.Label(frame, text="Polyphony:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
         self.polyphony_var = tk.IntVar(value=16)
-        ttk.Spinbox(frame, from_=1, to=64, textvariable=self.polyphony_var).grid(row=1, column=1, sticky="ew")
+        ttk.Spinbox(frame, from_=1, to=64, textvariable=self.polyphony_var).grid(row=2, column=1, sticky="ew")
 
         creative_frame = ttk.Frame(frame)
-        creative_frame.grid(row=2, column=1, sticky='ew')
+        creative_frame.grid(row=3, column=1, sticky='ew')
         creative_frame.grid_columnconfigure(0, weight=1)
 
-        ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
+        ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="e", padx=5, pady=2)
         self.creative_mode_var = tk.StringVar(value="off")
         creative_modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
         self.creative_combo = ttk.Combobox(creative_frame, textvariable=self.creative_mode_var, values=creative_modes, state="readonly")
@@ -2019,7 +2037,7 @@ class App(tk.Tk):
         self.creative_config_btn.grid(row=0, column=1, padx=(5,0))
 
         check_frame = ttk.Frame(frame)
-        check_frame.grid(row=3, column=0, columnspan=2, sticky='w', pady=5)
+        check_frame.grid(row=4, column=0, columnspan=2, sticky='w', pady=5)
         self.loop_one_shots_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(check_frame, text="Loop One-Shots", variable=self.loop_one_shots_var).pack(side='left', padx=5)
         self.analyze_scw_var = tk.BooleanVar(value=True)
@@ -2139,6 +2157,7 @@ class App(tk.Tk):
             recursive_scan=self.recursive_scan_var.get(),
             firmware_version=self.firmware_version.get(),
             polyphony=self.polyphony_var.get(),
+            format_version=self.format_version.get(),
             creative_config=self.creative_config
         )
         builder = InstrumentBuilder(folder, self, options=options)
@@ -2355,6 +2374,7 @@ def batch_edit_programs(
     folder_path,
     rename=False,
     version=None,
+    format_version=None,
     creative_mode='off',
     creative_config=None,
     keytrack=None,
@@ -2370,8 +2390,11 @@ def batch_edit_programs(
         logging.error("Cannot run batch edit, required modules are missing.")
         return 0
 
-    options = InstrumentOptions(creative_mode=creative_mode,
-                               creative_config=creative_config or {})
+    options = InstrumentOptions(
+        creative_mode=creative_mode,
+        creative_config=creative_config or {},
+        format_version=format_version or 'advanced'
+    )
     builder = InstrumentBuilder(folder_path, None, options)
     matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
     if matrix == {}:
@@ -2398,6 +2421,18 @@ def batch_edit_programs(
                     if ver_elem is not None and ver_elem.text != version:
                         ver_elem.text = version
                         changed = True
+
+                if format_version:
+                    mode_elem = root.find('.//KeygroupLegacyMode')
+                    if mode_elem is None:
+                        prog_elem = root.find('Program')
+                        if prog_elem is not None:
+                            mode_elem = ET.SubElement(prog_elem, 'KeygroupLegacyMode')
+                    if mode_elem is not None:
+                        val = 'True' if format_version == 'legacy' else 'False'
+                        if mode_elem.text != val:
+                            mode_elem.text = val
+                            changed = True
 
                 if creative_mode != 'off':
                     for inst in root.findall('.//Instrument'):
