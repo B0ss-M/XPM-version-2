@@ -6,7 +6,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 
 ## Scripts
 
-- `Gemini wav_TO_XpmV2.py` – main Tkinter GUI application for converting WAV files and managing expansions.
+- `Gemini wav_TO_XpmV2.py` – main Tkinter GUI application for converting WAV files and managing expansions. This filename supersedes the earlier `wav_to_xpm_converter_v22.py`.
 - `batch_packager.py` – command-line tool to package each subfolder of a directory into its own expansion ZIP.
 - `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename and firmware version changes.
   This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
