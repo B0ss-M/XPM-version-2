@@ -19,3 +19,4 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 ## Recent Changes
 - Build Instruments window now lists `.wav` files regardless of case so samples with `.WAV` extensions appear correctly.
 - Expansion Doctor displays invalid or corrupt `.xpm` files instead of skipping them.
+- Batch Program Editor now supports presets loaded from `editor_presets.json`.

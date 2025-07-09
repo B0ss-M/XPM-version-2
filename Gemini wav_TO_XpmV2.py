@@ -19,6 +19,7 @@ import struct
 import re
 import json
 import zipfile
+from editor_presets import load_presets
 
 # Attempt to import optional dependencies, handle if they are not present
 try:
@@ -900,27 +901,38 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.rename_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
 
-        ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
-        self.version_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.version_var).grid(row=1, column=1, sticky="ew", pady=(10,0))
+        self.presets = load_presets()
+        if self.presets:
+            names = list(self.presets.keys())
+            ttk.Label(frame, text="Preset:").grid(row=1, column=0, sticky="w", pady=(10,0))
+            self.preset_var = tk.StringVar()
+            combo = ttk.Combobox(frame, textvariable=self.preset_var, values=names, state="readonly")
+            combo.grid(row=1, column=1, sticky="ew", pady=(10,0))
+            combo.bind("<<ComboboxSelected>>", self.apply_preset)
+            start_row = 2
+        else:
+            start_row = 1
 
-        ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Application Version:").grid(row=start_row, column=0, sticky="w", pady=(10,0))
+        self.version_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.version_var).grid(row=start_row, column=1, sticky="ew", pady=(10,0))
+        ttk.Label(frame, text="Creative Mode:").grid(row=start_row+1, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
         modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
         self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
-        self.creative_combo.grid(row=2, column=1, sticky="ew", pady=(10,0))
+        self.creative_combo.grid(row=start_row+1, column=1, sticky="ew", pady=(10,0))
         self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
 
         self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
-        self.config_btn.grid(row=3, column=1, sticky="e")
+        self.config_btn.grid(row=start_row+2, column=1, sticky="e")
 
-        ttk.Label(frame, text="KeyTrack:").grid(row=4, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="KeyTrack:").grid(row=start_row+3, column=0, sticky="w", pady=(10,0))
         self.keytrack_var = tk.StringVar(value="on")
-        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=4, column=1, sticky="ew", pady=(10,0))
+        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=start_row+3, column=1, sticky="ew", pady=(10,0))
 
-        ttk.Label(frame, text="Volume ADSR:").grid(row=5, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Volume ADSR:").grid(row=start_row+4, column=0, sticky="w", pady=(10,0))
         adsr = ttk.Frame(frame)
-        adsr.grid(row=5, column=1, sticky="ew", pady=(10,0))
+        adsr.grid(row=start_row+4, column=1, sticky="ew", pady=(10,0))
         self.attack_var = tk.StringVar()
         self.decay_var = tk.StringVar()
         self.sustain_var = tk.StringVar()
@@ -930,12 +942,12 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Entry(adsr, width=4, textvariable=self.sustain_var).pack(side="left")
         ttk.Entry(adsr, width=4, textvariable=self.release_var).pack(side="left", padx=2)
 
-        ttk.Label(frame, text="Mod Matrix File:").grid(row=6, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Mod Matrix File:").grid(row=start_row+5, column=0, sticky="w", pady=(10,0))
         self.mod_matrix_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.mod_matrix_var).grid(row=6, column=1, sticky="ew", pady=(10,0))
+        ttk.Entry(frame, textvariable=self.mod_matrix_var).grid(row=start_row+5, column=1, sticky="ew", pady=(10,0))
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=7, column=0, columnspan=2, pady=(15,0), sticky="e")
+        btn_frame.grid(row=start_row+6, column=0, columnspan=2, pady=(15,0), sticky="e")
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
 
@@ -947,6 +959,22 @@ class BatchProgramEditorWindow(tk.Toplevel):
 
     def open_config(self):
         self.master.open_window(CreativeModeConfigWindow, self.creative_var.get())
+
+    def apply_preset(self, event=None):
+        preset = self.presets.get(self.preset_var.get(), {})
+        if not preset:
+            return
+        self.rename_var.set(preset.get('rename', self.rename_var.get()))
+        self.version_var.set(preset.get('version', ''))
+        self.creative_var.set(preset.get('creative_mode', 'off'))
+        self.toggle_config_btn()
+        if 'keytrack' in preset:
+            self.keytrack_var.set('on' if preset.get('keytrack') else 'off')
+        self.attack_var.set('' if preset.get('attack') is None else str(preset.get('attack')))
+        self.decay_var.set('' if preset.get('decay') is None else str(preset.get('decay')))
+        self.sustain_var.set('' if preset.get('sustain') is None else str(preset.get('sustain')))
+        self.release_var.set('' if preset.get('release') is None else str(preset.get('release')))
+        self.mod_matrix_var.set(preset.get('mod_matrix', ''))
 
     def apply_edits(self):
         self.master.run_batch_process(

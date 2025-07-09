@@ -1,0 +1,26 @@
+{
+  "Legacy Cleanup": {
+    "rename": true,
+    "version": "2.3.0.0",
+    "creative_mode": "off",
+    "keytrack": true
+  },
+  "Drum Kit": {
+    "rename": true,
+    "creative_mode": "off",
+    "keytrack": false,
+    "attack": 0.0,
+    "decay": 0.1,
+    "sustain": 1.0,
+    "release": 0.1
+  },
+  "LoFi Experiment": {
+    "rename": false,
+    "creative_mode": "lofi",
+    "keytrack": true,
+    "attack": 0.02,
+    "decay": 0.3,
+    "sustain": 0.8,
+    "release": 0.4
+  }
+}

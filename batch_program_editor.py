@@ -1,6 +1,7 @@
 import os
 import argparse
 import logging
+import json
 import xml.etree.ElementTree as ET
 from xpm_parameter_editor import (
     set_layer_keytrack,
@@ -8,6 +9,7 @@ from xpm_parameter_editor import (
     load_mod_matrix,
     apply_mod_matrix,
 )
+from editor_presets import load_presets
 
 
 def edit_program(
@@ -100,26 +102,34 @@ def main():
     parser.add_argument("--sustain", type=float, help="Set VolumeSustain value")
     parser.add_argument("--release", type=float, help="Set VolumeRelease value")
     parser.add_argument("--mod-matrix", dest="mod_matrix", help="JSON file with ModLink definitions")
+    parser.add_argument("--preset", help="Preset name from editor_presets.json")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING,
                         format="%(levelname)s - %(message)s")
 
+    presets = load_presets()
+    preset_vals = presets.get(args.preset, {}) if args.preset else {}
+
     keytrack = None
     if args.keytrack:
         keytrack = args.keytrack == "on"
-    mod_matrix = load_mod_matrix(args.mod_matrix) if args.mod_matrix else None
+    elif "keytrack" in preset_vals:
+        keytrack = bool(preset_vals.get("keytrack"))
+
+    mod_matrix_path = args.mod_matrix or preset_vals.get("mod_matrix")
+    mod_matrix = load_mod_matrix(mod_matrix_path) if mod_matrix_path else None
 
     process_folder(
         args.folder,
-        args.rename,
-        args.version,
+        args.rename or preset_vals.get("rename", False),
+        args.version or preset_vals.get("version"),
         keytrack,
-        args.attack,
-        args.decay,
-        args.sustain,
-        args.release,
+        args.attack if args.attack is not None else preset_vals.get("attack"),
+        args.decay if args.decay is not None else preset_vals.get("decay"),
+        args.sustain if args.sustain is not None else preset_vals.get("sustain"),
+        args.release if args.release is not None else preset_vals.get("release"),
         mod_matrix,
     )
 
