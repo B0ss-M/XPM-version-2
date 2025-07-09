@@ -2336,6 +2336,8 @@ def batch_edit_programs(
                                creative_config=creative_config or {})
     builder = InstrumentBuilder(folder_path, None, options)
     matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
+    if matrix == {}:
+        matrix = None
     for root_dir, _dirs, files in os.walk(folder_path):
         for file in files:
             if not file.lower().endswith('.xpm') or file.startswith('._'):

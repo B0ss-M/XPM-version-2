@@ -1,4 +1,5 @@
 import json
+import logging
 import xml.etree.ElementTree as ET
 from typing import Optional, Dict
 
@@ -42,8 +43,13 @@ def set_volume_adsr(root: ET.Element,
 
 def load_mod_matrix(path: str) -> Dict[int, Dict[str, str]]:
     """Load a mod matrix JSON file into a dictionary."""
-    with open(path, 'r', encoding='utf-8') as f:
-        data = json.load(f)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        logging.error("Could not load mod matrix '%s': %s", path, e)
+        return {}
+
     matrix: Dict[int, Dict[str, str]] = {}
     if isinstance(data, list):
         for entry in data:
