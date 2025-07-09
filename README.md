@@ -25,3 +25,5 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - Expansion Doctor displays invalid or corrupt `.xpm` files instead of skipping them.
 - Auto Group Folders now previews folder names with sample counts before grouping.
 - Multi-sample builder prompts for Drum Program or Instrument Keygroup when building.
+- Expansion Builder resizes uploaded artwork to 600x600 if Pillow is installed.
+- Expansion Doctor can rewrite programs to any firmware version and legacy or advanced format.
