@@ -27,6 +27,8 @@ try:
         set_volume_adsr,
         load_mod_matrix,
         apply_mod_matrix,
+        set_engine_mode,
+        set_application_version,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow
@@ -300,6 +302,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.geometry("700x450")
         self.resizable(True, True)
         self.master = master
+        self.format_var = tk.StringVar(value="advanced")
         self.status = tk.StringVar(value="Ready.")
         self.broken_links = {}
         self.file_info = {}
@@ -345,6 +348,11 @@ class ExpansionDoctorWindow(tk.Toplevel):
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
         ttk.Button(btn_frame, text="Relink Samples...", command=self.relink_samples).pack(side="left", padx=5)
+        options = ttk.Frame(btn_frame)
+        options.pack(side="left", padx=5)
+        ttk.Label(options, text="Format:").pack(side="left")
+        ttk.Combobox(options, textvariable=self.format_var,
+                     values=['legacy','advanced'], state='readonly', width=9).pack(side="left")
         ttk.Button(btn_frame, text="Rewrite Versions", command=self.fix_versions).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Rescan", command=self.scan_broken_links).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=5)
@@ -395,8 +403,16 @@ class ExpansionDoctorWindow(tk.Toplevel):
             messagebox.showerror("Error", "No valid folder selected.", parent=self)
             return
         target = self.master.firmware_version.get()
-        updated = batch_edit_programs(folder, rename=False, version=target)
-        self.status.set(f"Updated {updated} XPM(s) to version {target}. Rescanning...")
+        fmt = self.format_var.get()
+        updated = batch_edit_programs(
+            folder,
+            rename=False,
+            version=target,
+            format_version=fmt,
+        )
+        self.status.set(
+            f"Updated {updated} XPM(s) to version {target} ({fmt}). Rescanning..."
+        )
         self.scan_broken_links()
 
     def scan_broken_links(self):
@@ -2355,6 +2371,7 @@ def batch_edit_programs(
     folder_path,
     rename=False,
     version=None,
+    format_version=None,
     creative_mode='off',
     creative_config=None,
     keytrack=None,
@@ -2364,7 +2381,7 @@ def batch_edit_programs(
     release=None,
     mod_matrix_file=None,
 ):
-    """Batch edit XPM files with rename/version and creative tweaks."""
+    """Batch edit XPM files with optional renaming, version, and engine updates."""
     edited = 0
     if not IMPORTS_SUCCESSFUL:
         logging.error("Cannot run batch edit, required modules are missing.")
@@ -2394,9 +2411,11 @@ def batch_edit_programs(
                         changed = True
 
                 if version:
-                    ver_elem = root.find('.//Application_Version')
-                    if ver_elem is not None and ver_elem.text != version:
-                        ver_elem.text = version
+                    if set_application_version(root, version):
+                        changed = True
+
+                if format_version:
+                    if set_engine_mode(root, format_version):
                         changed = True
 
                 if creative_mode != 'off':
