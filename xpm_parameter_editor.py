@@ -4,6 +4,10 @@ import xml.etree.ElementTree as ET
 from typing import Optional, Dict
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
+import os
+import re
+import wave
+import struct
 
 def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
     if elem is None or value is None:
@@ -111,4 +115,112 @@ def set_engine_mode(root: ET.Element, mode: str) -> bool:
     else:
         changed |= _update_text(legacy_elem, 'False')
 
+    return changed
+
+import os
+import re
+import wave
+import struct
+
+
+def name_to_midi(note_name: str) -> int | None:
+    """Convert note name like C#4 to MIDI note number."""
+    if not note_name:
+        return None
+    note_map = {'C':0,'C#':1,'DB':1,'D':2,'D#':3,'EB':3,'E':4,'F':5,'F#':6,'GB':6,'G':7,'G#':8,'AB':8,'A':9,'A#':10,'BB':10,'B':11}
+    m = re.match(r'^([A-G][#B]?)(-?\d+)$', note_name.strip().upper())
+    if not m:
+        return None
+    note, octave = m.groups()
+    if note not in note_map:
+        return None
+    try:
+        midi = 12 + note_map[note] + 12 * int(octave)
+        return midi if 0 <= midi <= 127 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def infer_note_from_filename(filename: str) -> int | None:
+    """Infer MIDI note from file name if it contains note or number."""
+    base = os.path.splitext(os.path.basename(filename))[0]
+    m = re.search(r'[ _-]?([A-G][#b]?\-?\d+)', base, re.IGNORECASE)
+    if m:
+        midi = name_to_midi(m.group(1))
+        if midi is not None:
+            return midi
+    m = re.search(r'\b(\d{2,3})\b', base)
+    if m:
+        num = int(m.group(1))
+        if 0 <= num <= 127:
+            return num
+    return None
+
+
+def extract_root_note_from_wav(filepath: str) -> int | None:
+    """Read MIDI root note from WAV smpl chunk."""
+    try:
+        with open(filepath, 'rb') as f:
+            data = f.read()
+        idx = data.find(b'smpl')
+        if idx != -1 and idx + 36 <= len(data):
+            note = struct.unpack('<I', data[idx+28:idx+32])[0]
+            if 0 <= note <= 127:
+                return note
+    except Exception as e:
+        logging.error("Could not extract root note from WAV %s: %s", filepath, e)
+    return None
+
+
+def fix_sample_notes(root: ET.Element, folder: str) -> bool:
+    """Update sample note mappings using file names or WAV metadata."""
+    changed = False
+    pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+    if pads_elem is not None and pads_elem.text:
+        try:
+            data = json.loads(xml_unescape(pads_elem.text))
+        except json.JSONDecodeError:
+            data = {}
+        pads = data.get('pads', {})
+        for pad in pads.values():
+            if isinstance(pad, dict) and pad.get('samplePath'):
+                sample_path = pad['samplePath']
+                abs_path = sample_path if os.path.isabs(sample_path) else os.path.join(folder, sample_path)
+                midi = extract_root_note_from_wav(abs_path) or infer_note_from_filename(sample_path)
+                if midi is None:
+                    continue
+                if pad.get('rootNote') != midi:
+                    pad['rootNote'] = midi
+                    changed = True
+                if pad.get('lowNote') != midi:
+                    pad['lowNote'] = midi
+                    changed = True
+                if pad.get('highNote') != midi:
+                    pad['highNote'] = midi
+                    changed = True
+        if changed:
+            pads_elem.text = xml_escape(json.dumps(data, indent=4))
+
+    for inst in root.findall('.//Instrument'):
+        low_elem = inst.find('LowNote')
+        high_elem = inst.find('HighNote')
+        for layer in inst.findall('.//Layer'):
+            sample_elem = layer.find('SampleFile')
+            root_elem = layer.find('RootNote')
+            if sample_elem is None or not sample_elem.text:
+                continue
+            sample_path = sample_elem.text
+            abs_path = sample_path if os.path.isabs(sample_path) else os.path.join(folder, sample_path)
+            midi = extract_root_note_from_wav(abs_path) or infer_note_from_filename(sample_path)
+            if midi is None:
+                continue
+            if root_elem is not None and root_elem.text != str(midi):
+                root_elem.text = str(midi)
+                changed = True
+            if low_elem is not None and low_elem.text != str(midi):
+                low_elem.text = str(midi)
+                changed = True
+            if high_elem is not None and high_elem.text != str(midi):
+                high_elem.text = str(midi)
+                changed = True
     return changed
