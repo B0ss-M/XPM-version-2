@@ -1,0 +1,12 @@
+{
+  "Basic LFO Filter": [
+    {"Num": 0, "Source": "LFO1", "Destination": "Filter", "Amount": "25"}
+  ],
+  "Vibrato": [
+    {"Num": 0, "Source": "LFO1", "Destination": "Pitch", "Amount": "10"}
+  ],
+  "Wobble Bass": [
+    {"Num": 0, "Source": "LFO1", "Destination": "Filter", "Amount": "70"},
+    {"Num": 1, "Source": "LFO2", "Destination": "Pitch", "Amount": "15"}
+  ]
+}

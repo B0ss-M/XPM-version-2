@@ -34,6 +34,7 @@ try:
         get_pad_settings,
         get_program_parameters as fw_program_parameters,
         ADVANCED_INSTRUMENT_PARAMS,
+        PAD_SETTINGS,
     )
     IMPORTS_SUCCESSFUL = True
 except ImportError as e:
@@ -52,6 +53,16 @@ MPC_RED = '#B91C1C'
 MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
+
+FIRMWARE_CHOICES = list(PAD_SETTINGS.keys())
+
+ADSR_PRESETS = {
+    'Custom': (None, None, None, None),
+    'Piano': (0.01, 0.5, 0.7, 0.8),
+    'Organ': (0.05, 0.1, 1.0, 0.2),
+    'Synth Pad': (0.5, 2.0, 0.8, 1.5),
+    'Pluck': (0.01, 0.3, 0.0, 0.2),
+}
 
 #<editor-fold desc="Logging and Core Helpers">
 class TextHandler(logging.Handler):
@@ -888,8 +899,10 @@ class BatchProgramEditorWindow(tk.Toplevel):
         super().__init__(master.root)
         self.master = master
         self.title("Batch Program Editor")
-        self.geometry("400x360")
+        self.geometry("400x420")
         self.resizable(False, False)
+        self.mod_presets = self.load_mod_presets()
+        self.mod_matrix_data = None
         self.create_widgets()
 
     def create_widgets(self):
@@ -901,8 +914,8 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
 
         ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
-        self.version_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.version_var).grid(row=1, column=1, sticky="ew", pady=(10,0))
+        self.version_var = tk.StringVar(value=self.master.firmware_version.get())
+        ttk.Combobox(frame, textvariable=self.version_var, values=FIRMWARE_CHOICES, state="readonly").grid(row=1, column=1, sticky="ew", pady=(10,0))
 
         ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
@@ -925,17 +938,29 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.decay_var = tk.StringVar()
         self.sustain_var = tk.StringVar()
         self.release_var = tk.StringVar()
-        ttk.Entry(adsr, width=4, textvariable=self.attack_var).pack(side="left")
-        ttk.Entry(adsr, width=4, textvariable=self.decay_var).pack(side="left", padx=2)
-        ttk.Entry(adsr, width=4, textvariable=self.sustain_var).pack(side="left")
-        ttk.Entry(adsr, width=4, textvariable=self.release_var).pack(side="left", padx=2)
+        for lbl, var in [("A", self.attack_var), ("D", self.decay_var), ("S", self.sustain_var), ("R", self.release_var)]:
+            ttk.Label(adsr, text=lbl).pack(side="left", padx=(0,2))
+            ttk.Entry(adsr, width=4, textvariable=var).pack(side="left", padx=(0,5))
 
-        ttk.Label(frame, text="Mod Matrix File:").grid(row=6, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="ADSR Preset:").grid(row=6, column=0, sticky="w", pady=(10,0))
+        self.adsr_preset_var = tk.StringVar(value="Custom")
+        ttk.Combobox(frame, textvariable=self.adsr_preset_var, values=list(ADSR_PRESETS.keys()), state="readonly")\
+            .grid(row=6, column=1, sticky="ew", pady=(10,0))
+        self.adsr_preset_var.trace_add("write", self.apply_adsr_preset)
+
+        ttk.Label(frame, text="Mod Matrix Preset:").grid(row=7, column=0, sticky="w", pady=(10,0))
+        self.mod_preset_var = tk.StringVar(value="None")
+        preset_names = ["None"] + list(self.mod_presets.keys())
+        ttk.Combobox(frame, textvariable=self.mod_preset_var, values=preset_names, state="readonly")\
+            .grid(row=7, column=1, sticky="ew", pady=(10,0))
+        self.mod_preset_var.trace_add("write", self.on_mod_preset)
+
+        ttk.Label(frame, text="Mod Matrix File:").grid(row=8, column=0, sticky="w", pady=(10,0))
         self.mod_matrix_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.mod_matrix_var).grid(row=6, column=1, sticky="ew", pady=(10,0))
+        ttk.Entry(frame, textvariable=self.mod_matrix_var).grid(row=8, column=1, sticky="ew", pady=(10,0))
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=7, column=0, columnspan=2, pady=(15,0), sticky="e")
+        btn_frame.grid(row=9, column=0, columnspan=2, pady=(15,0), sticky="e")
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
 
@@ -949,6 +974,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.master.open_window(CreativeModeConfigWindow, self.creative_var.get())
 
     def apply_edits(self):
+        matrix_arg = self.mod_matrix_data if self.mod_matrix_data else (self.mod_matrix_var.get().strip() or None)
         self.master.run_batch_process(
             batch_edit_programs,
             self.rename_var.get(),
@@ -960,9 +986,36 @@ class BatchProgramEditorWindow(tk.Toplevel):
             float(self.decay_var.get()) if self.decay_var.get() else None,
             float(self.sustain_var.get()) if self.sustain_var.get() else None,
             float(self.release_var.get()) if self.release_var.get() else None,
-            self.mod_matrix_var.get().strip() or None,
+            matrix_arg,
         )
         self.destroy()
+
+    def apply_adsr_preset(self, *args):
+        preset = ADSR_PRESETS.get(self.adsr_preset_var.get())
+        if preset:
+            a, d, s, r = preset
+            if a is not None:
+                self.attack_var.set(a)
+            if d is not None:
+                self.decay_var.set(d)
+            if s is not None:
+                self.sustain_var.set(s)
+            if r is not None:
+                self.release_var.set(r)
+
+    def on_mod_preset(self, *args):
+        name = self.mod_preset_var.get()
+        self.mod_matrix_data = self.mod_presets.get(name) if name != "None" else None
+
+    def load_mod_presets(self):
+        try:
+            with open('mod_matrix_presets.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            logging.warning('No mod matrix presets available')
+        return {}
 
 class SmartSplitWindow(tk.Toplevel):
     def __init__(self, master):
@@ -1095,7 +1148,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
         options_frame.pack(side="left", padx=5)
         ttk.Label(options_frame, text="Firmware:").grid(row=0, column=0, sticky="e")
         ttk.Combobox(options_frame, textvariable=self.firmware_var,
-                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'],
+                     values=FIRMWARE_CHOICES,
                      state='readonly', width=10).grid(row=0, column=1)
         ttk.Label(options_frame, text="Format:").grid(row=1, column=0, sticky="e")
         ttk.Combobox(options_frame, textvariable=self.format_var,
@@ -1956,7 +2009,8 @@ class App(tk.Tk):
         frame.grid_columnconfigure(1, weight=1)
 
         ttk.Label(frame, text="Target Firmware:").grid(row=0, column=0, sticky='e', padx=5, pady=2)
-        ttk.Combobox(frame, textvariable=self.firmware_version, values=['2.3.0.0', '2.6.0.17', '3.4.0', '3.5.0'], state='readonly').grid(row=0, column=1, sticky='ew')
+        ttk.Combobox(frame, textvariable=self.firmware_version,
+                     values=FIRMWARE_CHOICES, state='readonly').grid(row=0, column=1, sticky='ew')
 
         ttk.Label(frame, text="Polyphony:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
         self.polyphony_var = tk.IntVar(value=16)
@@ -2320,7 +2374,7 @@ def batch_edit_programs(
     decay=None,
     sustain=None,
     release=None,
-    mod_matrix_file=None,
+    mod_matrix=None,
 ):
     """Batch edit XPM files with rename/version and creative tweaks."""
     edited = 0
@@ -2331,7 +2385,10 @@ def batch_edit_programs(
     options = InstrumentOptions(creative_mode=creative_mode,
                                creative_config=creative_config or {})
     builder = InstrumentBuilder(folder_path, None, options)
-    matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
+    if isinstance(mod_matrix, str):
+        matrix = load_mod_matrix(mod_matrix)
+    else:
+        matrix = mod_matrix
     for root_dir, _dirs, files in os.walk(folder_path):
         for file in files:
             if not file.lower().endswith('.xpm') or file.startswith('._'):

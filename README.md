@@ -21,3 +21,4 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - Expansion Doctor displays invalid or corrupt `.xpm` files instead of skipping them.
 - Auto Group Folders now previews folder names with sample counts before grouping.
 - Multi-sample builder prompts for Drum Program or Instrument Keygroup when building.
+- Batch Program Editor includes firmware dropdown, ADSR presets, and mod matrix presets.
