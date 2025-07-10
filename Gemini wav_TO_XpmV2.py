@@ -1017,7 +1017,6 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.format_var = tk.StringVar(value="advanced")
         ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
         ttk.Combobox(frame, textvariable=self.format_var, values=['legacy','advanced'], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
-        main
 
         ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
@@ -1116,6 +1115,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
             batch_edit_programs,
             self.rename_var.get(),
             self.version_var.get().strip() or None,
+            self.format_var.get(),
             self.firmware_var.get(),
             self.format_var.get(),
             self.format_var.get().strip() or None,
