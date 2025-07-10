@@ -20,6 +20,12 @@ import re
 import json
 import zipfile
 
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except Exception:
+    PIL_AVAILABLE = False
+
 # Attempt to import optional dependencies, handle if they are not present
 try:
     from xpm_parameter_editor import (
@@ -30,6 +36,10 @@ try:
         set_engine_mode,
         set_application_version,
         fix_sample_notes,
+
+        name_to_midi,
+        infer_note_from_filename,
+        extract_root_note_from_wav,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow
@@ -55,6 +65,31 @@ MPC_RED = '#B91C1C'
 MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
+EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
+
+
+def indent_tree(tree, space="  "):
+    """Indent an ElementTree for pretty printing on all Python versions."""
+    if hasattr(ET, "indent"):
+        ET.indent(tree, space=space)
+    else:
+        def _indent(elem, level=0):
+            i = "\n" + level * space
+            if len(elem):
+                if not elem.text or not elem.text.strip():
+                    elem.text = i + space
+                if not elem.tail or not elem.tail.strip():
+                    elem.tail = i
+                for child in elem:
+                    _indent(child, level + 1)
+                    if not child.tail or not child.tail.strip():
+                        child.tail = i + space
+                if not elem[-1].tail or not elem[-1].tail.strip():
+                    elem[-1].tail = i
+            elif level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+
+        _indent(tree.getroot())
 
 #<editor-fold desc="Logging and Core Helpers">
 class TextHandler(logging.Handler):
@@ -166,21 +201,6 @@ def validate_xpm_file(xpm_path, expected_samples):
         return False
 
 
-def name_to_midi(note_name):
-    """Converts a note name (e.g., 'C#4', 'Db-1') to a MIDI note number."""
-    if not note_name: return None
-    note_name_upper = note_name.strip().upper()
-    note_map = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
-    m = re.match(r'^([A-G][#B]?)(\-?\d+)$', note_name_upper, re.IGNORECASE)
-    if not m: return None
-    note, octave_str = m.groups()
-    if note not in note_map: return None
-    try:
-        midi = 12 + note_map[note] + 12 * int(octave_str)
-        return midi if 0 <= midi <= 127 else None
-    except (ValueError, TypeError):
-        return None
-
 def get_clean_sample_info(filepath):
     """Extracts basic info from a file path."""
     base = os.path.basename(filepath)
@@ -219,16 +239,6 @@ def get_base_instrument_name(filepath, xpm_content=None):
     cleaned_folder = re.sub(r'[_-]', ' ', parent_folder).strip()
     return cleaned_folder if cleaned_folder else 'instrument'
 
-def infer_note_from_filename(filename):
-    """Infers a MIDI note from a filename, checking for note names and numbers."""
-    base = os.path.splitext(os.path.basename(filename))[0]
-    m = re.search(r'[ _-]?([A-G][#b]?\-?\d+)', base, re.IGNORECASE)
-    if m and (midi := name_to_midi(m.group(1))) is not None:
-        return midi
-    m = re.search(r'\b(\d{2,3})\b', base)
-    if m and 0 <= (n := int(m.group(1))) <= 127:
-        return n
-    return None
 
 def get_wav_frames(filepath):
     """Returns the number of frames in a WAV file."""
@@ -280,19 +290,6 @@ def is_valid_xpm(xpm_path):
     sample_count = len(parse_xpm_samples(xpm_path))
     return validate_xpm_file(xpm_path, sample_count)
 
-def extract_root_note_from_wav(filepath):
-    """Returns the MIDI root note from the WAV's smpl chunk if present."""
-    try:
-        with open(filepath, 'rb') as f:
-            data = f.read()
-        idx = data.find(b'smpl')
-        if idx != -1 and idx + 36 <= len(data):
-            root = struct.unpack('<I', data[idx + 28:idx + 32])[0]
-            if 0 <= root <= 127:
-                return root
-    except Exception as e:
-        logging.error(f"Could not extract root note from WAV {filepath}: {e}")
-    return None
 #</editor-fold>
 
 #<editor-fold desc="GUI: Utility Windows">
@@ -305,6 +302,8 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.master = master
         self.format_var = tk.StringVar(value="advanced")
         self.status = tk.StringVar(value="Ready.")
+        self.version_var = tk.StringVar(value=master.firmware_version.get())
+        self.format_var = tk.StringVar(value="advanced")
         self.broken_links = {}
         self.file_info = {}
         self.create_widgets()
@@ -346,8 +345,19 @@ class ExpansionDoctorWindow(tk.Toplevel):
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
 
+        option_frame = ttk.Frame(frame)
+        option_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+        ttk.Label(option_frame, text="Firmware:").pack(side="left")
+        ttk.Combobox(option_frame, textvariable=self.version_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'], width=10,
+                     state='readonly').pack(side="left", padx=5)
+        ttk.Label(option_frame, text="Format:").pack(side="left")
+        ttk.Combobox(option_frame, textvariable=self.format_var,
+                     values=['legacy','advanced'], width=8,
+                     state='readonly').pack(side="left", padx=5)
+
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+        btn_frame.grid(row=3, column=0, sticky="ew", pady=(5, 0))
         ttk.Button(btn_frame, text="Relink Samples...", command=self.relink_samples).pack(side="left", padx=5)
         options = ttk.Frame(btn_frame)
         options.pack(side="left", padx=5)
@@ -389,7 +399,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                                     samples_to_find.remove(sample_basename)
                                     break
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
                     fixed_count += 1
             except Exception as e:
@@ -403,18 +413,83 @@ class ExpansionDoctorWindow(tk.Toplevel):
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "No valid folder selected.", parent=self)
             return
+        target_fw = self.version_var.get()
+        target_fmt = self.format_var.get()
+        updated = 0
+        for path in glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True):
+            try:
+                tree = ET.parse(path)
+                root = tree.getroot()
+                changed = False
+                ver_elem = root.find('.//Application_Version')
+                if ver_elem is None:
+                    version_node = root.find('Version')
+                    if version_node is None:
+                        version_node = ET.Element('Version')
+                        root.insert(0, version_node)
+                        ET.SubElement(version_node, 'File_Version').text = '2.1'
+                        ET.SubElement(version_node, 'Application').text = 'MPC-V'
+                        ET.SubElement(version_node, 'Platform').text = 'Linux'
+                    ver_elem = version_node.find('Application_Version')
+                    if ver_elem is None:
+                        ver_elem = ET.SubElement(version_node, 'Application_Version')
+                if ver_elem.text != target_fw:
+                    ver_elem.text = target_fw
+                    changed = True
+
+                if self._apply_format(root, target_fmt):
+                    changed = True
+
+                if changed:
+                    indent_tree(tree)
+                    tree.write(path, encoding='utf-8', xml_declaration=True)
+                    updated += 1
+            except Exception as exc:
+                logging.error(f"Error updating {path}: {exc}")
+
+        self.status.set(f"Updated {updated} XPM(s) to version {target_fw} ({target_fmt}). Rescanning...")
         target = self.master.firmware_version.get()
         fmt = self.format_var.get()
         updated = batch_edit_programs(
             folder,
             rename=False,
             version=target,
+            firmware_version=target,
+        )
+        self.status.set(f"Updated {updated} XPM(s) to version {target}. Rescanning...")
             format_version=fmt,
         )
         self.status.set(
             f"Updated {updated} XPM(s) to version {target} ({fmt}). Rescanning..."
         )
         self.scan_broken_links()
+
+    def _apply_format(self, root, fmt):
+        changed = False
+        program = root.find('Program')
+        if program is None:
+            return changed
+
+        keygroup_mode = program.find('KeygroupLegacyMode')
+        if keygroup_mode is not None:
+            val = 'True' if fmt == 'legacy' else 'False'
+            if keygroup_mode.text != val:
+                keygroup_mode.text = val
+                changed = True
+
+        pads_elem = program.find('ProgramPads-v2.10') or program.find('ProgramPads')
+        if pads_elem is not None and pads_elem.text:
+            try:
+                data = json.loads(xml_unescape(pads_elem.text))
+                target_engine = 'legacy' if fmt == 'legacy' else 'advanced'
+                if data.get('engine') != target_engine:
+                    data['engine'] = target_engine
+                    pads_elem.text = xml_escape(json.dumps(data, indent=4))
+                    changed = True
+            except Exception as e:
+                logging.error(f"_apply_format JSON error: {e}")
+
+        return changed
 
     def scan_broken_links(self):
         for i in self.tree.get_children():
@@ -541,14 +616,21 @@ class ExpansionBuilderWindow(tk.Toplevel):
         if image_path and os.path.exists(image_path):
             image_basename = os.path.basename(image_path)
             ET.SubElement(root, 'Image').text = image_basename
+            dest_path = os.path.join(folder, image_basename)
             try:
-                shutil.copy2(image_path, os.path.join(folder, image_basename))
+                if PIL_AVAILABLE:
+                    img = Image.open(image_path)
+                    img = img.convert('RGB')
+                    img = img.resize(EXPANSION_IMAGE_SIZE, Image.LANCZOS)
+                    img.save(dest_path)
+                else:
+                    shutil.copy2(image_path, dest_path)
             except Exception as e:
                 logging.error(f"Failed to copy image: {e}")
                 messagebox.showerror("Image Error", f"Failed to copy image to expansion folder:\n{e}", parent=self)
 
         tree = ET.ElementTree(root)
-        ET.indent(tree, space="  ")
+        indent_tree(tree)
         tree.write(xml_path, encoding='utf-8', xml_declaration=True)
         messagebox.showinfo("Success", f"Expansion.xml created at {xml_path}", parent=self)
         self.destroy()
@@ -778,7 +860,7 @@ class FileRenamerWindow(tk.Toplevel):
                                     sample_name_elem.text = os.path.splitext(os.path.basename(new_sample_path))[0]
                             changed = True
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
             except Exception as e:
                 logging.error(f"Error updating XPM {xpm_path}: {e}")
@@ -905,8 +987,10 @@ class BatchProgramEditorWindow(tk.Toplevel):
         super().__init__(master.root)
         self.master = master
         self.title("Batch Program Editor")
-        self.geometry("400x360")
+        self.geometry("400x380")
+        self.geometry("400x390")
         self.resizable(False, False)
+        self.format_var = tk.StringVar(value="advanced")
         self.create_widgets()
 
     def create_widgets(self):
@@ -917,6 +1001,14 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.rename_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
 
+        ttk.Label(frame, text="Firmware:").grid(row=1, column=0, sticky="w", pady=(10,0))
+        self.firmware_var = tk.StringVar(value=self.master.firmware_version.get())
+        ttk.Combobox(frame, textvariable=self.firmware_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'], state='readonly').grid(row=1, column=1, sticky="ew", pady=(10,0))
+
+        ttk.Label(frame, text="Application Version:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        self.version_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.version_var).grid(row=2, column=1, sticky="ew", pady=(10,0))
         ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
         self.version_var = tk.StringVar(value=self.master.firmware_version.get())
         versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
@@ -925,6 +1017,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Label(frame, text="Format:").grid(row=2, column=0, sticky="w", pady=(10,0))
         self.format_var = tk.StringVar(value="advanced")
         ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
+        ttk.Combobox(frame, textvariable=self.format_var, values=['legacy','advanced'], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
 
         ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
@@ -932,6 +1025,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
         self.creative_combo.grid(row=3, column=1, sticky="ew", pady=(10,0))
         self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
+        self.creative_var.trace_add('write', lambda *a: self.toggle_config_btn())
 
         self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
         self.config_btn.grid(row=4, column=1, sticky="e")
@@ -954,6 +1048,12 @@ class BatchProgramEditorWindow(tk.Toplevel):
 
         ttk.Label(frame, text="Mod Matrix File:").grid(row=7, column=0, sticky="w", pady=(10,0))
         self.mod_matrix_var = tk.StringVar()
+        entry = ttk.Entry(frame, textvariable=self.mod_matrix_var)
+        entry.grid(row=7, column=1, sticky="ew", pady=(10,0))
+        ttk.Button(frame, text="Browse...", command=self.browse_mod_matrix).grid(row=7, column=2, padx=(5,0), pady=(10,0))
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.grid(row=8, column=0, columnspan=3, pady=(15,0), sticky="e")
         mm_frame = ttk.Frame(frame)
         mm_frame.grid(row=7, column=1, sticky="ew", pady=(10,0))
         mm_frame.columnconfigure(0, weight=1)
@@ -965,6 +1065,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
 
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=9, column=0, columnspan=2, pady=(15,0), sticky="e")
+        btn_frame.grid(row=8, column=0, columnspan=2, pady=(15,0), sticky="e")
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
 
@@ -1016,6 +1117,9 @@ class BatchProgramEditorWindow(tk.Toplevel):
             self.rename_var.get(),
             self.version_var.get().strip() or None,
             self.format_var.get(),
+            self.firmware_var.get(),
+            self.format_var.get(),
+            self.format_var.get().strip() or None,
             self.creative_var.get(),
             self.master.creative_config,
             self.keytrack_var.get() == "on",
@@ -1326,7 +1430,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 
                 if changed:
                     shutil.copy2(xpm_path, xpm_path + ".bak")
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
                     self.tree.set(self.get_id_from_path(xpm_path), "Status", "Relinked")
             except Exception as e:
@@ -1348,7 +1452,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
             xpm_path = self.xpm_map[item_id]
             self.tree.set(item_id, "Status", "Rebuilding...")
             try:
-                sample_mappings = self._parse_any_xpm(xpm_path)
+                sample_mappings, inst_params = self._parse_any_xpm(xpm_path)
                 if not sample_mappings:
                     self.tree.set(item_id, "Status", "Parse Error")
                     continue
@@ -1369,7 +1473,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
                     [],
                     output_folder,
                     mode='multi-sample',
-                    mappings=sample_mappings
+                    mappings=sample_mappings,
+                    instrument_template=inst_params
                 )
                 
                 if success:
@@ -1385,9 +1490,18 @@ class BatchProgramFixerWindow(tk.Toplevel):
 
     def _parse_any_xpm(self, xpm_path):
         mappings = []
+        inst_params = {}
         xpm_dir = os.path.dirname(xpm_path)
         tree = ET.parse(xpm_path)
         root = tree.getroot()
+
+        # Capture parameters from the first Instrument element so we can
+        # preserve envelope settings when rebuilding programs.
+        inst = root.find('.//Instrument')
+        if inst is not None:
+            for child in inst:
+                if len(list(child)) == 0:
+                    inst_params[child.tag] = child.text or ''
 
         # Modern JSON-based format (v3.4+)
         pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
@@ -1406,7 +1520,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
                             'velocity_low': pad_data.get('velocityLow', 0),
                             'velocity_high': pad_data.get('velocityHigh', 127)
                         })
-            if mappings: return mappings
+            if mappings:
+                return mappings, inst_params
 
         # Legacy XML format
         for inst in root.findall('.//Instrument'):
@@ -1432,7 +1547,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                         'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
                         'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127,
                     })
-        return mappings
+        return mappings, inst_params
 
     def get_id_from_path(self, path):
         for item_id, item_path in self.xpm_map.items():
@@ -1551,7 +1666,7 @@ class InstrumentBuilder:
             self.app.progress["value"] = 0
 
     def _create_xpm(self, program_name, sample_files, output_folder, mode,
-                    midi_notes=None, mappings=None):
+                    midi_notes=None, mappings=None, instrument_template=None):
         """Create a single XPM file from samples or an existing mapping."""
         if mappings:
             logging.info("_create_xpm rebuilding '%s' using mapping with %d entry(ies)",
@@ -1671,6 +1786,13 @@ class InstrumentBuilder:
                             low_key = 0
 
                 inst = self.build_instrument_element(instruments, i, low_key, high_key)
+                if instrument_template:
+                    for k, v in instrument_template.items():
+                        elem = inst.find(k)
+                        if elem is not None:
+                            elem.text = str(v)
+                        else:
+                            ET.SubElement(inst, k).text = str(v)
                 layers_elem = ET.SubElement(inst, 'Layers')
 
                 layers_for_note = sorted(note_layers[key], key=lambda x: x.get('velocity_low', 0))
@@ -1694,7 +1816,7 @@ class InstrumentBuilder:
 
             output_path = os.path.join(output_folder, f"{program_name}.xpm")
             tree = ET.ElementTree(root)
-            ET.indent(tree, space="  ")
+            indent_tree(tree)
             tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
             if not validate_xpm_file(output_path, len(pad_mappings)):
@@ -2040,6 +2162,7 @@ class App(tk.Tk):
         self.creative_combo = ttk.Combobox(creative_frame, textvariable=self.creative_mode_var, values=creative_modes, state="readonly")
         self.creative_combo.grid(row=0, column=0, sticky='ew')
         self.creative_combo.bind("<<ComboboxSelected>>", self.on_creative_mode_change)
+        self.creative_mode_var.trace_add('write', lambda *a: self.on_creative_mode_change())
 
         self.creative_config_btn = ttk.Button(creative_frame, text="Configure...", command=self.open_creative_config, state='disabled')
         self.creative_config_btn.grid(row=0, column=1, padx=(5,0))
@@ -2381,6 +2504,7 @@ def batch_edit_programs(
     folder_path,
     rename=False,
     version=None,
+    firmware_version='3.5.0',
     format_version=None,
     creative_mode='off',
     creative_config=None,
@@ -2398,8 +2522,12 @@ def batch_edit_programs(
         logging.error("Cannot run batch edit, required modules are missing.")
         return 0
 
-    options = InstrumentOptions(creative_mode=creative_mode,
-                               creative_config=creative_config or {})
+    options = InstrumentOptions(
+        creative_mode=creative_mode,
+        creative_config=creative_config or {},
+        firmware_version=firmware_version,
+        format_version=format_version if format_version else 'advanced'
+    )
     builder = InstrumentBuilder(folder_path, None, options)
     matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
     if matrix == {}:
@@ -2457,7 +2585,7 @@ def batch_edit_programs(
                         changed = True
 
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(path, encoding='utf-8', xml_declaration=True)
                     edited += 1
             except Exception as exc:
