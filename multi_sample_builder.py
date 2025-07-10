@@ -4,6 +4,8 @@ import logging
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 
+AUDIO_EXTS = ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')
+
 class MultiSampleBuilderWindow(tk.Toplevel):
     """Interactive tool for grouping samples and creating multi-sample instruments."""
 
@@ -83,7 +85,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
             self.folder_label.config(text=folder)
         pattern = os.path.join(folder, '**', '*') if self.master.recursive_scan_var.get() else os.path.join(folder, '*')
         all_files = glob.glob(pattern, recursive=self.master.recursive_scan_var.get())
-        files = [f for f in all_files if f.lower().endswith('.wav')]
+        files = [f for f in all_files if os.path.splitext(f)[1].lower() in AUDIO_EXTS]
         self.unassigned = [os.path.relpath(f, folder) for f in files if '.xpm.wav' not in f.lower()]
         self.refresh_file_list()
 
@@ -220,6 +222,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
                 recursive_scan=False,
                 firmware_version=self.master.firmware_version.get(),
                 polyphony=self.master.polyphony_var.get(),
+                format_version=self.master.format_version.get(),
                 creative_config=self.master.creative_config
             )
             builder = self.builder_cls(self.master.folder_path.get(), self.master, options)
