@@ -62,7 +62,7 @@ EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
 
 def indent_tree(tree, space="  "):
-    """Indent an ElementTree for pretty printing, safe for Python <3.9."""
+    """Indent an ElementTree for pretty printing on all Python versions."""
     if hasattr(ET, "indent"):
         ET.indent(tree, space=space)
     else:
@@ -71,12 +71,14 @@ def indent_tree(tree, space="  "):
             if len(elem):
                 if not elem.text or not elem.text.strip():
                     elem.text = i + space
+                if not elem.tail or not elem.tail.strip():
+                    elem.tail = i
                 for child in elem:
                     _indent(child, level + 1)
                     if not child.tail or not child.tail.strip():
                         child.tail = i + space
-                if not child.tail or not child.tail.strip():
-                    child.tail = i
+                if not elem[-1].tail or not elem[-1].tail.strip():
+                    elem[-1].tail = i
             elif level and (not elem.tail or not elem.tail.strip()):
                 elem.tail = i
 
