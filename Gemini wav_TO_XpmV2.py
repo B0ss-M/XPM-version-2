@@ -1825,35 +1825,28 @@ class InstrumentBuilder:
             ).get('engine')
             if engine == 'advanced' and ADVANCED_INSTRUMENT_PARAMS:
                 params = ADVANCED_INSTRUMENT_PARAMS.copy()
-                params.update({
-                    'Polyphony': str(self.options.polyphony),
-                    'LowNote': str(low),
-                    'HighNote': str(high),
-                })
             else:
-                params = {
-                    'Polyphony': str(self.options.polyphony),
-                    'LowNote': str(low),
-                    'HighNote': str(high),
-                    'Volume': '1.0',
-                    'Pan': '0.5',
-                    'Tune': '0.0',
-                    'MuteGroup': '0',
-                    'VoiceOverlap': 'Poly',
-                    'VolumeAttack': '0.0',
-                    'VolumeDecay': '0.0',
-                    'VolumeSustain': '1.0',
-                    'VolumeRelease': '0.05',
-                    'FilterType': 'Off',
-                    'Cutoff': '1.0',
-                    'Resonance': '0.0',
-                    'FilterKeytrack': '0.0',
-                    'FilterAttack': '0.0',
-                    'FilterDecay': '0.0',
-                    'FilterSustain': '1.0',
-                    'FilterRelease': '0.0',
-                    'FilterEnvAmount': '0.0',
+                params = {} # Start with an empty dictionary for legacy
+            
+            # Universal parameters applied to both legacy and advanced
+            params.update({
+                'Polyphony': str(self.options.polyphony),
+                'LowNote': str(low),
+                'HighNote': str(high),
+            })
+            
+            # Add legacy-specific default parameters if not in advanced mode
+            if engine != 'advanced':
+                 legacy_defaults = {
+                    'Volume': '1.0', 'Pan': '0.5', 'Tune': '0.0', 'MuteGroup': '0',
+                    'VoiceOverlap': 'Poly', 'VolumeAttack': '0.0', 'VolumeDecay': '0.0',
+                    'VolumeSustain': '1.0', 'VolumeRelease': '0.05', 'FilterType': 'Off',
+                    'Cutoff': '1.0', 'Resonance': '0.0', 'FilterKeytrack': '0.0',
+                    'FilterAttack': '0.0', 'FilterDecay': '0.0', 'FilterSustain': '1.0',
+                    'FilterRelease': '0.0', 'FilterEnvAmount': '0.0',
                 }
+                 params.update(legacy_defaults)
+
         for key, val in params.items():
             ET.SubElement(instrument, key).text = val
         return instrument
