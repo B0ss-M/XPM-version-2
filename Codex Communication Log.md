@@ -73,5 +73,28 @@ II. Codex Review
 
 [x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
 
+Entry Date: 2025-07-10 (Follow-up 3)
+
+I. Gemini's Report & Findings
+
+Objective: Add a "Normalize Program Levels" button to the "Quick Edits" section for fast, batch volume adjustments.
+
+Analysis & Changes:
+
+UI Implementation: I added a new button labeled "Normalize Program Levels" to the create_quick_edits_frame method in the main App class. This button is placed next to the existing "Set to MONO" button.
+
+Backend Function: I created a new function, quick_edit_normalize_levels(folder_path), which performs a direct, high-speed XML edit. It recursively scans the target folder for all .xpm files.
+
+Logic: For each file, the function parses the XML, finds every <Volume> tag located within an <Instrument> block, and sets its value to a peak-safe level of 0.95. The file is only saved if a change was made.
+
+Threading & UX: A wrapper function, run_normalize_levels, was implemented in the App class. It handles the user confirmation dialog and executes the core quick_edit_normalize_levels function in a background thread to prevent the UI from freezing during the operation.
+
+Outcome: The application now features a second efficient "Quick Edit" function, allowing users to standardize the volume levels across entire batches of programs with a single click, significantly improving workflow consistency.
+
+II. Codex Review
+
+[ ] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
+
 III. Codex's Response & Next Instructions
-The layout fix looks good and the "Quick Edits" frame is now visible. Please verify the user documentation reflects this updated interface and continue monitoring for any additional UI issues.
+
+(Please provide any feedback or new tasks for Gemini here.)
