@@ -20,6 +20,12 @@ import re
 import json
 import zipfile
 
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except Exception:
+    PIL_AVAILABLE = False
+
 # Attempt to import optional dependencies, handle if they are not present
 try:
     from xpm_parameter_editor import (
@@ -58,6 +64,31 @@ MPC_RED = '#B91C1C'
 MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
+EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
+
+
+def indent_tree(tree, space="  "):
+    """Indent an ElementTree for pretty printing on all Python versions."""
+    if hasattr(ET, "indent"):
+        ET.indent(tree, space=space)
+    else:
+        def _indent(elem, level=0):
+            i = "\n" + level * space
+            if len(elem):
+                if not elem.text or not elem.text.strip():
+                    elem.text = i + space
+                if not elem.tail or not elem.tail.strip():
+                    elem.tail = i
+                for child in elem:
+                    _indent(child, level + 1)
+                    if not child.tail or not child.tail.strip():
+                        child.tail = i + space
+                if not elem[-1].tail or not elem[-1].tail.strip():
+                    elem[-1].tail = i
+            elif level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+
+        _indent(tree.getroot())
 
 #<editor-fold desc="Logging and Core Helpers">
 class TextHandler(logging.Handler):
@@ -270,6 +301,8 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.master = master
         self.format_var = tk.StringVar(value="advanced")
         self.status = tk.StringVar(value="Ready.")
+        self.version_var = tk.StringVar(value=master.firmware_version.get())
+        self.format_var = tk.StringVar(value="advanced")
         self.broken_links = {}
         self.file_info = {}
         self.create_widgets()
@@ -311,8 +344,19 @@ class ExpansionDoctorWindow(tk.Toplevel):
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
 
+        option_frame = ttk.Frame(frame)
+        option_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+        ttk.Label(option_frame, text="Firmware:").pack(side="left")
+        ttk.Combobox(option_frame, textvariable=self.version_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'], width=10,
+                     state='readonly').pack(side="left", padx=5)
+        ttk.Label(option_frame, text="Format:").pack(side="left")
+        ttk.Combobox(option_frame, textvariable=self.format_var,
+                     values=['legacy','advanced'], width=8,
+                     state='readonly').pack(side="left", padx=5)
+
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
+        btn_frame.grid(row=3, column=0, sticky="ew", pady=(5, 0))
         ttk.Button(btn_frame, text="Relink Samples...", command=self.relink_samples).pack(side="left", padx=5)
         options = ttk.Frame(btn_frame)
         options.pack(side="left", padx=5)
@@ -354,7 +398,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                                     samples_to_find.remove(sample_basename)
                                     break
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
                     fixed_count += 1
             except Exception as e:
@@ -368,6 +412,41 @@ class ExpansionDoctorWindow(tk.Toplevel):
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "No valid folder selected.", parent=self)
             return
+        target_fw = self.version_var.get()
+        target_fmt = self.format_var.get()
+        updated = 0
+        for path in glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True):
+            try:
+                tree = ET.parse(path)
+                root = tree.getroot()
+                changed = False
+                ver_elem = root.find('.//Application_Version')
+                if ver_elem is None:
+                    version_node = root.find('Version')
+                    if version_node is None:
+                        version_node = ET.Element('Version')
+                        root.insert(0, version_node)
+                        ET.SubElement(version_node, 'File_Version').text = '2.1'
+                        ET.SubElement(version_node, 'Application').text = 'MPC-V'
+                        ET.SubElement(version_node, 'Platform').text = 'Linux'
+                    ver_elem = version_node.find('Application_Version')
+                    if ver_elem is None:
+                        ver_elem = ET.SubElement(version_node, 'Application_Version')
+                if ver_elem.text != target_fw:
+                    ver_elem.text = target_fw
+                    changed = True
+
+                if self._apply_format(root, target_fmt):
+                    changed = True
+
+                if changed:
+                    indent_tree(tree)
+                    tree.write(path, encoding='utf-8', xml_declaration=True)
+                    updated += 1
+            except Exception as exc:
+                logging.error(f"Error updating {path}: {exc}")
+
+        self.status.set(f"Updated {updated} XPM(s) to version {target_fw} ({target_fmt}). Rescanning...")
         target = self.master.firmware_version.get()
         fmt = self.format_var.get()
         updated = batch_edit_programs(
@@ -380,6 +459,33 @@ class ExpansionDoctorWindow(tk.Toplevel):
             f"Updated {updated} XPM(s) to version {target} ({fmt}). Rescanning..."
         )
         self.scan_broken_links()
+
+    def _apply_format(self, root, fmt):
+        changed = False
+        program = root.find('Program')
+        if program is None:
+            return changed
+
+        keygroup_mode = program.find('KeygroupLegacyMode')
+        if keygroup_mode is not None:
+            val = 'True' if fmt == 'legacy' else 'False'
+            if keygroup_mode.text != val:
+                keygroup_mode.text = val
+                changed = True
+
+        pads_elem = program.find('ProgramPads-v2.10') or program.find('ProgramPads')
+        if pads_elem is not None and pads_elem.text:
+            try:
+                data = json.loads(xml_unescape(pads_elem.text))
+                target_engine = 'legacy' if fmt == 'legacy' else 'advanced'
+                if data.get('engine') != target_engine:
+                    data['engine'] = target_engine
+                    pads_elem.text = xml_escape(json.dumps(data, indent=4))
+                    changed = True
+            except Exception as e:
+                logging.error(f"_apply_format JSON error: {e}")
+
+        return changed
 
     def scan_broken_links(self):
         for i in self.tree.get_children():
@@ -506,14 +612,21 @@ class ExpansionBuilderWindow(tk.Toplevel):
         if image_path and os.path.exists(image_path):
             image_basename = os.path.basename(image_path)
             ET.SubElement(root, 'Image').text = image_basename
+            dest_path = os.path.join(folder, image_basename)
             try:
-                shutil.copy2(image_path, os.path.join(folder, image_basename))
+                if PIL_AVAILABLE:
+                    img = Image.open(image_path)
+                    img = img.convert('RGB')
+                    img = img.resize(EXPANSION_IMAGE_SIZE, Image.LANCZOS)
+                    img.save(dest_path)
+                else:
+                    shutil.copy2(image_path, dest_path)
             except Exception as e:
                 logging.error(f"Failed to copy image: {e}")
                 messagebox.showerror("Image Error", f"Failed to copy image to expansion folder:\n{e}", parent=self)
 
         tree = ET.ElementTree(root)
-        ET.indent(tree, space="  ")
+        indent_tree(tree)
         tree.write(xml_path, encoding='utf-8', xml_declaration=True)
         messagebox.showinfo("Success", f"Expansion.xml created at {xml_path}", parent=self)
         self.destroy()
@@ -743,7 +856,7 @@ class FileRenamerWindow(tk.Toplevel):
                                     sample_name_elem.text = os.path.splitext(os.path.basename(new_sample_path))[0]
                             changed = True
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
             except Exception as e:
                 logging.error(f"Error updating XPM {xpm_path}: {e}")
@@ -1297,7 +1410,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 
                 if changed:
                     shutil.copy2(xpm_path, xpm_path + ".bak")
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
                     self.tree.set(self.get_id_from_path(xpm_path), "Status", "Relinked")
             except Exception as e:
@@ -1683,7 +1796,7 @@ class InstrumentBuilder:
 
             output_path = os.path.join(output_folder, f"{program_name}.xpm")
             tree = ET.ElementTree(root)
-            ET.indent(tree, space="  ")
+            indent_tree(tree)
             tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
             if not validate_xpm_file(output_path, len(pad_mappings)):
@@ -2450,7 +2563,7 @@ def batch_edit_programs(
                         changed = True
 
                 if changed:
-                    ET.indent(tree, space="  ")
+                    indent_tree(tree)
                     tree.write(path, encoding='utf-8', xml_declaration=True)
                     edited += 1
             except Exception as exc:
