@@ -1,10 +1,53 @@
 import os
 import glob
 import logging
+import re
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
+from xpm_parameter_editor import name_to_midi
 
 AUDIO_EXTS = ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')
+
+
+def parse_filename_mapping(filename):
+    """Return a group name and mapping info parsed from ``filename``.
+
+    The function looks for patterns like ``Name_A2-B2_1-64.wav`` where
+    ``A2-B2`` defines the note range and ``1-64`` defines the velocity
+    range. It returns a tuple ``(group_name, mapping_dict or None)``.
+    """
+    base = os.path.splitext(os.path.basename(filename))[0]
+    m = re.search(r"^(.*?)[ _-]([A-G][#b]?\d+(?:-[A-G][#b]?\d+)?)[ _-](\d+)-(\d+)$", base, re.IGNORECASE)
+    if m:
+        name, note_range, v_low, v_high = m.groups()
+        notes = note_range.split("-")
+        low = name_to_midi(notes[0])
+        high = name_to_midi(notes[-1])
+        if low is not None and high is not None:
+            mapping = {
+                "root_note": low,
+                "low_note": low,
+                "high_note": high,
+                "velocity_low": int(v_low),
+                "velocity_high": int(v_high),
+            }
+            return name.strip(), mapping
+
+    m = re.search(r"^(.*?)[ _-]([A-G][#b]?\d+(?:-[A-G][#b]?\d+)?)$", base, re.IGNORECASE)
+    if m:
+        name, note_range = m.groups()
+        notes = note_range.split("-")
+        low = name_to_midi(notes[0])
+        high = name_to_midi(notes[-1])
+        if low is not None and high is not None:
+            mapping = {
+                "root_note": low,
+                "low_note": low,
+                "high_note": high,
+            }
+            return name.strip(), mapping
+
+    return os.path.splitext(os.path.basename(filename))[0], None
 
 class MultiSampleBuilderWindow(tk.Toplevel):
     """Interactive tool for grouping samples and creating multi-sample instruments."""
@@ -147,8 +190,10 @@ class MultiSampleBuilderWindow(tk.Toplevel):
 
     def auto_group(self):
         for f in list(self.unassigned):
-            name = os.path.basename(f)[:5].upper()
-            self.groups.setdefault(name, []).append(f)
+            group_name, _ = parse_filename_mapping(f)
+            if not group_name:
+                group_name = os.path.basename(f)[:5].upper()
+            self.groups.setdefault(group_name, []).append(f)
             self.unassigned.remove(f)
         self.refresh_file_list()
 
@@ -250,8 +295,19 @@ class MultiSampleBuilderWindow(tk.Toplevel):
             map_mode = self.map_var.get()
             for name, files in self.groups.items():
                 logging.info("Building group '%s' with %d file(s)", name, len(files))
-                notes = self.generate_notes(len(files), map_mode)
-                builder._create_xpm(name, files, self.master.folder_path.get(), mode_var.get(), midi_notes=notes)
+                mappings = []
+                for f in files:
+                    _, mapping = parse_filename_mapping(f)
+                    if mapping is None:
+                        mappings = None
+                        break
+                    mapping['sample_path'] = os.path.join(self.master.folder_path.get(), f)
+                    mappings.append(mapping)
+                if mappings:
+                    builder._create_xpm(name, files, self.master.folder_path.get(), mode_var.get(), mappings=mappings)
+                else:
+                    notes = self.generate_notes(len(files), map_mode)
+                    builder._create_xpm(name, files, self.master.folder_path.get(), mode_var.get(), midi_notes=notes)
             messagebox.showinfo("Done", "Instruments created.", parent=self)
             self.destroy()
 

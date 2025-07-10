@@ -247,6 +247,45 @@ def get_wav_frames(filepath):
     except Exception:
         return 0
 
+
+def parse_filename_mapping(filename):
+    """Parse note and velocity information from a sample filename.
+
+    Returns a tuple ``(group_name, mapping_dict or None)``. ``mapping_dict``
+    contains ``root_note``, ``low_note``, ``high_note``, ``velocity_low`` and
+    ``velocity_high`` if both a note range and velocity range are found.
+    """
+    base = os.path.splitext(os.path.basename(filename))[0]
+    m = re.search(r"^(.*?)[ _-]([A-G][#b]?\d+(?:-[A-G][#b]?\d+)?)[ _-](\d+)-(\d+)$", base, re.IGNORECASE)
+    if m:
+        name, note_range, v_low, v_high = m.groups()
+        notes = note_range.split("-")
+        low = name_to_midi(notes[0])
+        high = name_to_midi(notes[-1])
+        if low is not None and high is not None:
+            return name.strip(), {
+                'root_note': low,
+                'low_note': low,
+                'high_note': high,
+                'velocity_low': int(v_low),
+                'velocity_high': int(v_high),
+            }
+
+    m = re.search(r"^(.*?)[ _-]([A-G][#b]?\d+(?:-[A-G][#b]?\d+)?)$", base, re.IGNORECASE)
+    if m:
+        name, note_range = m.groups()
+        notes = note_range.split("-")
+        low = name_to_midi(notes[0])
+        high = name_to_midi(notes[-1])
+        if low is not None and high is not None:
+            return name.strip(), {
+                'root_note': low,
+                'low_note': low,
+                'high_note': high,
+            }
+
+    return os.path.splitext(os.path.basename(filename))[0], None
+
 def parse_xpm_samples(xpm_path):
     """Return a list of sample paths referenced by an XPM."""
     samples = []
@@ -1716,19 +1755,27 @@ class InstrumentBuilder:
                     abs_path = os.path.join(self.folder_path, file_path) if not os.path.isabs(file_path) else file_path
                     info = self.validate_sample_info(abs_path)
                     if info.get('is_valid'):
-                        if midi_notes and idx < len(midi_notes):
-                            midi_note = midi_notes[idx]
-                        elif mode == 'drum-kit':
-                            midi_note = min(start_note + idx, 127)
-                        elif mode == 'one-shot':
-                            midi_note = start_note
+                        _, mapping = parse_filename_mapping(file_path)
+                        if mapping:
+                            midi_note = mapping['root_note']
+                            info['low_note'] = mapping.get('low_note', midi_note)
+                            info['high_note'] = mapping.get('high_note', midi_note)
+                            info['velocity_low'] = mapping.get('velocity_low', 0)
+                            info['velocity_high'] = mapping.get('velocity_high', 127)
                         else:
-                            midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
+                            if midi_notes and idx < len(midi_notes):
+                                midi_note = midi_notes[idx]
+                            elif mode == 'drum-kit':
+                                midi_note = min(start_note + idx, 127)
+                            elif mode == 'one-shot':
+                                midi_note = start_note
+                            else:
+                                midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
+                            info['low_note'] = midi_note
+                            info['high_note'] = midi_note
+                            info['velocity_low'] = 0
+                            info['velocity_high'] = 127
                         info['midi_note'] = midi_note
-                        info['low_note'] = midi_note
-                        info['high_note'] = midi_note
-                        info['velocity_low'] = 0
-                        info['velocity_high'] = 127
                         info['sample_path'] = os.path.basename(file_path)
                         sample_infos.append(info)
 
@@ -1817,7 +1864,8 @@ class InstrumentBuilder:
                 layers_elem = ET.SubElement(inst, 'Layers')
 
                 layers_for_note = sorted(note_layers[key], key=lambda x: x.get('velocity_low', 0))
-                num_layers = min(len(layers_for_note), 8)
+                max_layers = 4 if self.options.format_version == 'legacy' else 8
+                num_layers = min(len(layers_for_note), max_layers)
 
                 if mappings:
                     for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
