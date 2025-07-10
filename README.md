@@ -27,3 +27,14 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - Expansion Doctor displays invalid or corrupt `.xpm` files instead of skipping them.
 - Auto Group Folders now previews folder names with sample counts before grouping.
 - Multi-sample builder prompts for Drum Program or Instrument Keygroup when building.
+
+## Installation
+
+1. Install the requirements:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Launch the GUI:
+   ```bash
+   python "Gemini wav_TO_XpmV2.py"
+   ```
