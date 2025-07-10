@@ -50,3 +50,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
     python "Gemini wav_TO_XpmV2.py"
     ```
    The filename contains a space after `Gemini`, so quoting the command is required.
+
+## Development Notes
+
+When modifying or extending the Python scripts, keep function signatures synchronized across all files. If you add or remove parameters in one module, search the repository for that function name and update every call site accordingly. Mismatched argument counts can cause runtime errors that are difficult to debug.
