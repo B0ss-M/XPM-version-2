@@ -29,6 +29,9 @@ try:
         apply_mod_matrix,
         set_engine_mode,
         set_application_version,
+        name_to_midi,
+        infer_note_from_filename,
+        extract_root_note_from_wav,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow
@@ -165,21 +168,6 @@ def validate_xpm_file(xpm_path, expected_samples):
         return False
 
 
-def name_to_midi(note_name):
-    """Converts a note name (e.g., 'C#4', 'Db-1') to a MIDI note number."""
-    if not note_name: return None
-    note_name_upper = note_name.strip().upper()
-    note_map = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
-    m = re.match(r'^([A-G][#B]?)(\-?\d+)$', note_name_upper, re.IGNORECASE)
-    if not m: return None
-    note, octave_str = m.groups()
-    if note not in note_map: return None
-    try:
-        midi = 12 + note_map[note] + 12 * int(octave_str)
-        return midi if 0 <= midi <= 127 else None
-    except (ValueError, TypeError):
-        return None
-
 def get_clean_sample_info(filepath):
     """Extracts basic info from a file path."""
     base = os.path.basename(filepath)
@@ -218,16 +206,6 @@ def get_base_instrument_name(filepath, xpm_content=None):
     cleaned_folder = re.sub(r'[_-]', ' ', parent_folder).strip()
     return cleaned_folder if cleaned_folder else 'instrument'
 
-def infer_note_from_filename(filename):
-    """Infers a MIDI note from a filename, checking for note names and numbers."""
-    base = os.path.splitext(os.path.basename(filename))[0]
-    m = re.search(r'[ _-]?([A-G][#b]?\-?\d+)', base, re.IGNORECASE)
-    if m and (midi := name_to_midi(m.group(1))) is not None:
-        return midi
-    m = re.search(r'\b(\d{2,3})\b', base)
-    if m and 0 <= (n := int(m.group(1))) <= 127:
-        return n
-    return None
 
 def get_wav_frames(filepath):
     """Returns the number of frames in a WAV file."""
@@ -279,19 +257,6 @@ def is_valid_xpm(xpm_path):
     sample_count = len(parse_xpm_samples(xpm_path))
     return validate_xpm_file(xpm_path, sample_count)
 
-def extract_root_note_from_wav(filepath):
-    """Returns the MIDI root note from the WAV's smpl chunk if present."""
-    try:
-        with open(filepath, 'rb') as f:
-            data = f.read()
-        idx = data.find(b'smpl')
-        if idx != -1 and idx + 36 <= len(data):
-            root = struct.unpack('<I', data[idx + 28:idx + 32])[0]
-            if 0 <= root <= 127:
-                return root
-    except Exception as e:
-        logging.error(f"Could not extract root note from WAV {filepath}: {e}")
-    return None
 #</editor-fold>
 
 #<editor-fold desc="GUI: Utility Windows">
