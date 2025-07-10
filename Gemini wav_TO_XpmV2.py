@@ -453,6 +453,9 @@ class ExpansionDoctorWindow(tk.Toplevel):
             folder,
             rename=False,
             version=target,
+            firmware_version=target,
+        )
+        self.status.set(f"Updated {updated} XPM(s) to version {target}. Rescanning...")
             format_version=fmt,
         )
         self.status.set(
@@ -983,6 +986,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
         super().__init__(master.root)
         self.master = master
         self.title("Batch Program Editor")
+        self.geometry("400x380")
         self.geometry("400x390")
         self.resizable(False, False)
         self.format_var = tk.StringVar(value="advanced")
@@ -996,6 +1000,14 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.rename_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
 
+        ttk.Label(frame, text="Firmware:").grid(row=1, column=0, sticky="w", pady=(10,0))
+        self.firmware_var = tk.StringVar(value=self.master.firmware_version.get())
+        ttk.Combobox(frame, textvariable=self.firmware_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'], state='readonly').grid(row=1, column=1, sticky="ew", pady=(10,0))
+
+        ttk.Label(frame, text="Application Version:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        self.version_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.version_var).grid(row=2, column=1, sticky="ew", pady=(10,0))
         ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
         self.version_var = tk.StringVar(value=self.master.firmware_version.get())
         versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
@@ -1036,6 +1048,12 @@ class BatchProgramEditorWindow(tk.Toplevel):
 
         ttk.Label(frame, text="Mod Matrix File:").grid(row=7, column=0, sticky="w", pady=(10,0))
         self.mod_matrix_var = tk.StringVar()
+        entry = ttk.Entry(frame, textvariable=self.mod_matrix_var)
+        entry.grid(row=7, column=1, sticky="ew", pady=(10,0))
+        ttk.Button(frame, text="Browse...", command=self.browse_mod_matrix).grid(row=7, column=2, padx=(5,0), pady=(10,0))
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.grid(row=8, column=0, columnspan=3, pady=(15,0), sticky="e")
         mm_frame = ttk.Frame(frame)
         mm_frame.grid(row=7, column=1, sticky="ew", pady=(10,0))
         mm_frame.columnconfigure(0, weight=1)
@@ -1098,6 +1116,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
             batch_edit_programs,
             self.rename_var.get(),
             self.version_var.get().strip() or None,
+            self.firmware_var.get(),
             self.format_var.get(),
             self.format_var.get().strip() or None,
             self.creative_var.get(),
@@ -2484,6 +2503,7 @@ def batch_edit_programs(
     folder_path,
     rename=False,
     version=None,
+    firmware_version='3.5.0',
     format_version=None,
     creative_mode='off',
     creative_config=None,
@@ -2504,6 +2524,7 @@ def batch_edit_programs(
     options = InstrumentOptions(
         creative_mode=creative_mode,
         creative_config=creative_config or {},
+        firmware_version=firmware_version,
         format_version=format_version if format_version else 'advanced'
     )
     builder = InstrumentBuilder(folder_path, None, options)
