@@ -260,13 +260,23 @@ class MultiSampleBuilderWindow(tk.Toplevel):
             value="multi-sample",
         ).pack(anchor="w", padx=10, pady=5)
         ttk.Radiobutton(
+            popup,
+            text="One-Shot Keygroup",
+            variable=mode_var,
+            value="one-shot",
+        ).pack(anchor="w", padx=10)
+        ttk.Radiobutton(
             popup, text="Drum Program", variable=mode_var, value="drum-kit"
         ).pack(anchor="w", padx=10)
 
         format_frame = ttk.Frame(popup)
         format_frame.pack(fill="x", padx=10)
         ttk.Label(format_frame, text="Format:").pack(side="left")
-        format_var = tk.StringVar(value=self.master.format_version.get())
+        default_format = 'advanced'
+        if hasattr(self.master, 'format_var'):
+            val = self.master.format_var
+            default_format = val.get() if hasattr(val, 'get') else str(val)
+        format_var = tk.StringVar(value=default_format)
         ttk.Combobox(
             format_frame,
             textvariable=format_var,
@@ -304,10 +314,24 @@ class MultiSampleBuilderWindow(tk.Toplevel):
                     mapping['sample_path'] = os.path.join(self.master.folder_path.get(), f)
                     mappings.append(mapping)
                 if mappings:
-                    builder._create_xpm(name, files, self.master.folder_path.get(), mode_var.get(), mappings=mappings)
+                    builder._create_xpm(
+                        name,
+                        files,
+                        self.master.folder_path.get(),
+                        mode_var.get(),
+                        mappings=mappings,
+                    )
                 else:
-                    notes = self.generate_notes(len(files), map_mode)
-                    builder._create_xpm(name, files, self.master.folder_path.get(), mode_var.get(), midi_notes=notes)
+                    notes = None
+                    if mode_var.get() != "one-shot":
+                        notes = self.generate_notes(len(files), map_mode)
+                    builder._create_xpm(
+                        name,
+                        files,
+                        self.master.folder_path.get(),
+                        mode_var.get(),
+                        midi_notes=notes,
+                    )
             messagebox.showinfo("Done", "Instruments created.", parent=self)
             self.destroy()
 
