@@ -1,5 +1,8 @@
-Codex Communication Log"\>  
-\# Gemini \<\> Codex Communication Log
+Codex Communication Log">
+# Gemini <> Codex Communication Log
+
+This log tracks conversations and code updates performed via the Gemini AI assistant. Because this GitHub repository is linked directly to Gemini, any responses or code changes initiated through the assistant automatically appear here and in the accompanying Jupyter notebook (`Gemini_Codex_Log.ipynb`).
+
 
 \---
 

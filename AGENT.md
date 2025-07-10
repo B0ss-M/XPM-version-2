@@ -73,4 +73,10 @@ To maintain stability and organization, new complex features should be developed
   \- \*\*Legacy XPMs (FW 1.x)\*\*: Do not use a JSON block. Sample information is stored directly in \`\<Instrument\>\` \-\> \`\<Layer\>\` \-\> \`\<SampleName\>\` tags. The script must be able to read both.  
 \- \*\*GUI Window Classes\*\*: Each tool (e.g., \`ExpansionDoctorWindow\`, \`BatchProgramEditorWindow\`) is a self-contained \`Toplevel\` window. This modularity should be maintained.
 
-By following these guidelines, we can ensure the continued stability and reliability of the project.  
+By following these guidelines, we can ensure the continued stability and reliability of the project.
+
+## Communication Log
+
+This GitHub repository is linked to the Gemini assistant. Every AI-driven
+change or discussion is archived in [`Codex Communication Log.md`](Codex%20Communication%20Log.md)
+and [`Gemini_Codex_Log.ipynb`](Gemini_Codex_Log.ipynb).
