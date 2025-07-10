@@ -6,7 +6,6 @@ from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 import os
 import re
-import wave
 import struct
 
 def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
