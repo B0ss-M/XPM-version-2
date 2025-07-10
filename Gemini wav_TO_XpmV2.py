@@ -33,6 +33,12 @@ try:
         set_volume_adsr,
         load_mod_matrix,
         apply_mod_matrix,
+        set_engine_mode,
+        set_application_version,
+        fix_sample_notes,
+        name_to_midi,
+        infer_note_from_filename,
+        extract_root_note_from_wav,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow
@@ -194,21 +200,6 @@ def validate_xpm_file(xpm_path, expected_samples):
         return False
 
 
-def name_to_midi(note_name):
-    """Converts a note name (e.g., 'C#4', 'Db-1') to a MIDI note number."""
-    if not note_name: return None
-    note_name_upper = note_name.strip().upper()
-    note_map = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
-    m = re.match(r'^([A-G][#B]?)(\-?\d+)$', note_name_upper, re.IGNORECASE)
-    if not m: return None
-    note, octave_str = m.groups()
-    if note not in note_map: return None
-    try:
-        midi = 12 + note_map[note] + 12 * int(octave_str)
-        return midi if 0 <= midi <= 127 else None
-    except (ValueError, TypeError):
-        return None
-
 def get_clean_sample_info(filepath):
     """Extracts basic info from a file path."""
     base = os.path.basename(filepath)
@@ -247,16 +238,6 @@ def get_base_instrument_name(filepath, xpm_content=None):
     cleaned_folder = re.sub(r'[_-]', ' ', parent_folder).strip()
     return cleaned_folder if cleaned_folder else 'instrument'
 
-def infer_note_from_filename(filename):
-    """Infers a MIDI note from a filename, checking for note names and numbers."""
-    base = os.path.splitext(os.path.basename(filename))[0]
-    m = re.search(r'[ _-]?([A-G][#b]?\-?\d+)', base, re.IGNORECASE)
-    if m and (midi := name_to_midi(m.group(1))) is not None:
-        return midi
-    m = re.search(r'\b(\d{2,3})\b', base)
-    if m and 0 <= (n := int(m.group(1))) <= 127:
-        return n
-    return None
 
 def get_wav_frames(filepath):
     """Returns the number of frames in a WAV file."""
@@ -308,19 +289,6 @@ def is_valid_xpm(xpm_path):
     sample_count = len(parse_xpm_samples(xpm_path))
     return validate_xpm_file(xpm_path, sample_count)
 
-def extract_root_note_from_wav(filepath):
-    """Returns the MIDI root note from the WAV's smpl chunk if present."""
-    try:
-        with open(filepath, 'rb') as f:
-            data = f.read()
-        idx = data.find(b'smpl')
-        if idx != -1 and idx + 36 <= len(data):
-            root = struct.unpack('<I', data[idx + 28:idx + 32])[0]
-            if 0 <= root <= 127:
-                return root
-    except Exception as e:
-        logging.error(f"Could not extract root note from WAV {filepath}: {e}")
-    return None
 #</editor-fold>
 
 #<editor-fold desc="GUI: Utility Windows">
@@ -331,6 +299,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.geometry("700x450")
         self.resizable(True, True)
         self.master = master
+        self.format_var = tk.StringVar(value="advanced")
         self.status = tk.StringVar(value="Ready.")
         self.version_var = tk.StringVar(value=master.firmware_version.get())
         self.format_var = tk.StringVar(value="advanced")
@@ -389,6 +358,11 @@ class ExpansionDoctorWindow(tk.Toplevel):
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=3, column=0, sticky="ew", pady=(5, 0))
         ttk.Button(btn_frame, text="Relink Samples...", command=self.relink_samples).pack(side="left", padx=5)
+        options = ttk.Frame(btn_frame)
+        options.pack(side="left", padx=5)
+        ttk.Label(options, text="Format:").pack(side="left")
+        ttk.Combobox(options, textvariable=self.format_var,
+                     values=['legacy','advanced'], state='readonly', width=9).pack(side="left")
         ttk.Button(btn_frame, text="Rewrite Versions", command=self.fix_versions).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Rescan", command=self.scan_broken_links).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=5)
@@ -473,6 +447,17 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 logging.error(f"Error updating {path}: {exc}")
 
         self.status.set(f"Updated {updated} XPM(s) to version {target_fw} ({target_fmt}). Rescanning...")
+        target = self.master.firmware_version.get()
+        fmt = self.format_var.get()
+        updated = batch_edit_programs(
+            folder,
+            rename=False,
+            version=target,
+            format_version=fmt,
+        )
+        self.status.set(
+            f"Updated {updated} XPM(s) to version {target} ({fmt}). Rescanning..."
+        )
         self.scan_broken_links()
 
     def _apply_format(self, root, fmt):
@@ -998,8 +983,9 @@ class BatchProgramEditorWindow(tk.Toplevel):
         super().__init__(master.root)
         self.master = master
         self.title("Batch Program Editor")
-        self.geometry("400x360")
+        self.geometry("400x390")
         self.resizable(False, False)
+        self.format_var = tk.StringVar(value="advanced")
         self.create_widgets()
 
     def create_widgets(self):
@@ -1015,23 +1001,30 @@ class BatchProgramEditorWindow(tk.Toplevel):
         versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
         ttk.Combobox(frame, textvariable=self.version_var, values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(10,0))
 
-        ttk.Label(frame, text="Creative Mode:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Format:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        self.format_var = tk.StringVar(value="advanced")
+        ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
+        ttk.Combobox(frame, textvariable=self.format_var, values=['legacy','advanced'], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
+        main
+
+        ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
         modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
         self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
-        self.creative_combo.grid(row=2, column=1, sticky="ew", pady=(10,0))
+        self.creative_combo.grid(row=3, column=1, sticky="ew", pady=(10,0))
         self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
+        self.creative_var.trace_add('write', lambda *a: self.toggle_config_btn())
 
         self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
-        self.config_btn.grid(row=3, column=1, sticky="e")
+        self.config_btn.grid(row=4, column=1, sticky="e")
 
-        ttk.Label(frame, text="KeyTrack:").grid(row=4, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="KeyTrack:").grid(row=5, column=0, sticky="w", pady=(10,0))
         self.keytrack_var = tk.StringVar(value="on")
-        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=4, column=1, sticky="ew", pady=(10,0))
+        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=5, column=1, sticky="ew", pady=(10,0))
 
-        ttk.Label(frame, text="Volume ADSR:").grid(row=5, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Volume ADSR:").grid(row=6, column=0, sticky="w", pady=(10,0))
         adsr = ttk.Frame(frame)
-        adsr.grid(row=5, column=1, sticky="ew", pady=(10,0))
+        adsr.grid(row=6, column=1, sticky="ew", pady=(10,0))
         self.attack_var = tk.StringVar()
         self.decay_var = tk.StringVar()
         self.sustain_var = tk.StringVar()
@@ -1041,16 +1034,20 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Entry(adsr, width=4, textvariable=self.sustain_var).pack(side="left")
         ttk.Entry(adsr, width=4, textvariable=self.release_var).pack(side="left", padx=2)
 
-        ttk.Label(frame, text="Mod Matrix File:").grid(row=6, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Mod Matrix File:").grid(row=7, column=0, sticky="w", pady=(10,0))
         self.mod_matrix_var = tk.StringVar()
         mm_frame = ttk.Frame(frame)
-        mm_frame.grid(row=6, column=1, sticky="ew", pady=(10,0))
+        mm_frame.grid(row=7, column=1, sticky="ew", pady=(10,0))
         mm_frame.columnconfigure(0, weight=1)
         ttk.Entry(mm_frame, textvariable=self.mod_matrix_var).grid(row=0, column=0, sticky="ew")
         ttk.Button(mm_frame, text="Browse...", command=self.browse_mod_matrix).grid(row=0, column=1, padx=(5,0))
 
+        self.fix_notes_var = tk.BooleanVar()
+        ttk.Checkbutton(frame, text="Fix sample notes", variable=self.fix_notes_var).grid(row=8, column=0, columnspan=2, sticky="w", pady=(10,0))
+
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=7, column=0, columnspan=2, pady=(15,0), sticky="e")
+        btn_frame.grid(row=9, column=0, columnspan=2, pady=(15,0), sticky="e")
+        btn_frame.grid(row=8, column=0, columnspan=2, pady=(15,0), sticky="e")
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
 
@@ -1101,6 +1098,8 @@ class BatchProgramEditorWindow(tk.Toplevel):
             batch_edit_programs,
             self.rename_var.get(),
             self.version_var.get().strip() or None,
+            self.format_var.get(),
+            self.format_var.get().strip() or None,
             self.creative_var.get(),
             self.master.creative_config,
             self.keytrack_var.get() == "on",
@@ -1109,6 +1108,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
             sustain,
             release,
             self.mod_matrix_var.get().strip() or None,
+            self.fix_notes_var.get(),
         )
         self.destroy()
 
@@ -1432,7 +1432,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
             xpm_path = self.xpm_map[item_id]
             self.tree.set(item_id, "Status", "Rebuilding...")
             try:
-                sample_mappings = self._parse_any_xpm(xpm_path)
+                sample_mappings, inst_params = self._parse_any_xpm(xpm_path)
                 if not sample_mappings:
                     self.tree.set(item_id, "Status", "Parse Error")
                     continue
@@ -1453,7 +1453,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
                     [],
                     output_folder,
                     mode='multi-sample',
-                    mappings=sample_mappings
+                    mappings=sample_mappings,
+                    instrument_template=inst_params
                 )
                 
                 if success:
@@ -1469,9 +1470,18 @@ class BatchProgramFixerWindow(tk.Toplevel):
 
     def _parse_any_xpm(self, xpm_path):
         mappings = []
+        inst_params = {}
         xpm_dir = os.path.dirname(xpm_path)
         tree = ET.parse(xpm_path)
         root = tree.getroot()
+
+        # Capture parameters from the first Instrument element so we can
+        # preserve envelope settings when rebuilding programs.
+        inst = root.find('.//Instrument')
+        if inst is not None:
+            for child in inst:
+                if len(list(child)) == 0:
+                    inst_params[child.tag] = child.text or ''
 
         # Modern JSON-based format (v3.4+)
         pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
@@ -1490,7 +1500,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
                             'velocity_low': pad_data.get('velocityLow', 0),
                             'velocity_high': pad_data.get('velocityHigh', 127)
                         })
-            if mappings: return mappings
+            if mappings:
+                return mappings, inst_params
 
         # Legacy XML format
         for inst in root.findall('.//Instrument'):
@@ -1516,7 +1527,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                         'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
                         'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127,
                     })
-        return mappings
+        return mappings, inst_params
 
     def get_id_from_path(self, path):
         for item_id, item_path in self.xpm_map.items():
@@ -1635,7 +1646,7 @@ class InstrumentBuilder:
             self.app.progress["value"] = 0
 
     def _create_xpm(self, program_name, sample_files, output_folder, mode,
-                    midi_notes=None, mappings=None):
+                    midi_notes=None, mappings=None, instrument_template=None):
         """Create a single XPM file from samples or an existing mapping."""
         if mappings:
             logging.info("_create_xpm rebuilding '%s' using mapping with %d entry(ies)",
@@ -1755,6 +1766,13 @@ class InstrumentBuilder:
                             low_key = 0
 
                 inst = self.build_instrument_element(instruments, i, low_key, high_key)
+                if instrument_template:
+                    for k, v in instrument_template.items():
+                        elem = inst.find(k)
+                        if elem is not None:
+                            elem.text = str(v)
+                        else:
+                            ET.SubElement(inst, k).text = str(v)
                 layers_elem = ET.SubElement(inst, 'Layers')
 
                 layers_for_note = sorted(note_layers[key], key=lambda x: x.get('velocity_low', 0))
@@ -2124,6 +2142,7 @@ class App(tk.Tk):
         self.creative_combo = ttk.Combobox(creative_frame, textvariable=self.creative_mode_var, values=creative_modes, state="readonly")
         self.creative_combo.grid(row=0, column=0, sticky='ew')
         self.creative_combo.bind("<<ComboboxSelected>>", self.on_creative_mode_change)
+        self.creative_mode_var.trace_add('write', lambda *a: self.on_creative_mode_change())
 
         self.creative_config_btn = ttk.Button(creative_frame, text="Configure...", command=self.open_creative_config, state='disabled')
         self.creative_config_btn.grid(row=0, column=1, padx=(5,0))
@@ -2465,6 +2484,7 @@ def batch_edit_programs(
     folder_path,
     rename=False,
     version=None,
+    format_version=None,
     creative_mode='off',
     creative_config=None,
     keytrack=None,
@@ -2473,15 +2493,19 @@ def batch_edit_programs(
     sustain=None,
     release=None,
     mod_matrix_file=None,
+    fix_notes=False,
 ):
-    """Batch edit XPM files with rename/version and creative tweaks."""
+    """Batch edit XPM files with optional renaming, version, and engine updates."""
     edited = 0
     if not IMPORTS_SUCCESSFUL:
         logging.error("Cannot run batch edit, required modules are missing.")
         return 0
 
-    options = InstrumentOptions(creative_mode=creative_mode,
-                               creative_config=creative_config or {})
+    options = InstrumentOptions(
+        creative_mode=creative_mode,
+        creative_config=creative_config or {},
+        format_version=format_version if format_version else 'advanced'
+    )
     builder = InstrumentBuilder(folder_path, None, options)
     matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
     if matrix == {}:
@@ -2504,9 +2528,11 @@ def batch_edit_programs(
                         changed = True
 
                 if version:
-                    ver_elem = root.find('.//Application_Version')
-                    if ver_elem is not None and ver_elem.text != version:
-                        ver_elem.text = version
+                    if set_application_version(root, version):
+                        changed = True
+
+                if format_version:
+                    if set_engine_mode(root, format_version):
                         changed = True
 
                 if creative_mode != 'off':
@@ -2530,6 +2556,10 @@ def batch_edit_programs(
 
                 if matrix:
                     if apply_mod_matrix(root, matrix):
+                        changed = True
+
+                if fix_notes:
+                    if fix_sample_notes(root, os.path.dirname(path)):
                         changed = True
 
                 if changed:
