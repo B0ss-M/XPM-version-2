@@ -102,10 +102,26 @@ def get_pad_settings(firmware: str, engine_override: str | None = None):
     the ``engine`` value regardless of the firmware's default. This is
     used when rebuilding programs where the user wants to explicitly
     choose between legacy (v2) and advanced (v3) formats.
+
+    When overriding the engine we also update the ``type`` and ``universal_pad``
+    values so that the resulting JSON is parsed correctly by the MPC. Without
+    this adjustment the file could still be interpreted in legacy mode even
+    when the ``engine" flag is set to ``advanced``.
     """
+
     settings = PAD_SETTINGS.get(firmware, PAD_SETTINGS['3.5.0']).copy()
-    if engine_override in {'legacy', 'advanced'}:
-        settings['engine'] = engine_override
+
+    if engine_override == 'advanced':
+        adv = PAD_SETTINGS['3.5.0']
+        settings['type'] = adv['type']
+        settings['universal_pad'] = adv['universal_pad']
+        settings['engine'] = 'advanced'
+    elif engine_override == 'legacy':
+        leg = PAD_SETTINGS['2.3.0.0']
+        settings['type'] = leg['type']
+        settings['universal_pad'] = leg['universal_pad']
+        settings['engine'] = 'legacy'
+
     return settings
 
 
