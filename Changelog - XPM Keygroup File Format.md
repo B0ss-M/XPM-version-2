@@ -1,4 +1,5 @@
 # Changelog: XPM Keygroup File Format Changes (Firmware 2.0 → 3.5)
+> **Note:** This repository is linked with the Gemini assistant. All conversations and code changes are logged in `Codex Communication Log.md` and `Gemini_Codex_Log.ipynb`.
 
 ## 🟦 Firmware 2.x – Stable Before 3.0
 

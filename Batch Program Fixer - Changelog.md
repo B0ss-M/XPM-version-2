@@ -2,6 +2,7 @@
 
 This document outlines the recent overhaul of the Program Fixer utility within the Wav to XPM Converter script. The previous version worked on a single file at a time. This update transforms it into a powerful **batch-processing tool**, allowing you to analyze, repair, and modernize your entire .xpm program library with much greater efficiency.
 
+> **Note:** This repository is linked with the Gemini assistant. All conversations and code changes are logged in `Codex Communication Log.md` and `Gemini_Codex_Log.ipynb`.
 ## **1\. Why Was This Feature Upgraded?**
 
 While the original Program Fixer was useful, it was inefficient for users with large libraries. The need to fix files one-by-one was tedious. The goal of this upgrade was to introduce a true batch workflow, addressing the following needs:
