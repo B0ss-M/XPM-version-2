@@ -1249,6 +1249,35 @@ class MergeSubfoldersWindow(tk.Toplevel):
             confirm_message="This will move all files up and remove empty folders. This can't be undone. Continue?",
         )
 
+#<editor-fold desc="NormalizeLevelsWindow">
+class NormalizeLevelsWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root)
+        self.title("Normalize Program Levels")
+        self.geometry("300x180")
+        self.resizable(False, False)
+        self.master = master
+        self.level_var = tk.DoubleVar(value=0.9)
+        self.create_widgets()
+
+    def create_widgets(self):
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill="both", expand=True)
+
+        ttk.Label(frame, text="Select target volume:").pack(anchor="w")
+        for val in (0.25, 0.5, 0.9):
+            ttk.Radiobutton(frame, text=f"{val:.2f}", variable=self.level_var, value=val).pack(anchor="w")
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill="x", pady=(15, 0))
+        ttk.Button(btn_frame, text="Apply", command=self.apply).pack(side="right")
+        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=5)
+
+    def apply(self):
+        volume = self.level_var.get()
+        self.destroy()
+        self.master.run_normalize_levels(volume)
+
 #</editor-fold>
 
 #<editor-fold desc="REVISED: BatchProgramFixerWindow">
@@ -2242,7 +2271,7 @@ class App(tk.Tk):
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1) # Added for second button
         ttk.Button(frame, text="Set All Programs to MONO", command=self.run_set_all_to_mono).grid(row=0, column=0, sticky="ew", padx=2, pady=2)
-        ttk.Button(frame, text="Normalize Program Levels", command=self.run_normalize_levels).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Normalize Program Levels...", command=self.open_normalize_levels).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
 
     def create_batch_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Utilities & Batch Tools", padding="10")
@@ -2414,14 +2443,18 @@ class App(tk.Tk):
         
         threading.Thread(target=run, daemon=True).start()
         
-    def run_normalize_levels(self):
-        """Wrapper to run the normalize levels function in a thread."""
+    def run_normalize_levels(self, volume):
+        """Normalize program levels to the specified volume."""
         folder = self.folder_path.get()
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "Please select a valid folder first.", parent=self.root)
             return
-            
-        if not messagebox.askyesno("Confirm Action", "This will set the Volume parameter to 0.95 for all instruments in all .xpm files in the selected folder. This action cannot be easily undone. Continue?", parent=self.root):
+
+        if not messagebox.askyesno(
+            "Confirm Action",
+            f"This will set the Volume parameter to {volume:.2f} for all instruments in all .xpm files in the selected folder. This action cannot be easily undone. Continue?",
+            parent=self.root,
+        ):
             return
 
         def run():
@@ -2429,7 +2462,7 @@ class App(tk.Tk):
             self.progress.config(mode='indeterminate')
             self.progress.start()
             try:
-                count = quick_edit_normalize_levels(folder)
+                count = quick_edit_normalize_levels(folder, volume)
                 self.root.after(0, lambda: messagebox.showinfo("Success", f"Normalized volume for {count} program(s).", parent=self.root))
             except Exception as e:
                 logging.error(f"Failed to normalize program levels: {e}\n{traceback.format_exc()}")
@@ -2443,6 +2476,9 @@ class App(tk.Tk):
 
     def open_merge_subfolders(self):
         self.open_window(MergeSubfoldersWindow)
+
+    def open_normalize_levels(self):
+        self.open_window(NormalizeLevelsWindow)
 
     def generate_previews(self):
         builder = InstrumentBuilder(self.folder_path.get(), self, InstrumentOptions())
@@ -2637,12 +2673,10 @@ def quick_edit_set_mono(folder_path):
             logging.error(f"Failed to process {path} for mono edit: {e}")
     return count
 
-def quick_edit_normalize_levels(folder_path):
-    """
-    Iterates through all XPM files and sets their instrument Volume to 0.95.
-    This is a direct XML edit for speed.
-    """
+def quick_edit_normalize_levels(folder_path, volume):
+    """Set the Volume parameter for all instruments in all XPM files."""
     count = 0
+    target = f"{volume:.2f}"
     xpm_files = glob.glob(os.path.join(folder_path, '**', '*.xpm'), recursive=True)
     for path in xpm_files:
         try:
@@ -2651,8 +2685,8 @@ def quick_edit_normalize_levels(folder_path):
             changed = False
             # Find all Volume tags within any Instrument
             for vol_element in root.findall('.//Instrument/Volume'):
-                if vol_element.text != '0.95':
-                    vol_element.text = '0.95'
+                if vol_element.text != target:
+                    vol_element.text = target
                     changed = True
             
             if changed:
