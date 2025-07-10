@@ -61,6 +61,7 @@ To maintain stability and organization, new complex features should be developed
     ttk.Button(frame, text="My New Tool", command=lambda: self.open\_window(NewFeatureWindow)).grid(...)  
     \`\`\`  
 5\.  \*\*Strictly Adhere to Existing Patterns\*\*: The new tool's window class must inherit from \`tk.Toplevel\` and accept \`master\` as its first argument, just like the existing \`ExpansionDoctorWindow\` and other utility windows. This ensures it is properly parented to the main application window.
+6\.  **Keep Function Signatures in Sync**: If you modify a function's parameters in any module, search the repository for that function name and update every call site. A mismatch in argument counts will cause runtime failures.
 
 \*\*This modular approach is mandatory.\*\* It keeps the main script clean and ensures that new features can be developed and tested independently before being integrated, minimizing the risk of breaking the core application.
 
