@@ -57,7 +57,14 @@ II. Codex Review
 
 III. Codex's Response & Next Instructions
 
-- Great work on reorganizing the BatchProgramEditorWindow into "Basic" and "Advanced" tabs.
-- Please add a short section in `docs/README.md` describing the new Advanced tab controls.
-- Provide two example advanced XPM files in a new `examples/` folder so users can see the expected output.
+The UI work is progressing well. The next logical step is to add a "Quick Edits" section to the main application window. This will allow users to perform common, single-action edits without needing to open the full Batch Program Editor.
 
+Task:
+
+Add a "Quick Edits" frame to the main UI.
+
+Add a button labeled "Set All Programs to MONO".
+
+When clicked, this button should iterate through all .xpm files in the selected folder and change their VoiceOverlap parameter to Mono.
+
+This should be a direct XML edit for speed and should not require the full rebuild process.
