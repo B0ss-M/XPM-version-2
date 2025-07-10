@@ -9,6 +9,7 @@ from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 import os
 import re
+import wave
 import struct
 
 def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
@@ -199,6 +200,7 @@ def infer_note_from_filename(filename: str) -> Optional[int]:
 def extract_root_note_from_wav(filepath: str) -> int | None:
     """Read MIDI root note from WAV smpl chunk."""
 
+
         n = int(m.group(1))
         if 0 <= n <= 127:
             return n
@@ -217,6 +219,7 @@ def extract_root_note_from_wav(filepath: str) -> Optional[int]:
             if 0 <= note <= 127:
                 return note
 
+
             note = struct.unpack('<I', data[idx+28:idx+32])[0]
             if 0 <= note <= 127:
                 return note
@@ -224,7 +227,7 @@ def extract_root_note_from_wav(filepath: str) -> Optional[int]:
             root = struct.unpack('<I', data[idx + 28:idx + 32])[0]
             if 0 <= root <= 127:
                 return root
-              
+
     except Exception as e:
         logging.error("Could not extract root note from WAV %s: %s", filepath, e)
     return None
@@ -239,6 +242,7 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
             data = json.loads(xml_unescape(pads_elem.text))
         except json.JSONDecodeError:
             data = {}
+
         if not isinstance(data, dict):
             data = {}
         pads = data.get('pads', {})
@@ -284,6 +288,5 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
                 high_elem.text = str(midi)
                 changed = True
     return changed
-
 
   main

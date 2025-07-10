@@ -36,6 +36,7 @@ try:
         set_engine_mode,
         set_application_version,
         fix_sample_notes,
+
         name_to_midi,
         infer_note_from_filename,
         extract_root_note_from_wav,
