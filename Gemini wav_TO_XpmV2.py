@@ -983,79 +983,154 @@ class BatchProgramEditorWindow(tk.Toplevel):
         super().__init__(master.root)
         self.master = master
         self.title("Batch Program Editor")
-        self.geometry("400x390")
-        self.resizable(False, False)
-        self.format_var = tk.StringVar(value="advanced")
+        self.geometry("450x550") # Increased height for tabs
+        self.resizable(True, True)
+        self.params = {}
         self.create_widgets()
 
     def create_widgets(self):
-        frame = ttk.Frame(self, padding="10")
-        frame.pack(fill="both", expand=True)
-        frame.columnconfigure(1, weight=1)
+        main_frame = ttk.Frame(self, padding="10")
+        main_frame.pack(fill="both", expand=True)
 
-        self.rename_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
+        # --- Top-level options ---
+        top_frame = ttk.Frame(main_frame)
+        top_frame.pack(fill="x", pady=(0, 10))
+        top_frame.columnconfigure(1, weight=1)
 
-        ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
-        self.version_var = tk.StringVar(value=self.master.firmware_version.get())
+        self.params['rename'] = tk.BooleanVar(value=True)
+        ttk.Checkbutton(top_frame, text="Rename ProgramName to file name", variable=self.params['rename']).grid(row=0, column=0, columnspan=2, sticky="w")
+
+        ttk.Label(top_frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(5,0))
+        self.params['version'] = tk.StringVar(value=self.master.firmware_version.get())
         versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
-        ttk.Combobox(frame, textvariable=self.version_var, values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(10,0))
+        ttk.Combobox(top_frame, textvariable=self.params['version'], values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(5,0))
 
-        ttk.Label(frame, text="Format:").grid(row=2, column=0, sticky="w", pady=(10,0))
-        self.format_var = tk.StringVar(value="advanced")
-        ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
+        ttk.Label(top_frame, text="Format:").grid(row=2, column=0, sticky="w", pady=(5,0))
+        self.params['format_version'] = tk.StringVar(value="advanced")
+        ttk.Combobox(top_frame, textvariable=self.params['format_version'], values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(5,0))
 
-        ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="w", pady=(10,0))
-        self.creative_var = tk.StringVar(value="off")
+        # --- Notebook for Basic and Advanced tabs ---
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill="both", expand=True, pady=5)
+
+        basic_tab = ttk.Frame(notebook, padding="10")
+        advanced_tab = ttk.Frame(notebook, padding="10")
+        notebook.add(basic_tab, text='Basic')
+        notebook.add(advanced_tab, text='Advanced')
+
+        self.create_basic_tab(basic_tab)
+        self.create_advanced_tab(advanced_tab)
+
+        # --- Bottom buttons ---
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.pack(fill="x", pady=(10,0))
+        ttk.Button(btn_frame, text="Apply Edits", command=self.apply_edits, style="Accent.TButton").pack(side="right")
+        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(0,5))
+
+    def create_basic_tab(self, parent):
+        """Populates the Basic settings tab."""
+        parent.columnconfigure(1, weight=1)
+        
+        # Creative Mode
+        ttk.Label(parent, text="Creative Mode:").grid(row=0, column=0, sticky="w", pady=2)
+        creative_frame = ttk.Frame(parent)
+        creative_frame.grid(row=0, column=1, sticky="ew", pady=2)
+        creative_frame.columnconfigure(0, weight=1)
+        self.params['creative_mode'] = tk.StringVar(value="off")
         modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
-        self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
-        self.creative_combo.grid(row=3, column=1, sticky="ew", pady=(10,0))
-        self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
-        self.creative_var.trace_add('write', lambda *a: self.toggle_config_btn())
+        creative_combo = ttk.Combobox(creative_frame, textvariable=self.params['creative_mode'], values=modes, state="readonly")
+        creative_combo.grid(row=0, column=0, sticky="ew")
+        creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
+        self.config_btn = ttk.Button(creative_frame, text="Cfg", command=self.open_config, state='disabled', width=4)
+        self.config_btn.grid(row=0, column=1, padx=(5,0))
+        
+        # Volume ADSR
+        ttk.Label(parent, text="Volume ADSR:").grid(row=1, column=0, sticky="w", pady=2)
+        adsr_frame = ttk.Frame(parent)
+        adsr_frame.grid(row=1, column=1, sticky="ew", pady=2)
+        self.params['attack'] = self.create_param_entry(adsr_frame, "A", 4)
+        self.params['decay'] = self.create_param_entry(adsr_frame, "D", 4)
+        self.params['sustain'] = self.create_param_entry(adsr_frame, "S", 4)
+        self.params['release'] = self.create_param_entry(adsr_frame, "R", 4)
 
-        self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
-        self.config_btn.grid(row=4, column=1, sticky="e")
-
-        ttk.Label(frame, text="KeyTrack:").grid(row=5, column=0, sticky="w", pady=(10,0))
-        self.keytrack_var = tk.StringVar(value="on")
-        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=5, column=1, sticky="ew", pady=(10,0))
-
-        ttk.Label(frame, text="Volume ADSR:").grid(row=6, column=0, sticky="w", pady=(10,0))
-        adsr = ttk.Frame(frame)
-        adsr.grid(row=6, column=1, sticky="ew", pady=(10,0))
-        self.attack_var = tk.StringVar()
-        self.decay_var = tk.StringVar()
-        self.sustain_var = tk.StringVar()
-        self.release_var = tk.StringVar()
-        ttk.Entry(adsr, width=4, textvariable=self.attack_var).pack(side="left")
-        ttk.Entry(adsr, width=4, textvariable=self.decay_var).pack(side="left", padx=2)
-        ttk.Entry(adsr, width=4, textvariable=self.sustain_var).pack(side="left")
-        ttk.Entry(adsr, width=4, textvariable=self.release_var).pack(side="left", padx=2)
-
-        ttk.Label(frame, text="Mod Matrix File:").grid(row=7, column=0, sticky="w", pady=(10,0))
-        self.mod_matrix_var = tk.StringVar()
-        mm_frame = ttk.Frame(frame)
-        mm_frame.grid(row=7, column=1, sticky="ew", pady=(10,0))
+        # Mod Matrix
+        ttk.Label(parent, text="Mod Matrix File:").grid(row=2, column=0, sticky="w", pady=2)
+        mm_frame = ttk.Frame(parent)
+        mm_frame.grid(row=2, column=1, sticky="ew", pady=2)
         mm_frame.columnconfigure(0, weight=1)
-        ttk.Entry(mm_frame, textvariable=self.mod_matrix_var).grid(row=0, column=0, sticky="ew")
+        self.params['mod_matrix_file'] = tk.StringVar()
+        ttk.Entry(mm_frame, textvariable=self.params['mod_matrix_file']).grid(row=0, column=0, sticky="ew")
         ttk.Button(mm_frame, text="Browse...", command=self.browse_mod_matrix).grid(row=0, column=1, padx=(5,0))
 
-        self.fix_notes_var = tk.BooleanVar()
-        ttk.Checkbutton(frame, text="Fix sample notes", variable=self.fix_notes_var).grid(row=8, column=0, columnspan=2, sticky="w", pady=(10,0))
+        # Checkboxes
+        self.params['fix_notes'] = tk.BooleanVar()
+        ttk.Checkbutton(parent, text="Fix sample notes from WAV metadata", variable=self.params['fix_notes']).grid(row=3, column=0, columnspan=2, sticky="w", pady=(5,0))
+        
+        self.params['keytrack'] = tk.BooleanVar(value=True)
+        ttk.Checkbutton(parent, text="Keytrack (Layer Transpose)", variable=self.params['keytrack']).grid(row=4, column=0, columnspan=2, sticky="w")
 
-        btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=9, column=0, columnspan=2, pady=(15,0), sticky="e")
-        ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
-        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
+
+    def create_advanced_tab(self, parent):
+        """Populates the Advanced settings tab."""
+        parent.columnconfigure(1, weight=1)
+        parent.columnconfigure(3, weight=1)
+
+        # Filter Env
+        ttk.Label(parent, text="Filter ADSR:", font='-weight bold').grid(row=0, column=0, columnspan=4, sticky="w", pady=(0,5))
+        
+        ttk.Label(parent, text="ADSR:").grid(row=1, column=0, sticky="w", pady=2)
+        f_adsr_frame = ttk.Frame(parent)
+        f_adsr_frame.grid(row=1, column=1, sticky="ew", pady=2)
+        self.params['filter_attack'] = self.create_param_entry(f_adsr_frame, "A", 4)
+        self.params['filter_decay'] = self.create_param_entry(f_adsr_frame, "D", 4)
+        self.params['filter_sustain'] = self.create_param_entry(f_adsr_frame, "S", 4)
+        self.params['filter_release'] = self.create_param_entry(f_adsr_frame, "R", 4)
+
+        ttk.Label(parent, text="Env Amt:").grid(row=1, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['filter_env_amount'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['filter_env_amount'], width=6).grid(row=1, column=3, sticky="ew", pady=2)
+
+        # Velocity Mods
+        ttk.Label(parent, text="Velocity Mod:", font='-weight bold').grid(row=2, column=0, columnspan=4, sticky="w", pady=(10,5))
+
+        ttk.Label(parent, text="-> Level:").grid(row=3, column=0, sticky="w", pady=2)
+        self.params['velocity_to_level'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_level'], width=6).grid(row=3, column=1, sticky="ew", pady=2)
+
+        ttk.Label(parent, text="-> Attack:").grid(row=3, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['velocity_to_attack'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_attack'], width=6).grid(row=3, column=3, sticky="ew", pady=2)
+
+        ttk.Label(parent, text="-> Start:").grid(row=4, column=0, sticky="w", pady=2)
+        self.params['velocity_to_start'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_start'], width=6).grid(row=4, column=1, sticky="ew", pady=2)
+        
+        # LFOs
+        ttk.Label(parent, text="LFO 1:", font='-weight bold').grid(row=5, column=0, columnspan=4, sticky="w", pady=(10,5))
+        
+        ttk.Label(parent, text="Rate:").grid(row=6, column=0, sticky="w", pady=2)
+        self.params['lfo1_rate'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['lfo1_rate'], width=6).grid(row=6, column=1, sticky="ew", pady=2)
+
+        ttk.Label(parent, text="Shape:").grid(row=6, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['lfo1_shape'] = tk.StringVar()
+        ttk.Combobox(parent, textvariable=self.params['lfo1_shape'], values=['Sine', 'Triangle', 'Saw', 'Square', 'S&H'], state='readonly').grid(row=6, column=3, sticky="ew", pady=2)
+
+    def create_param_entry(self, parent, label, width):
+        """Helper to create a small labeled entry for ADSR-style widgets."""
+        ttk.Label(parent, text=label).pack(side="left")
+        var = tk.StringVar()
+        ttk.Entry(parent, width=width, textvariable=var).pack(side="left", padx=(0,5))
+        return var
 
     def toggle_config_btn(self, event=None):
-        if self.creative_var.get() in ['synth', 'lofi']:
+        if self.params['creative_mode'].get() in ['synth', 'lofi']:
             self.config_btn.config(state='normal')
         else:
             self.config_btn.config(state='disabled')
 
     def open_config(self):
-        self.master.open_window(CreativeModeConfigWindow, self.creative_var.get())
+        self.master.open_window(CreativeModeConfigWindow, self.params['creative_mode'].get())
 
     def browse_mod_matrix(self):
         path = filedialog.askopenfilename(
@@ -1064,48 +1139,20 @@ class BatchProgramEditorWindow(tk.Toplevel):
             filetypes=[("JSON Files", "*.json"), ("All Files", "*")],
         )
         if path:
-            self.mod_matrix_var.set(path)
+            self.params['mod_matrix_file'].set(path)
 
     def apply_edits(self):
-        try:
-            attack = float(self.attack_var.get()) if self.attack_var.get() else None
-        except ValueError:
-            messagebox.showwarning("Invalid Input", "Attack must be a number.", parent=self)
-            return
-
-        try:
-            decay = float(self.decay_var.get()) if self.decay_var.get() else None
-        except ValueError:
-            messagebox.showwarning("Invalid Input", "Decay must be a number.", parent=self)
-            return
-
-        try:
-            sustain = float(self.sustain_var.get()) if self.sustain_var.get() else None
-        except ValueError:
-            messagebox.showwarning("Invalid Input", "Sustain must be a number.", parent=self)
-            return
-
-        try:
-            release = float(self.release_var.get()) if self.release_var.get() else None
-        except ValueError:
-            messagebox.showwarning("Invalid Input", "Release must be a number.", parent=self)
-            return
-
-        self.master.run_batch_process(
-            batch_edit_programs,
-            self.rename_var.get(),
-            self.version_var.get().strip() or None,
-            self.format_var.get(),
-            self.creative_var.get(),
-            self.master.creative_config,
-            self.keytrack_var.get() == "on",
-            attack,
-            decay,
-            sustain,
-            release,
-            self.mod_matrix_var.get().strip() or None,
-            self.fix_notes_var.get(),
-        )
+        # Collect all parameters from the StringVars
+        args_dict = {}
+        for key, var in self.params.items():
+            value = var.get()
+            # Only include non-empty strings, and handle booleans
+            if isinstance(value, bool):
+                args_dict[key] = value
+            elif value:
+                args_dict[key] = value
+        
+        self.master.run_batch_process(batch_edit_programs, args_dict)
         self.destroy()
 
 class SmartSplitWindow(tk.Toplevel):
@@ -2288,7 +2335,9 @@ class App(tk.Tk):
             self.progress.config(mode='indeterminate')
             self.progress.start()
             try:
-                result = process_func(folder, *args)
+                # The first argument is always the folder path.
+                # The second argument is now a dictionary of parameters.
+                result = process_func(folder, args[0])
                 logging.info(f"Batch process '{process_func.__name__}' completed. {result or 0} item(s) affected.")
                 def show_success():
                     messagebox.showinfo("Done", f"Process complete. {result or 0} item(s) affected.", parent=self.root)
@@ -2556,24 +2605,10 @@ def _parse_xpm_for_rebuild(xpm_path):
                 
     return mappings, instrument_params
 
-def batch_edit_programs(
-    folder_path,
-    rename=False,
-    version=None,
-    format_version=None,
-    creative_mode='off',
-    creative_config=None,
-    keytrack=None,
-    attack=None,
-    decay=None,
-    sustain=None,
-    release=None,
-    mod_matrix_file=None,
-    fix_notes=False,
-):
+def batch_edit_programs(folder_path, params):
     """
     Batch rebuilds XPM files, converting legacy to advanced if specified,
-    and applies all user tweaks.
+    and applies all user tweaks passed in the params dictionary.
     """
     edited = 0
     if not IMPORTS_SUCCESSFUL:
@@ -2581,17 +2616,17 @@ def batch_edit_programs(
         return 0
 
     # The App instance is not available here, so we create a dummy one for the builder
-    # if needed, or pass None. The builder's GUI callbacks won't be used in this context.
     dummy_app = type('DummyApp', (), {'root': None})()
 
     options = InstrumentOptions(
-        firmware_version=version,
-        format_version=format_version if format_version else 'advanced',
-        creative_mode=creative_mode,
-        creative_config=creative_config or {}
+        firmware_version=params.get('version'),
+        format_version=params.get('format_version', 'advanced'),
+        creative_mode=params.get('creative_mode', 'off'),
+        creative_config=params.get('creative_config', {})
     )
     builder = InstrumentBuilder(folder_path, dummy_app, options)
     
+    mod_matrix_file = params.get('mod_matrix_file')
     matrix = load_mod_matrix(mod_matrix_file) if mod_matrix_file else None
     if matrix == {}: matrix = None
 
@@ -2611,20 +2646,23 @@ def batch_edit_programs(
                     continue
 
                 # 2. Determine the program name
-                program_name = os.path.splitext(file)[0] if rename else existing_params.get('ProgramName', os.path.splitext(file)[0])
+                program_name = os.path.splitext(file)[0] if params.get('rename') else existing_params.get('ProgramName', os.path.splitext(file)[0])
 
                 # 3. Create the template for the new instrument, starting with existing params
                 instrument_template = existing_params.copy()
 
-                # 4. Override template with user-specified tweaks from the UI
-                if attack is not None: instrument_template['VolumeAttack'] = str(attack)
-                if decay is not None: instrument_template['VolumeDecay'] = str(decay)
-                if sustain is not None: instrument_template['VolumeSustain'] = str(sustain)
-                if release is not None: instrument_template['VolumeRelease'] = str(release)
-                if keytrack is not None:
-                    # Keytrack is a layer-level param, handle inside builder or here
-                    # For now, we assume the builder handles it via options
-                    pass
+                # 4. Override template with user-specified tweaks from the params dict
+                # This makes it flexible; we only update what the user provided.
+                param_map = {
+                    'attack': 'VolumeAttack', 'decay': 'VolumeDecay', 'sustain': 'VolumeSustain', 'release': 'VolumeRelease',
+                    'filter_attack': 'FilterAttack', 'filter_decay': 'FilterDecay', 'filter_sustain': 'FilterSustain', 'filter_release': 'FilterRelease',
+                    'filter_env_amount': 'FilterEnvAmount', 'velocity_to_level': 'VelocityToLevel',
+                    'velocity_to_attack': 'VelocityToAttack', 'velocity_to_start': 'VelocityToStart',
+                    'lfo1_rate': 'Lfo1Rate', 'lfo1_shape': 'Lfo1Shape'
+                }
+                for key, value in params.items():
+                    if key in param_map:
+                        instrument_template[param_map[key]] = str(value)
 
                 # 5. Create a backup and then rebuild the file from scratch
                 bak_path = path + '.bak'
@@ -2647,7 +2685,9 @@ def batch_edit_programs(
                     post_change = False
                     if matrix and apply_mod_matrix(root, matrix):
                         post_change = True
-                    if fix_notes and fix_sample_notes(root, os.path.dirname(path)):
+                    if params.get('fix_notes') and fix_sample_notes(root, os.path.dirname(path)):
+                        post_change = True
+                    if 'keytrack' in params and set_layer_keytrack(root, params['keytrack']):
                         post_change = True
                     
                     if post_change:
