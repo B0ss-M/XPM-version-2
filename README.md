@@ -21,6 +21,8 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - Batch Program Fixer rebuild option now includes firmware and format selectors. You
   can rebuild programs into legacy (v2) or advanced (v3) formats while preserving
   all sample layers.
+ - Instrument builder now applies ADSR presets based on instrument type so new
+   programs start with musical envelope shapes.
 
 ## Recent Changes
 - Build Instruments window now lists `.wav` files regardless of case so samples with `.WAV` extensions appear correctly.

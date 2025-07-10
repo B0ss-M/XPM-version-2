@@ -40,6 +40,7 @@ try:
         get_program_parameters as fw_program_parameters,
         ADVANCED_INSTRUMENT_PARAMS,
     )
+    from adsr_presets import get_adsr_preset
     IMPORTS_SUCCESSFUL = True
 except ImportError as e:
     IMPORTS_SUCCESSFUL = False
@@ -859,7 +860,14 @@ class SCWToolWindow(tk.Toplevel):
             rel_path = os.path.relpath(file_path, self.master.folder_path.get())
             program_name = os.path.splitext(os.path.basename(file_path))[0]
             output_folder = os.path.dirname(file_path)
-            builder._create_xpm(program_name, [rel_path], output_folder, mode='one-shot')
+            template = get_adsr_preset(program_name)
+            builder._create_xpm(
+                program_name,
+                [rel_path],
+                output_folder,
+                mode='one-shot',
+                instrument_template=template,
+            )
 
         messagebox.showinfo("Success", f"Created {len(selected_files)} looped instruments.", parent=self)
         self.destroy()
@@ -1486,7 +1494,14 @@ class InstrumentBuilder:
                     first_file_abs_path = os.path.join(self.folder_path, files[0])
                     output_folder = os.path.dirname(first_file_abs_path)
 
-                    if self._create_xpm(sanitized_name, files, output_folder, mode):
+                    template = get_adsr_preset(program_name)
+                    if self._create_xpm(
+                        sanitized_name,
+                        files,
+                        output_folder,
+                        mode,
+                        instrument_template=template,
+                    ):
                         created_count += 1
                         created_xpms.append(os.path.join(output_folder, f"{sanitized_name}.xpm"))
                     else:

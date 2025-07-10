@@ -3,6 +3,7 @@ import glob
 import logging
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
+from adsr_presets import get_adsr_preset
 
 class MultiSampleBuilderWindow(tk.Toplevel):
     """Interactive tool for grouping samples and creating multi-sample instruments."""
@@ -227,7 +228,15 @@ class MultiSampleBuilderWindow(tk.Toplevel):
             for name, files in self.groups.items():
                 logging.info("Building group '%s' with %d file(s)", name, len(files))
                 notes = self.generate_notes(len(files), map_mode)
-                builder._create_xpm(name, files, self.master.folder_path.get(), mode_var.get(), midi_notes=notes)
+                template = get_adsr_preset(name)
+                builder._create_xpm(
+                    name,
+                    files,
+                    self.master.folder_path.get(),
+                    mode_var.get(),
+                    midi_notes=notes,
+                    instrument_template=template,
+                )
             messagebox.showinfo("Done", "Instruments created.", parent=self)
             self.destroy()
 
