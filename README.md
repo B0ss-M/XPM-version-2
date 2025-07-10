@@ -54,3 +54,16 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 ## Development Notes
 
 When modifying or extending the Python scripts, keep function signatures synchronized across all files. If you add or remove parameters in one module, search the repository for that function name and update every call site accordingly. Mismatched argument counts can cause runtime errors that are difficult to debug.
+
+## Gemini <> Codex Communication
+
+This repository is connected to the Gemini AI service. Responses sent through
+Gemini are recorded and stored in two files:
+
+- **`Codex Communication Log.md`** – a human-readable summary of notable
+  exchanges and code changes.
+- **`Gemini_Codex_Log.ipynb`** – a Jupyter notebook capturing detailed
+  interaction history.
+
+Because the GitHub account is linked to Gemini, any future messages or code
+updates made through the assistant will automatically appear in these logs.
