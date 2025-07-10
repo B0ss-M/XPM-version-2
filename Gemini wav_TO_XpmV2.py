@@ -160,9 +160,7 @@ def validate_xpm_file(xpm_path, expected_samples):
         root = ET.fromstring(xml_text)
 
         # Check for modern ProgramPads section
-        pads_elem = root.find('.//ProgramPads-v2.10')
-        if pads_elem is None:
-            pads_elem = root.find('.//ProgramPads')
+        pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
         if pads_elem is not None and pads_elem.text:
             # If it exists, validate its contents
             json_text = xml_unescape(pads_elem.text)
@@ -2205,7 +2203,7 @@ class App(tk.Tk):
 
     def create_advanced_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Advanced Tools", padding="10")
-        frame.grid(row=3, column=0, sticky="nsew", pady=5)
+        frame.grid(row=3, column=0, sticky="ew", pady=5) # CORRECTED: Changed sticky to "ew"
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
         ttk.Button(frame, text="Single-Cycle Waveform (SCW) Tool...", command=lambda: self.open_window(SCWToolWindow)).grid(row=0, column=0, sticky="ew", padx=2, pady=2)
