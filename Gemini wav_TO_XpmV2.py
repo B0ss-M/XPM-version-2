@@ -896,6 +896,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
         self.creative_combo.grid(row=3, column=1, sticky="ew", pady=(10,0))
         self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
+        self.creative_var.trace_add('write', lambda *a: self.toggle_config_btn())
 
         self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
         self.config_btn.grid(row=4, column=1, sticky="e")
@@ -2018,6 +2019,7 @@ class App(tk.Tk):
         self.creative_combo = ttk.Combobox(creative_frame, textvariable=self.creative_mode_var, values=creative_modes, state="readonly")
         self.creative_combo.grid(row=0, column=0, sticky='ew')
         self.creative_combo.bind("<<ComboboxSelected>>", self.on_creative_mode_change)
+        self.creative_mode_var.trace_add('write', lambda *a: self.on_creative_mode_change())
 
         self.creative_config_btn = ttk.Button(creative_frame, text="Configure...", command=self.open_creative_config, state='disabled')
         self.creative_config_btn.grid(row=0, column=1, padx=(5,0))
