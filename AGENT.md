@@ -1,7 +1,8 @@
-# Agent Collaboration Guide: Gemini wav_TO_XpmV2 Project
+# Agent Collaboration Guide for `Gemini wav_TO_XpmV2.py`
 
-\*\*Document Version:\*\* 1.1  
+\*\*Document Version:\*\* 1.1
 \*\*Last Updated:\*\* July 4, 2025
+\*\*Canonical Script Name:\*\* `Gemini wav_TO_XpmV2.py`
 
 \#\# 1\. Project Objective
 
