@@ -1,4 +1,5 @@
 # Drum Keygroup vs Instrument Keygroup
+> **Note:** This repository is linked with the Gemini assistant. All conversations and code changes are logged in `Codex Communication Log.md` and `Gemini_Codex_Log.ipynb`.
 
 This document explains the fundamental differences between **drum keygroups** and **instrument keygroups** in XPM/Keygroup-based MPC expansions. Understanding these distinctions will help the AI agent generate valid drum kits by setting the correct parameters for each type of keygroup.
 
