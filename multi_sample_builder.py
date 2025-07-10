@@ -313,11 +313,14 @@ class MultiSampleBuilderWindow(tk.Toplevel):
                         break
                     mapping['sample_path'] = os.path.join(self.master.folder_path.get(), f)
                     mappings.append(mapping)
+                output_folder = os.path.dirname(
+                    os.path.join(self.master.folder_path.get(), files[0])
+                )
                 if mappings:
                     builder._create_xpm(
                         name,
                         files,
-                        self.master.folder_path.get(),
+                        output_folder,
                         mode_var.get(),
                         mappings=mappings,
                     )
@@ -328,7 +331,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
                     builder._create_xpm(
                         name,
                         files,
-                        self.master.folder_path.get(),
+                        output_folder,
                         mode_var.get(),
                         midi_notes=notes,
                     )
