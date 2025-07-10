@@ -90,7 +90,7 @@ def indent_tree(tree, space="  "):
                 if not child.tail or not child.tail.strip():
                     child.tail = i
                 if not elem[-1].tail or not elem[-1].tail.strip():
-                    elem[-1].tail = i
+                    elem.tail = i
             elif level and (not elem.tail or not elem.tail.strip()):
                 elem.tail = i
 
@@ -1016,7 +1016,11 @@ class BatchProgramEditorWindow(tk.Toplevel):
 
         ttk.Label(frame, text="Format:").grid(row=3, column=0, sticky="w", pady=(10,0))
         self.format_var = tk.StringVar(value="advanced")
+<<<<<<< Updated upstream
         ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=3, column=1, sticky="ew", pady=(10,0))
+=======
+        ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
+>>>>>>> Stashed changes
 
         ttk.Label(frame, text="Creative Mode:").grid(row=4, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
@@ -1057,7 +1061,11 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Checkbutton(frame, text="Fix sample notes", variable=self.fix_notes_var).grid(row=9, column=0, columnspan=2, sticky="w", pady=(10,0))
 
         btn_frame = ttk.Frame(frame)
+<<<<<<< Updated upstream
         btn_frame.grid(row=10, column=0, columnspan=2, pady=(15,0), sticky="e")
+=======
+        btn_frame.grid(row=9, column=0, columnspan=2, pady=(15,0), sticky="e")
+>>>>>>> Stashed changes
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
 

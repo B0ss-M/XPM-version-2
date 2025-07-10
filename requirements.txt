@@ -1,2 +1,5 @@
 # This project uses only the Python standard library.
 # Ensure your Python distribution includes Tkinter support.
+Pillow
+numpy
+soundfile
