@@ -65,6 +65,7 @@ MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
+AUDIO_EXTS = ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')
 
 
 def indent_tree(tree, space="  "):
@@ -564,6 +565,8 @@ class ExpansionBuilderWindow(tk.Toplevel):
         frame = ttk.Frame(self, padding="10")
         frame.pack(fill="both", expand=True)
         frame.grid_columnconfigure(1, weight=1)
+        frame.grid_columnconfigure(3, weight=1)
+        frame.grid_columnconfigure(3, weight=1)
 
         ttk.Label(frame, text="Expansion Name:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
         self.name_var = tk.StringVar()
@@ -964,7 +967,8 @@ class SCWToolWindow(tk.Toplevel):
         options = InstrumentOptions(
             loop_one_shots=True,
             polyphony=1,
-            firmware_version=self.master.firmware_version.get()
+            firmware_version=self.master.firmware_version.get(),
+            format_version=self.master.format_version.get()
         )
 
         builder = InstrumentBuilder(self.master.folder_path.get(), self.master, options)
@@ -1637,8 +1641,8 @@ class InstrumentBuilder:
             else:
                 instrument_groups = self.group_wav_files(mode)
             if not instrument_groups:
-                self.app.status_text.set("No suitable WAV files found for this mode.")
-                self._show_info_safe("Finished", "No suitable .wav files found to create instruments.")
+                self.app.status_text.set("No suitable audio files found for this mode.")
+                self._show_info_safe("Finished", "No suitable audio files found to create instruments.")
                 return
 
             total_groups = len(instrument_groups)
@@ -1699,7 +1703,7 @@ class InstrumentBuilder:
                          len(sample_files))
         try:
             sample_infos = []
-            start_note = 60
+            start_note = 48  # C3 as the default starting note
             if mappings:
                 for m in mappings:
                     abs_path = m['sample_path']
@@ -1723,7 +1727,11 @@ class InstrumentBuilder:
                         elif mode == 'drum-kit':
                             midi_note = min(start_note + idx, 127)
                         elif mode == 'one-shot':
-                            midi_note = start_note
+                            midi_note = (
+                                info.get('root_note')
+                                or infer_note_from_filename(file_path)
+                                or start_note
+                            )
                         else:
                             midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
                         info['midi_note'] = midi_note
@@ -1795,7 +1803,7 @@ class InstrumentBuilder:
                     if mode == 'drum-kit':
                         low_key = high_key = low_key
                     elif mode == 'one-shot' and keygroup_count == 1:
-                        low_key, high_key = 0, 127
+                        low_key, high_key = 12, 72  # C0 to C5 range
                     else:
                         if i < len(sorted_keys):
                             next_low, _ = sorted_keys[i]
@@ -2028,40 +2036,49 @@ class InstrumentBuilder:
         self._show_info_safe("Done", f"Generated {preview_count} new audio previews.")
 
     def group_wav_files(self, mode):
-        """Groups WAV files by instrument name for XPM creation."""
-        search_path = os.path.join(self.folder_path, '**', '*.wav') if self.options.recursive_scan else os.path.join(self.folder_path, '*.wav')
-        all_wavs = glob.glob(search_path, recursive=self.options.recursive_scan)
+        """Groups audio files by instrument name for XPM creation."""
+        patterns = [
+            os.path.join(self.folder_path, '**', f'*{ext}') if self.options.recursive_scan
+            else os.path.join(self.folder_path, f'*{ext}')
+            for ext in AUDIO_EXTS
+        ]
+        all_files = []
+        for pat in patterns:
+            all_files.extend(glob.glob(pat, recursive=self.options.recursive_scan))
 
         groups = defaultdict(list)
-        for wav_path in all_wavs:
-            if '.xpm.wav' in wav_path.lower(): continue
+        for audio_path in all_files:
+            if '.xpm.wav' in audio_path.lower():
+                continue
 
-            relative_path = os.path.relpath(wav_path, self.folder_path)
+            relative_path = os.path.relpath(audio_path, self.folder_path)
 
             if mode == 'one-shot':
-                instrument_name = os.path.splitext(os.path.basename(wav_path))[0]
+                instrument_name = os.path.splitext(os.path.basename(audio_path))[0]
                 groups[instrument_name].append(relative_path)
             else:
-                instrument_name = get_base_instrument_name(wav_path)
+                instrument_name = get_base_instrument_name(audio_path)
                 groups[instrument_name].append(relative_path)
         return groups
 
     def validate_sample_info(self, sample_path):
-        """Validates a WAV file and extracts info. Detects SCWs if enabled."""
+        """Validate an audio file and extract basic info."""
         try:
-            if not os.path.exists(sample_path) or not sample_path.lower().endswith('.wav'):
-                return {'is_valid': False, 'reason': 'File not found or not a WAV'}
+            if not os.path.exists(sample_path) or os.path.splitext(sample_path)[1].lower() not in AUDIO_EXTS:
+                return {'is_valid': False, 'reason': 'Unsupported or missing audio file'}
 
-            frames = get_wav_frames(sample_path)
+            frames = get_wav_frames(sample_path) if sample_path.lower().endswith('.wav') else 0
             is_scw = False
-            if self.options.analyze_scw and 0 < frames < SCW_FRAME_THRESHOLD:
+            if self.options.analyze_scw and sample_path.lower().endswith('.wav') and 0 < frames < SCW_FRAME_THRESHOLD:
                 is_scw = True
+
+            root_note = extract_root_note_from_wav(sample_path) if sample_path.lower().endswith('.wav') else None
 
             return {
                 'is_valid': True,
                 'path': sample_path,
                 'frames': frames,
-                'root_note': extract_root_note_from_wav(sample_path),
+                'root_note': root_note,
                 'is_scw': is_scw
             }
         except Exception as e:
@@ -2082,6 +2099,7 @@ class App(tk.Tk):
             sys.exit(1)
 
         self.firmware_version = tk.StringVar(value='3.5.0')
+        self.format_version = tk.StringVar(value='advanced')
         self.title(f"Wav to XPM Converter v{APP_VERSION}")
         self.geometry("850x750")
         self.minsize(700, 600)
@@ -2163,6 +2181,10 @@ class App(tk.Tk):
 
         ttk.Label(frame, text="Target Firmware:").grid(row=0, column=0, sticky='e', padx=5, pady=2)
         ttk.Combobox(frame, textvariable=self.firmware_version, values=['2.3.0.0', '2.6.0.17', '3.4.0', '3.5.0'], state='readonly').grid(row=0, column=1, sticky='ew')
+
+        ttk.Label(frame, text="Format:").grid(row=0, column=2, sticky='e', padx=5, pady=2)
+        self.format_version = tk.StringVar(value="advanced")
+        ttk.Combobox(frame, textvariable=self.format_version, values=['legacy', 'advanced'], state='readonly').grid(row=0, column=3, sticky='ew')
 
         ttk.Label(frame, text="Polyphony:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
         self.polyphony_var = tk.IntVar(value=16)
@@ -2304,6 +2326,7 @@ class App(tk.Tk):
             recursive_scan=self.recursive_scan_var.get(),
             firmware_version=self.firmware_version.get(),
             polyphony=self.polyphony_var.get(),
+            format_version=self.format_version.get(),
             creative_config=self.creative_config
         )
         builder = InstrumentBuilder(folder, self, options=options)
