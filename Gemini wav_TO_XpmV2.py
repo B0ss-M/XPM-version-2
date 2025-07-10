@@ -65,7 +65,6 @@ MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
-AUDIO_EXTS = ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')
 
 
 def indent_tree(tree, space="  "):
@@ -452,9 +451,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         fmt = self.format_var.get()
         updated = batch_edit_programs(
             folder,
-            rename=False,
-            version=target,
-            format_version=fmt,
+            {'rename': False, 'version': target, 'format_version': fmt}
         )
         self.status.set(
             f"Updated {updated} XPM(s) to version {target} ({fmt}). Rescanning..."
@@ -565,8 +562,6 @@ class ExpansionBuilderWindow(tk.Toplevel):
         frame = ttk.Frame(self, padding="10")
         frame.pack(fill="both", expand=True)
         frame.grid_columnconfigure(1, weight=1)
-        frame.grid_columnconfigure(3, weight=1)
-        frame.grid_columnconfigure(3, weight=1)
 
         ttk.Label(frame, text="Expansion Name:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
         self.name_var = tk.StringVar()
@@ -967,8 +962,7 @@ class SCWToolWindow(tk.Toplevel):
         options = InstrumentOptions(
             loop_one_shots=True,
             polyphony=1,
-            firmware_version=self.master.firmware_version.get(),
-            format_version=self.master.format_version.get()
+            firmware_version=self.master.firmware_version.get()
         )
 
         builder = InstrumentBuilder(self.master.folder_path.get(), self.master, options)
@@ -1641,8 +1635,8 @@ class InstrumentBuilder:
             else:
                 instrument_groups = self.group_wav_files(mode)
             if not instrument_groups:
-                self.app.status_text.set("No suitable audio files found for this mode.")
-                self._show_info_safe("Finished", "No suitable audio files found to create instruments.")
+                self.app.status_text.set("No suitable WAV files found for this mode.")
+                self._show_info_safe("Finished", "No suitable .wav files found to create instruments.")
                 return
 
             total_groups = len(instrument_groups)
@@ -1703,7 +1697,7 @@ class InstrumentBuilder:
                          len(sample_files))
         try:
             sample_infos = []
-            start_note = 48  # C3 as the default starting note
+            start_note = 60
             if mappings:
                 for m in mappings:
                     abs_path = m['sample_path']
@@ -1727,11 +1721,7 @@ class InstrumentBuilder:
                         elif mode == 'drum-kit':
                             midi_note = min(start_note + idx, 127)
                         elif mode == 'one-shot':
-                            midi_note = (
-                                info.get('root_note')
-                                or infer_note_from_filename(file_path)
-                                or start_note
-                            )
+                            midi_note = start_note
                         else:
                             midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
                         info['midi_note'] = midi_note
@@ -1803,7 +1793,7 @@ class InstrumentBuilder:
                     if mode == 'drum-kit':
                         low_key = high_key = low_key
                     elif mode == 'one-shot' and keygroup_count == 1:
-                        low_key, high_key = 12, 72  # C0 to C5 range
+                        low_key, high_key = 0, 127
                     else:
                         if i < len(sorted_keys):
                             next_low, _ = sorted_keys[i]
@@ -2036,49 +2026,40 @@ class InstrumentBuilder:
         self._show_info_safe("Done", f"Generated {preview_count} new audio previews.")
 
     def group_wav_files(self, mode):
-        """Groups audio files by instrument name for XPM creation."""
-        patterns = [
-            os.path.join(self.folder_path, '**', f'*{ext}') if self.options.recursive_scan
-            else os.path.join(self.folder_path, f'*{ext}')
-            for ext in AUDIO_EXTS
-        ]
-        all_files = []
-        for pat in patterns:
-            all_files.extend(glob.glob(pat, recursive=self.options.recursive_scan))
+        """Groups WAV files by instrument name for XPM creation."""
+        search_path = os.path.join(self.folder_path, '**', '*.wav') if self.options.recursive_scan else os.path.join(self.folder_path, '*.wav')
+        all_wavs = glob.glob(search_path, recursive=self.options.recursive_scan)
 
         groups = defaultdict(list)
-        for audio_path in all_files:
-            if '.xpm.wav' in audio_path.lower():
-                continue
+        for wav_path in all_wavs:
+            if '.xpm.wav' in wav_path.lower(): continue
 
-            relative_path = os.path.relpath(audio_path, self.folder_path)
+            relative_path = os.path.relpath(wav_path, self.folder_path)
 
             if mode == 'one-shot':
-                instrument_name = os.path.splitext(os.path.basename(audio_path))[0]
+                instrument_name = os.path.splitext(os.path.basename(wav_path))[0]
                 groups[instrument_name].append(relative_path)
             else:
-                instrument_name = get_base_instrument_name(audio_path)
+                instrument_name = get_base_instrument_name(wav_path)
                 groups[instrument_name].append(relative_path)
         return groups
 
     def validate_sample_info(self, sample_path):
-        """Validate an audio file and extract basic info."""
+        """Validates a WAV file and extracts info. Detects SCWs if enabled."""
         try:
-            if not os.path.exists(sample_path) or os.path.splitext(sample_path)[1].lower() not in AUDIO_EXTS:
-                return {'is_valid': False, 'reason': 'Unsupported or missing audio file'}
+            if not os.path.exists(sample_path) or not sample_path.lower().endswith('.wav'):
+                return {'is_valid': False, 'reason': 'File not found or not a WAV'}
 
-            frames = get_wav_frames(sample_path) if sample_path.lower().endswith('.wav') else 0
+            frames = get_wav_frames(sample_path)
             is_scw = False
-            if self.options.analyze_scw and sample_path.lower().endswith('.wav') and 0 < frames < SCW_FRAME_THRESHOLD:
+            if self.options.analyze_scw and 0 < frames < SCW_FRAME_THRESHOLD:
                 is_scw = True
-
-            root_note = extract_root_note_from_wav(sample_path) if sample_path.lower().endswith('.wav') else None
 
             return {
                 'is_valid': True,
                 'path': sample_path,
                 'frames': frames,
-                'root_note': root_note,
+                'root_note': extract_root_note_from_wav(sample_path),
                 'is_scw': is_scw
             }
         except Exception as e:
@@ -2099,7 +2080,6 @@ class App(tk.Tk):
             sys.exit(1)
 
         self.firmware_version = tk.StringVar(value='3.5.0')
-        self.format_version = tk.StringVar(value='advanced')
         self.title(f"Wav to XPM Converter v{APP_VERSION}")
         self.geometry("850x750")
         self.minsize(700, 600)
@@ -2110,13 +2090,14 @@ class App(tk.Tk):
 
         main_frame = ttk.Frame(self, padding="10", style="Retro.TFrame")
         main_frame.pack(fill="both", expand=True)
-        main_frame.grid_rowconfigure(5, weight=1)
+        main_frame.grid_rowconfigure(6, weight=1) # Adjusted for new row
         main_frame.grid_columnconfigure(0, weight=1)
 
         self.create_browser_bar(main_frame)
         self.create_advanced_options_frame(main_frame)
         self.create_action_buttons(main_frame)
         self.create_advanced_tools(main_frame)
+        self.create_quick_edits_frame(main_frame) # New frame
         self.create_batch_tools(main_frame)
         self.create_log_viewer(main_frame)
         self.create_status_bar(main_frame)
@@ -2182,10 +2163,6 @@ class App(tk.Tk):
         ttk.Label(frame, text="Target Firmware:").grid(row=0, column=0, sticky='e', padx=5, pady=2)
         ttk.Combobox(frame, textvariable=self.firmware_version, values=['2.3.0.0', '2.6.0.17', '3.4.0', '3.5.0'], state='readonly').grid(row=0, column=1, sticky='ew')
 
-        ttk.Label(frame, text="Format:").grid(row=0, column=2, sticky='e', padx=5, pady=2)
-        self.format_version = tk.StringVar(value="advanced")
-        ttk.Combobox(frame, textvariable=self.format_version, values=['legacy', 'advanced'], state='readonly').grid(row=0, column=3, sticky='ew')
-
         ttk.Label(frame, text="Polyphony:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
         self.polyphony_var = tk.IntVar(value=16)
         ttk.Spinbox(frame, from_=1, to=64, textvariable=self.polyphony_var).grid(row=1, column=1, sticky="ew")
@@ -2233,9 +2210,15 @@ class App(tk.Tk):
         ttk.Button(frame, text="Batch Program Editor...", command=lambda: self.open_window(BatchProgramEditorWindow)).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
         ttk.Button(frame, text="Batch Program Fixer...", command=lambda: self.open_window(BatchProgramFixerWindow)).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
 
+    def create_quick_edits_frame(self, parent):
+        frame = ttk.LabelFrame(parent, text="Quick Edits", padding="10")
+        frame.grid(row=4, column=0, sticky="ew", pady=5)
+        frame.grid_columnconfigure(0, weight=1)
+        ttk.Button(frame, text="Set All Programs to MONO", command=self.run_set_all_to_mono).grid(row=0, column=0, sticky="ew", padx=2, pady=2)
+
     def create_batch_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Utilities & Batch Tools", padding="10")
-        frame.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        frame.grid(row=5, column=0, sticky="ew", pady=(10, 0))
         for i in range(4): frame.grid_columnconfigure(i, weight=1)
         ttk.Button(frame, text="Expansion Doctor", command=self.open_expansion_doctor).grid(row=0, column=0, sticky="ew", padx=2)
         ttk.Button(frame, text="File Renamer", command=self.open_file_renamer).grid(row=0, column=1, sticky="ew", padx=2)
@@ -2248,7 +2231,7 @@ class App(tk.Tk):
 
     def create_log_viewer(self, parent):
         log_frame = ttk.LabelFrame(parent, text="Log", padding=5)
-        log_frame.grid(row=5, column=0, sticky="nsew", pady=(10, 0))
+        log_frame.grid(row=6, column=0, sticky="nsew", pady=(10, 0))
         log_frame.grid_rowconfigure(0, weight=1)
         log_frame.grid_columnconfigure(0, weight=1)
 
@@ -2261,7 +2244,7 @@ class App(tk.Tk):
 
     def create_status_bar(self, parent):
         frame = ttk.Frame(parent, padding=(5, 2))
-        frame.grid(row=6, column=0, sticky='ew', pady=(5,0))
+        frame.grid(row=7, column=0, sticky='ew', pady=(5,0))
         frame.grid_columnconfigure(0, weight=1)
         self.status_text = tk.StringVar(value="Ready.")
         ttk.Label(frame, textvariable=self.status_text, anchor="w").grid(row=0, column=0, sticky="ew")
@@ -2326,7 +2309,6 @@ class App(tk.Tk):
             recursive_scan=self.recursive_scan_var.get(),
             firmware_version=self.firmware_version.get(),
             polyphony=self.polyphony_var.get(),
-            format_version=self.format_version.get(),
             creative_config=self.creative_config
         )
         builder = InstrumentBuilder(folder, self, options=options)
@@ -2345,7 +2327,7 @@ class App(tk.Tk):
     def build_drum_kit_instruments(self):
         self.build_instruments('drum-kit')
 
-    def run_batch_process(self, process_func, *args, confirm=False, confirm_message=""):
+    def run_batch_process(self, process_func, params_dict, confirm=False, confirm_message=""):
         folder = self.folder_path.get()
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "Please select a valid folder first.", parent=self.root)
@@ -2358,9 +2340,7 @@ class App(tk.Tk):
             self.progress.config(mode='indeterminate')
             self.progress.start()
             try:
-                # The first argument is always the folder path.
-                # The second argument is now a dictionary of parameters.
-                result = process_func(folder, args[0])
+                result = process_func(folder, params_dict)
                 logging.info(f"Batch process '{process_func.__name__}' completed. {result or 0} item(s) affected.")
                 def show_success():
                     messagebox.showinfo("Done", f"Process complete. {result or 0} item(s) affected.", parent=self.root)
@@ -2377,6 +2357,33 @@ class App(tk.Tk):
                 self.status_text.set("Ready.")
 
         self.status_text.set(f"Running {process_func.__name__}...")
+        threading.Thread(target=run, daemon=True).start()
+
+    def run_set_all_to_mono(self):
+        """Wrapper to run the set_to_mono function in a thread."""
+        folder = self.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "Please select a valid folder first.", parent=self.root)
+            return
+            
+        if not messagebox.askyesno("Confirm Action", "This will modify all .xpm files in the selected folder to be monophonic. This action is fast but cannot be easily undone. Continue?", parent=self.root):
+            return
+
+        def run():
+            self.status_text.set("Setting programs to mono...")
+            self.progress.config(mode='indeterminate')
+            self.progress.start()
+            try:
+                count = quick_edit_set_mono(folder)
+                self.root.after(0, lambda: messagebox.showinfo("Success", f"Updated {count} program(s) to mono.", parent=self.root))
+            except Exception as e:
+                logging.error(f"Failed to set programs to mono: {e}\n{traceback.format_exc()}")
+                self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred: {e}", parent=self.root))
+            finally:
+                self.progress.stop()
+                self.progress.config(mode='determinate')
+                self.status_text.set("Ready.")
+        
         threading.Thread(target=run, daemon=True).start()
 
     def open_merge_subfolders(self):
@@ -2545,6 +2552,35 @@ def split_files_smartly(folder_path, mode):
             logging.error(f"Could not split file {wav_path}: {e}")
 
     return moved_count
+
+def quick_edit_set_mono(folder_path):
+    """
+    Iterates through all XPM files and sets their VoiceOverlap to Mono.
+    This is a direct XML edit for speed.
+    """
+    count = 0
+    xpm_files = glob.glob(os.path.join(folder_path, '**', '*.xpm'), recursive=True)
+    for path in xpm_files:
+        try:
+            tree = ET.parse(path)
+            root = tree.getroot()
+            changed = False
+            # Find all VoiceOverlap tags within any Instrument
+            for vo_element in root.findall('.//Instrument/VoiceOverlap'):
+                if vo_element.text != 'Mono':
+                    vo_element.text = 'Mono'
+                    changed = True
+            
+            if changed:
+                indent_tree(tree)
+                tree.write(path, encoding='utf-8', xml_declaration=True)
+                count += 1
+                logging.info(f"Set {os.path.basename(path)} to Mono.")
+        except ET.ParseError as e:
+            logging.error(f"Could not parse {path}: {e}")
+        except Exception as e:
+            logging.error(f"Failed to process {path} for mono edit: {e}")
+    return count
 
 def _parse_xpm_for_rebuild(xpm_path):
     """
