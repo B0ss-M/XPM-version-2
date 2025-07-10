@@ -103,6 +103,8 @@ def set_engine_mode(root: ET.Element, mode: str) -> bool:
             data = json.loads(xml_unescape(pads_elem.text))
         except json.JSONDecodeError:
             data = {}
+        if not isinstance(data, dict):
+            data = {}
         if data.get('engine') != mode:
             data['engine'] = mode
             pads_elem.text = xml_escape(json.dumps(data, indent=4))
@@ -173,6 +175,8 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
         try:
             data = json.loads(xml_unescape(pads_elem.text))
         except json.JSONDecodeError:
+            data = {}
+        if not isinstance(data, dict):
             data = {}
         pads = data.get('pads', {})
         for pad in pads.values():
