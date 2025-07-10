@@ -18,6 +18,7 @@ from collections import defaultdict
 import struct
 import re
 import json
+import inspect
 import zipfile
 
 try:
@@ -2308,9 +2309,24 @@ class App(tk.Tk):
             self.progress.config(mode='indeterminate')
             self.progress.start()
             try:
-                result = process_func(folder, *args)
-                logging.info(f"Batch process '{process_func.__name__}' completed. {result or 0} item(s) affected.")
-                self.root.after(0, lambda: messagebox.showinfo("Done", f"Process complete. {result or 0} item(s) affected.", parent=self.root))
+                try:
+                    result = process_func(folder, *args)
+                except TypeError as e:
+                    param_count = len(inspect.signature(process_func).parameters)
+                    if 1 + len(args) > param_count:
+                        trimmed = args[: param_count - 1]
+                        result = process_func(folder, *trimmed)
+                    else:
+                        raise
+                logging.info(
+                    f"Batch process '{process_func.__name__}' completed. {result or 0} item(s) affected."
+                )
+                self.root.after(
+                    0,
+                    lambda: messagebox.showinfo(
+                        "Done", f"Process complete. {result or 0} item(s) affected.", parent=self.root
+                    ),
+                )
             except Exception as e:
                 logging.error(f"Error in batch process: {e}\n{traceback.format_exc()}")
                 self.root.after(0, lambda: messagebox.showerror("Error", f"Operation failed:\n{e}", parent=self.root))
