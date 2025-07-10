@@ -247,45 +247,6 @@ def get_wav_frames(filepath):
     except Exception:
         return 0
 
-
-def parse_filename_mapping(filename):
-    """Parse note and velocity information from a sample filename.
-
-    Returns a tuple ``(group_name, mapping_dict or None)``. ``mapping_dict``
-    contains ``root_note``, ``low_note``, ``high_note``, ``velocity_low`` and
-    ``velocity_high`` if both a note range and velocity range are found.
-    """
-    base = os.path.splitext(os.path.basename(filename))[0]
-    m = re.search(r"^(.*?)[ _-]([A-G][#b]?\d+(?:-[A-G][#b]?\d+)?)[ _-](\d+)-(\d+)$", base, re.IGNORECASE)
-    if m:
-        name, note_range, v_low, v_high = m.groups()
-        notes = note_range.split("-")
-        low = name_to_midi(notes[0])
-        high = name_to_midi(notes[-1])
-        if low is not None and high is not None:
-            return name.strip(), {
-                'root_note': low,
-                'low_note': low,
-                'high_note': high,
-                'velocity_low': int(v_low),
-                'velocity_high': int(v_high),
-            }
-
-    m = re.search(r"^(.*?)[ _-]([A-G][#b]?\d+(?:-[A-G][#b]?\d+)?)$", base, re.IGNORECASE)
-    if m:
-        name, note_range = m.groups()
-        notes = note_range.split("-")
-        low = name_to_midi(notes[0])
-        high = name_to_midi(notes[-1])
-        if low is not None and high is not None:
-            return name.strip(), {
-                'root_note': low,
-                'low_note': low,
-                'high_note': high,
-            }
-
-    return os.path.splitext(os.path.basename(filename))[0], None
-
 def parse_xpm_samples(xpm_path):
     """Return a list of sample paths referenced by an XPM."""
     samples = []
@@ -1755,27 +1716,19 @@ class InstrumentBuilder:
                     abs_path = os.path.join(self.folder_path, file_path) if not os.path.isabs(file_path) else file_path
                     info = self.validate_sample_info(abs_path)
                     if info.get('is_valid'):
-                        _, mapping = parse_filename_mapping(file_path)
-                        if mapping:
-                            midi_note = mapping['root_note']
-                            info['low_note'] = mapping.get('low_note', midi_note)
-                            info['high_note'] = mapping.get('high_note', midi_note)
-                            info['velocity_low'] = mapping.get('velocity_low', 0)
-                            info['velocity_high'] = mapping.get('velocity_high', 127)
+                        if midi_notes and idx < len(midi_notes):
+                            midi_note = midi_notes[idx]
+                        elif mode == 'drum-kit':
+                            midi_note = min(start_note + idx, 127)
+                        elif mode == 'one-shot':
+                            midi_note = start_note
                         else:
-                            if midi_notes and idx < len(midi_notes):
-                                midi_note = midi_notes[idx]
-                            elif mode == 'drum-kit':
-                                midi_note = min(start_note + idx, 127)
-                            elif mode == 'one-shot':
-                                midi_note = start_note
-                            else:
-                                midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
-                            info['low_note'] = midi_note
-                            info['high_note'] = midi_note
-                            info['velocity_low'] = 0
-                            info['velocity_high'] = 127
+                            midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
                         info['midi_note'] = midi_note
+                        info['low_note'] = midi_note
+                        info['high_note'] = midi_note
+                        info['velocity_low'] = 0
+                        info['velocity_high'] = 127
                         info['sample_path'] = os.path.basename(file_path)
                         sample_infos.append(info)
 
@@ -1864,8 +1817,7 @@ class InstrumentBuilder:
                 layers_elem = ET.SubElement(inst, 'Layers')
 
                 layers_for_note = sorted(note_layers[key], key=lambda x: x.get('velocity_low', 0))
-                max_layers = 4 if self.options.format_version == 'legacy' else 8
-                num_layers = min(len(layers_for_note), max_layers)
+                num_layers = min(len(layers_for_note), 8)
 
                 if mappings:
                     for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
@@ -2262,7 +2214,9 @@ class App(tk.Tk):
         frame = ttk.LabelFrame(parent, text="Quick Edits", padding="10")
         frame.grid(row=4, column=0, sticky="ew", pady=5)
         frame.grid_columnconfigure(0, weight=1)
+        frame.grid_columnconfigure(1, weight=1) # Added for second button
         ttk.Button(frame, text="Set All Programs to MONO", command=self.run_set_all_to_mono).grid(row=0, column=0, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Normalize Program Levels", command=self.run_normalize_levels).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
 
     def create_batch_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Utilities & Batch Tools", padding="10")
@@ -2426,6 +2380,33 @@ class App(tk.Tk):
                 self.root.after(0, lambda: messagebox.showinfo("Success", f"Updated {count} program(s) to mono.", parent=self.root))
             except Exception as e:
                 logging.error(f"Failed to set programs to mono: {e}\n{traceback.format_exc()}")
+                self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred: {e}", parent=self.root))
+            finally:
+                self.progress.stop()
+                self.progress.config(mode='determinate')
+                self.status_text.set("Ready.")
+        
+        threading.Thread(target=run, daemon=True).start()
+        
+    def run_normalize_levels(self):
+        """Wrapper to run the normalize levels function in a thread."""
+        folder = self.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "Please select a valid folder first.", parent=self.root)
+            return
+            
+        if not messagebox.askyesno("Confirm Action", "This will set the Volume parameter to 0.95 for all instruments in all .xpm files in the selected folder. This action cannot be easily undone. Continue?", parent=self.root):
+            return
+
+        def run():
+            self.status_text.set("Normalizing program levels...")
+            self.progress.config(mode='indeterminate')
+            self.progress.start()
+            try:
+                count = quick_edit_normalize_levels(folder)
+                self.root.after(0, lambda: messagebox.showinfo("Success", f"Normalized volume for {count} program(s).", parent=self.root))
+            except Exception as e:
+                logging.error(f"Failed to normalize program levels: {e}\n{traceback.format_exc()}")
                 self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred: {e}", parent=self.root))
             finally:
                 self.progress.stop()
@@ -2628,6 +2609,35 @@ def quick_edit_set_mono(folder_path):
             logging.error(f"Could not parse {path}: {e}")
         except Exception as e:
             logging.error(f"Failed to process {path} for mono edit: {e}")
+    return count
+
+def quick_edit_normalize_levels(folder_path):
+    """
+    Iterates through all XPM files and sets their instrument Volume to 0.95.
+    This is a direct XML edit for speed.
+    """
+    count = 0
+    xpm_files = glob.glob(os.path.join(folder_path, '**', '*.xpm'), recursive=True)
+    for path in xpm_files:
+        try:
+            tree = ET.parse(path)
+            root = tree.getroot()
+            changed = False
+            # Find all Volume tags within any Instrument
+            for vol_element in root.findall('.//Instrument/Volume'):
+                if vol_element.text != '0.95':
+                    vol_element.text = '0.95'
+                    changed = True
+            
+            if changed:
+                indent_tree(tree)
+                tree.write(path, encoding='utf-8', xml_declaration=True)
+                count += 1
+                logging.info(f"Normalized volume for {os.path.basename(path)}.")
+        except ET.ParseError as e:
+            logging.error(f"Could not parse {path}: {e}")
+        except Exception as e:
+            logging.error(f"Failed to process {path} for normalize edit: {e}")
     return count
 
 def _parse_xpm_for_rebuild(xpm_path):
