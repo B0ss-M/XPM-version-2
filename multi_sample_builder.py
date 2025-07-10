@@ -206,9 +206,30 @@ class MultiSampleBuilderWindow(tk.Toplevel):
 
         popup = tk.Toplevel(self)
         popup.title("Select Build Mode")
+
         mode_var = tk.StringVar(value="multi-sample")
-        ttk.Radiobutton(popup, text="Instrument Keygroup", variable=mode_var, value="multi-sample").pack(anchor="w", padx=10, pady=5)
-        ttk.Radiobutton(popup, text="Drum Program", variable=mode_var, value="drum-kit").pack(anchor="w", padx=10)
+        ttk.Radiobutton(
+            popup,
+            text="Instrument Keygroup",
+            variable=mode_var,
+            value="multi-sample",
+        ).pack(anchor="w", padx=10, pady=5)
+        ttk.Radiobutton(
+            popup, text="Drum Program", variable=mode_var, value="drum-kit"
+        ).pack(anchor="w", padx=10)
+
+        format_frame = ttk.Frame(popup)
+        format_frame.pack(fill="x", padx=10)
+        ttk.Label(format_frame, text="Format:").pack(side="left")
+        format_var = tk.StringVar(value=self.master.format_version.get())
+        ttk.Combobox(
+            format_frame,
+            textvariable=format_var,
+            values=["legacy", "advanced"],
+            state="readonly",
+            width=10,
+        ).pack(side="left", padx=(5, 0))
+
         btn_frame = ttk.Frame(popup)
         btn_frame.pack(fill="x", padx=10, pady=5)
 
@@ -222,8 +243,8 @@ class MultiSampleBuilderWindow(tk.Toplevel):
                 recursive_scan=False,
                 firmware_version=self.master.firmware_version.get(),
                 polyphony=self.master.polyphony_var.get(),
-                format_version=self.master.format_version.get(),
-                creative_config=self.master.creative_config
+                format_version=format_var.get(),
+                creative_config=self.master.creative_config,
             )
             builder = self.builder_cls(self.master.folder_path.get(), self.master, options)
             map_mode = self.map_var.get()
