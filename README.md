@@ -13,7 +13,8 @@ Additional documentation can be found in the [docs/](docs/) directory, including
   The editor includes drop-downs for **Application Version** and engine **Format**, a
   checkbox for fixing sample note mappings, and a **Browse...** button for selecting a Mod Matrix JSON file.
   The matrix file should be a `.json` list where each entry contains a `Num` value and the desired
-  parameters for that modulation slot.
+  parameters for that modulation slot. The command-line version exposes the same options via
+  `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments.
 
 ### New in this update
 - Batch Program Fixer rebuild option now includes firmware and format selectors. You
