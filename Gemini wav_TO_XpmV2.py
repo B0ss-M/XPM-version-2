@@ -1308,7 +1308,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
             xpm_path = self.xpm_map[item_id]
             self.tree.set(item_id, "Status", "Rebuilding...")
             try:
-                sample_mappings = self._parse_any_xpm(xpm_path)
+                sample_mappings, inst_params = self._parse_any_xpm(xpm_path)
                 if not sample_mappings:
                     self.tree.set(item_id, "Status", "Parse Error")
                     continue
@@ -1329,7 +1329,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
                     [],
                     output_folder,
                     mode='multi-sample',
-                    mappings=sample_mappings
+                    mappings=sample_mappings,
+                    instrument_template=inst_params
                 )
                 
                 if success:
@@ -1345,9 +1346,18 @@ class BatchProgramFixerWindow(tk.Toplevel):
 
     def _parse_any_xpm(self, xpm_path):
         mappings = []
+        inst_params = {}
         xpm_dir = os.path.dirname(xpm_path)
         tree = ET.parse(xpm_path)
         root = tree.getroot()
+
+        # Capture parameters from the first Instrument element so we can
+        # preserve envelope settings when rebuilding programs.
+        inst = root.find('.//Instrument')
+        if inst is not None:
+            for child in inst:
+                if len(list(child)) == 0:
+                    inst_params[child.tag] = child.text or ''
 
         # Modern JSON-based format (v3.4+)
         pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
@@ -1366,7 +1376,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
                             'velocity_low': pad_data.get('velocityLow', 0),
                             'velocity_high': pad_data.get('velocityHigh', 127)
                         })
-            if mappings: return mappings
+            if mappings:
+                return mappings, inst_params
 
         # Legacy XML format
         for inst in root.findall('.//Instrument'):
@@ -1392,7 +1403,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                         'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
                         'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127,
                     })
-        return mappings
+        return mappings, inst_params
 
     def get_id_from_path(self, path):
         for item_id, item_path in self.xpm_map.items():
@@ -1511,7 +1522,7 @@ class InstrumentBuilder:
             self.app.progress["value"] = 0
 
     def _create_xpm(self, program_name, sample_files, output_folder, mode,
-                    midi_notes=None, mappings=None):
+                    midi_notes=None, mappings=None, instrument_template=None):
         """Create a single XPM file from samples or an existing mapping."""
         if mappings:
             logging.info("_create_xpm rebuilding '%s' using mapping with %d entry(ies)",
@@ -1631,6 +1642,13 @@ class InstrumentBuilder:
                             low_key = 0
 
                 inst = self.build_instrument_element(instruments, i, low_key, high_key)
+                if instrument_template:
+                    for k, v in instrument_template.items():
+                        elem = inst.find(k)
+                        if elem is not None:
+                            elem.text = str(v)
+                        else:
+                            ET.SubElement(inst, k).text = str(v)
                 layers_elem = ET.SubElement(inst, 'Layers')
 
                 layers_for_note = sorted(note_layers[key], key=lambda x: x.get('velocity_low', 0))
