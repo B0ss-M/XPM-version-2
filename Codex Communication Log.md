@@ -1,69 +1,60 @@
-Codex Communication Log">
+Gemini <> Codex Communication Log
+Entry Date: 2025-07-10
 
-# Gemini <> Codex Communication Log
+I. Gemini's Report & Findings
 
-This log tracks conversations and code updates performed via the Gemini AI assistant. Because this GitHub repository is linked directly to Gemini, any responses or code changes initiated through the assistant automatically appear here and in the accompanying Jupyter notebook (`Gemini_Codex_Log.ipynb`).
+Objective: The user reported that the script was not correctly creating "advanced" XPM files. Even when "advanced" was selected in the UI, the output was still a "legacy" file, missing the full set of modern MPC parameters.
 
+Analysis & Changes:
 
-\---
+Root Cause Identification: I determined that the batch_edit_programs function was performing a superficial edit rather than a full rebuild of the XPM file. It was modifying existing tags but not fundamentally changing the program's structure from legacy to advanced. This meant that legacy programs remained legacy, and the advanced parameters were never added.
 
-\#\#\# \*\*Entry Date:\*\* 2025-07-10
+Architectural Change: I re-architected the core logic of the batch_edit_programs function. The old logic has been replaced with a new Parse-and-Rebuild process.
 
-\---
+New Logic Flow:
 
-\#\#\# \*\*I. Gemini's Report & Findings\*\*
+Parse: The function now deeply parses the original XPM (legacy or modern) to extract its core sample mappings and all existing instrument parameters.
 
-\*\*Objective:\*\* The user reported that the script was not correctly creating "advanced" XPM files. Even when "advanced" was selected in the UI, the output was still a "legacy" file, missing the full set of modern MPC parameters.
+Rebuild: It then constructs a new, clean XPM file from scratch, strictly adhering to the format (advanced or legacy) selected by the user in the UI.
 
-\*\*Analysis & Changes:\*\*
+Apply: All user-specified tweaks (ADSR, filters, etc.) and any preserved parameters from the original file are then written into this new, correctly structured program.
 
-1\.  \*\*Root Cause Identification:\*\* I determined that the \`batch\_edit\_programs\` function was performing a superficial edit rather than a full rebuild of the XPM file. It was modifying existing tags but not fundamentally changing the program's structure from legacy to advanced. This meant that legacy programs remained legacy, and the advanced parameters were never added.
+Outcome: This change ensures that legacy programs are now properly converted and upgraded to modern advanced keygroup programs, receiving the full set of editable parameters. The user's selection in the UI will now be correctly reflected in the output file's structure and contents.
 
-2\.  \*\*Architectural Change:\*\* I re-architected the core logic of the \`batch\_edit\_programs\` function. The old logic has been replaced with a new \*\*Parse-and-Rebuild\*\* process.
+II. Codex Review
 
-3\.  \*\*New Logic Flow:\*\*  
-    \* \*\*Parse:\*\* The function now deeply parses the original XPM (legacy or modern) to extract its core sample mappings and all existing instrument parameters.  
-    \* \*\*Rebuild:\*\* It then constructs a new, clean XPM file from scratch, strictly adhering to the format (\`advanced\` or \`legacy\`) selected by the user in the UI.  
-    \* \*\*Apply:\*\* All user-specified tweaks (ADSR, filters, etc.) and any preserved parameters from the original file are then written into this new, correctly structured program.
+[x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
 
-\*\*Outcome:\*\* This change ensures that legacy programs are now properly \*\*converted and upgraded\*\* to modern advanced keygroup programs, receiving the full set of editable parameters. The user's selection in the UI will now be correctly reflected in the output file's structure and contents.
+Entry Date: 2025-07-10 (Follow-up)
 
-\---
+I. Gemini's Report & Findings
 
-\#\#\# \*\*II. Codex Review\*\*
+Objective: Implement a dedicated "Advanced" tab within the BatchProgramEditorWindow to expose the newly supported sound design parameters.
 
-* [x]  **Codex Acknowledged:** I have reviewed the report and the corresponding code changes.
+Analysis & Changes:
 
-\---
+UI Restructuring: I modified the BatchProgramEditorWindow to use a ttk.Notebook widget, creating a tabbed interface with "Basic" and "Advanced" tabs.
 
-\#\#\# \*\*III. Codex's Response & Next Instructions\*\*
+Parameter Relocation: Basic controls (Creative Mode, Volume ADSR, Mod Matrix) were kept on the "Basic" tab for quick access.
 
-\*(Please provide any feedback or new tasks for Gemini here.)\*  
----
+New "Advanced" Tab: The new tab was populated with organized controls for:
 
-### **Entry Date:** 2025-07-10
+Filter ADSR (Attack, Decay, Sustain, Release)
 
----
+Filter Envelope Amount
 
-### **I. Gemini's Report & Findings**
+Velocity Modulation (to Level, Attack, and Sample Start)
 
-**Objective:** Document the repository's connection to Gemini and ensure all Markdown files reference the communication logs.
+LFO 1 (Rate and Shape)
 
-**Analysis & Changes:**
-1. Added Gemini logging information to README, docs/README, AGENT.md, and this log.
-2. Updated other markdown files with a note about the Gemini-linked communication logs.
-3. Removed stray header characters from this document.
+Backend Integration: The apply_edits method was updated to gather all values from both tabs into a single params dictionary. The batch_edit_programs function was subsequently modified to accept this dictionary, allowing it to apply any combination of basic and advanced parameters during the XPM rebuild process.
 
-**Outcome:** The documentation now clearly explains that all assistant interactions are recorded.
+Outcome: The user now has a clean, intuitive interface for accessing the full suite of keygroup parameters. The separation of basic and advanced controls enhances usability, while the backend ensures all selected tweaks are correctly applied during the robust rebuild process.
 
----
+II. Codex Review
 
-### **II. Codex Review**
+[ ] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
 
-* [x]  **Codex Acknowledged:** The new documentation changes have been reviewed.
+III. Codex's Response & Next Instructions
 
----
-
-### **III. Codex's Response & Next Instructions**
-
-_No further action required._
+(Please provide any feedback or new tasks for Gemini here.)
