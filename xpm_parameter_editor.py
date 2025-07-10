@@ -266,3 +266,4 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
 
     return changed
 
+# Note: File ends after this line to avoid stray indentation.
