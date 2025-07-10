@@ -2301,10 +2301,15 @@ class App(tk.Tk):
             try:
                 result = process_func(folder, *args)
                 logging.info(f"Batch process '{process_func.__name__}' completed. {result or 0} item(s) affected.")
-                self.root.after(0, lambda: messagebox.showinfo("Done", f"Process complete. {result or 0} item(s) affected.", parent=self.root))
+                def show_success():
+                    messagebox.showinfo("Done", f"Process complete. {result or 0} item(s) affected.", parent=self.root)
+                self.root.after(0, show_success)
             except Exception as e:
-                logging.error(f"Error in batch process: {e}\n{traceback.format_exc()}")
-                self.root.after(0, lambda: messagebox.showerror("Error", f"Operation failed:\n{e}", parent=self.root))
+                error_msg = str(e)
+                logging.error(f"Error in batch process: {error_msg}\n{traceback.format_exc()}")
+                def show_error():
+                    messagebox.showerror("Error", f"Operation failed:\n{error_msg}", parent=self.root)
+                self.root.after(0, show_error)
             finally:
                 self.progress.stop()
                 self.progress.config(mode='determinate')
