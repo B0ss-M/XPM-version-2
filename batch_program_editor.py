@@ -2,6 +2,26 @@ import os
 import argparse
 import logging
 import xml.etree.ElementTree as ET
+
+def indent_tree(tree: ET.ElementTree, space: str = "  ") -> None:
+    """Indent an ElementTree for pretty printing."""
+    if hasattr(ET, "indent"):
+        ET.indent(tree, space=space)
+    else:
+        def _indent(elem: ET.Element, level: int = 0) -> None:
+            i = "\n" + level * space
+            if len(elem):
+                if not elem.text or not elem.text.strip():
+                    elem.text = i + space
+                for child in elem:
+                    _indent(child, level + 1)
+                if not child.tail or not child.tail.strip():  # type: ignore
+                    child.tail = i  # type: ignore
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+
+        _indent(tree.getroot())
+
 from xpm_parameter_editor import (
     set_layer_keytrack,
     set_volume_adsr,
@@ -63,7 +83,7 @@ def edit_program(
             changed = True
 
     if changed:
-        ET.indent(tree, space="  ")
+        indent_tree(tree)
         tree.write(file_path, encoding='utf-8', xml_declaration=True)
         logging.info("Updated %s", file_path)
 
