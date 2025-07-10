@@ -117,10 +117,20 @@ def get_pad_settings(firmware: str, engine_override: str | None = None):
         settings['universal_pad'] = adv['universal_pad']
         settings['engine'] = 'advanced'
     elif engine_override == 'legacy':
-        leg = PAD_SETTINGS['2.3.0.0']
-        settings['type'] = leg['type']
-        settings['universal_pad'] = leg['universal_pad']
-        settings['engine'] = 'legacy'
+        # Firmware 3.4+ always uses the advanced engine internally. To ensure
+        # the mod matrix and other parameters work correctly we keep the
+        # engine flag set to ``advanced`` even when the user selects a legacy
+        # style program.
+        if firmware in {'3.4.0', '3.5.0'}:
+            adv = PAD_SETTINGS['3.5.0']
+            settings['type'] = adv['type']
+            settings['universal_pad'] = adv['universal_pad']
+            settings['engine'] = 'advanced'
+        else:
+            leg = PAD_SETTINGS['2.3.0.0']
+            settings['type'] = leg['type']
+            settings['universal_pad'] = leg['universal_pad']
+            settings['engine'] = 'legacy'
 
     return settings
 
@@ -132,6 +142,10 @@ def get_program_parameters(
     engine = PAD_SETTINGS.get(firmware, PAD_SETTINGS['3.5.0']).get('engine')
     if engine_override in {'legacy', 'advanced'}:
         engine = engine_override
+        if engine_override == 'legacy' and firmware in {'3.4.0', '3.5.0'}:
+            # Even legacy programs on modern firmware require the advanced
+            # engine flag for full parameter support.
+            engine = 'advanced'
 
     if engine == 'advanced' and ADVANCED_PROGRAM_PARAMS:
         params = ADVANCED_PROGRAM_PARAMS.copy()
