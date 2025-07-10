@@ -8,12 +8,13 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 
 - `Gemini wav_TO_XpmV2.py` – main Tkinter GUI application for converting WAV files and managing expansions.
 - `batch_packager.py` – command-line tool to package each subfolder of a directory into its own expansion ZIP.
-- `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename and firmware version changes.
+- `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename, firmware version, and format changes.
   This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
-  The editor now provides a drop-down list of common **Application Version** values
-  and a **Browse...** button for selecting a Mod Matrix JSON file. The matrix file
-  should be a `.json` list where each entry contains a `Num` value and the desired
-  parameters for that modulation slot.
+  The editor includes drop-downs for **Application Version** and engine **Format**, a
+  checkbox for fixing sample note mappings, and a **Browse...** button for selecting a Mod Matrix JSON file.
+  The matrix file should be a `.json` list where each entry contains a `Num` value and the desired
+  parameters for that modulation slot. The command-line version exposes the same options via
+  `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments.
 
 ### New in this update
 - Batch Program Fixer rebuild option now includes firmware and format selectors. You

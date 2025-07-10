@@ -9,6 +9,7 @@ from xpm_parameter_editor import (
     apply_mod_matrix,
     set_engine_mode,
     set_application_version,
+    fix_sample_notes,
 )
 
 
@@ -23,6 +24,7 @@ def edit_program(
     sustain: float | None,
     release: float | None,
     mod_matrix: dict | None,
+    fix_notes: bool = False,
 ):
     """Edit a single XPM program in-place."""
     tree = ET.parse(file_path)
@@ -56,6 +58,10 @@ def edit_program(
         if apply_mod_matrix(root, mod_matrix):
             changed = True
 
+    if fix_notes:
+        if fix_sample_notes(root, os.path.dirname(file_path)):
+            changed = True
+
     if changed:
         ET.indent(tree, space="  ")
         tree.write(file_path, encoding='utf-8', xml_declaration=True)
@@ -73,6 +79,7 @@ def process_folder(
     sustain: float | None,
     release: float | None,
     mod_matrix: dict | None,
+    fix_notes: bool = False,
 ):
     for root_dir, _dirs, files in os.walk(folder):
         for file in files:
@@ -91,6 +98,7 @@ def process_folder(
                     sustain,
                     release,
                     mod_matrix,
+                    fix_notes,
                 )
             except Exception as exc:
                 logging.error("Failed to edit %s: %s", path, exc)
@@ -108,6 +116,7 @@ def main():
     parser.add_argument("--sustain", type=float, help="Set VolumeSustain value")
     parser.add_argument("--release", type=float, help="Set VolumeRelease value")
     parser.add_argument("--mod-matrix", dest="mod_matrix", help="JSON file with ModLink definitions")
+    parser.add_argument("--fix-notes", action="store_true", help="Adjust note mappings using sample names")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
 
@@ -119,6 +128,7 @@ def main():
         keytrack = args.keytrack == "on"
     mod_matrix = load_mod_matrix(args.mod_matrix) if args.mod_matrix else None
     fmt = args.format if args.format else None
+    fix_notes = args.fix_notes
 
     process_folder(
         args.folder,
@@ -131,6 +141,7 @@ def main():
         args.sustain,
         args.release,
         mod_matrix,
+        fix_notes,
     )
 
 
