@@ -18,7 +18,6 @@ from collections import defaultdict
 import struct
 import re
 import json
-import inspect
 import zipfile
 
 try:
@@ -37,7 +36,6 @@ try:
         set_engine_mode,
         set_application_version,
         fix_sample_notes,
-
         name_to_midi,
         infer_note_from_filename,
         extract_root_note_from_wav,
@@ -70,7 +68,6 @@ EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
 
 def indent_tree(tree, space="  "):
-    """Indent an ElementTree for pretty printing, safe for Python <3.9."""
     """Indent an ElementTree for pretty printing on all Python versions."""
     if hasattr(ET, "indent"):
         ET.indent(tree, space=space)
@@ -80,15 +77,12 @@ def indent_tree(tree, space="  "):
             if len(elem):
                 if not elem.text or not elem.text.strip():
                     elem.text = i + space
-
                 if not elem.tail or not elem.tail.strip():
                     elem.tail = i
                 for child in elem:
                     _indent(child, level + 1)
                     if not child.tail or not child.tail.strip():
                         child.tail = i + space
-                if not child.tail or not child.tail.strip():
-                    child.tail = i
                 if not elem[-1].tail or not elem[-1].tail.strip():
                     elem.tail = i
             elif level and (not elem.tail or not elem.tail.strip()):
@@ -453,14 +447,12 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 logging.error(f"Error updating {path}: {exc}")
 
         self.status.set(f"Updated {updated} XPM(s) to version {target_fw} ({target_fmt}). Rescanning...")
-
         target = self.master.firmware_version.get()
         fmt = self.format_var.get()
         updated = batch_edit_programs(
             folder,
             rename=False,
             version=target,
-            firmware_version=target,
             format_version=fmt,
         )
         self.status.set(
@@ -1004,42 +996,33 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.rename_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(frame, text="Rename ProgramName to file name", variable=self.rename_var).grid(row=0, column=0, columnspan=2, sticky="w")
 
-        ttk.Label(frame, text="Firmware:").grid(row=1, column=0, sticky="w", pady=(10,0))
-        self.firmware_var = tk.StringVar(value=self.master.firmware_version.get())
-        ttk.Combobox(frame, textvariable=self.firmware_var,
-                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'], state='readonly').grid(row=1, column=1, sticky="ew", pady=(10,0))
-
-        ttk.Label(frame, text="Application Version:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(10,0))
         self.version_var = tk.StringVar(value=self.master.firmware_version.get())
         versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
-        ttk.Combobox(frame, textvariable=self.version_var, values=versions, state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
+        ttk.Combobox(frame, textvariable=self.version_var, values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(10,0))
 
-        ttk.Label(frame, text="Format:").grid(row=3, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Format:").grid(row=2, column=0, sticky="w", pady=(10,0))
         self.format_var = tk.StringVar(value="advanced")
-<<<<<<< Updated upstream
-        ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=3, column=1, sticky="ew", pady=(10,0))
-=======
         ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
->>>>>>> Stashed changes
 
-        ttk.Label(frame, text="Creative Mode:").grid(row=4, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
         modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
         self.creative_combo = ttk.Combobox(frame, textvariable=self.creative_var, values=modes, state="readonly")
-        self.creative_combo.grid(row=4, column=1, sticky="ew", pady=(10,0))
+        self.creative_combo.grid(row=3, column=1, sticky="ew", pady=(10,0))
         self.creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
         self.creative_var.trace_add('write', lambda *a: self.toggle_config_btn())
 
         self.config_btn = ttk.Button(frame, text="Configure...", command=self.open_config, state='disabled')
-        self.config_btn.grid(row=5, column=1, sticky="e")
+        self.config_btn.grid(row=4, column=1, sticky="e")
 
-        ttk.Label(frame, text="KeyTrack:").grid(row=6, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="KeyTrack:").grid(row=5, column=0, sticky="w", pady=(10,0))
         self.keytrack_var = tk.StringVar(value="on")
-        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=6, column=1, sticky="ew", pady=(10,0))
+        ttk.Combobox(frame, textvariable=self.keytrack_var, values=["on","off"], state="readonly").grid(row=5, column=1, sticky="ew", pady=(10,0))
 
-        ttk.Label(frame, text="Volume ADSR:").grid(row=7, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Volume ADSR:").grid(row=6, column=0, sticky="w", pady=(10,0))
         adsr = ttk.Frame(frame)
-        adsr.grid(row=7, column=1, sticky="ew", pady=(10,0))
+        adsr.grid(row=6, column=1, sticky="ew", pady=(10,0))
         self.attack_var = tk.StringVar()
         self.decay_var = tk.StringVar()
         self.sustain_var = tk.StringVar()
@@ -1049,23 +1032,19 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Entry(adsr, width=4, textvariable=self.sustain_var).pack(side="left")
         ttk.Entry(adsr, width=4, textvariable=self.release_var).pack(side="left", padx=2)
 
-        ttk.Label(frame, text="Mod Matrix File:").grid(row=8, column=0, sticky="w", pady=(10,0))
+        ttk.Label(frame, text="Mod Matrix File:").grid(row=7, column=0, sticky="w", pady=(10,0))
         self.mod_matrix_var = tk.StringVar()
         mm_frame = ttk.Frame(frame)
-        mm_frame.grid(row=8, column=1, sticky="ew", pady=(10,0))
+        mm_frame.grid(row=7, column=1, sticky="ew", pady=(10,0))
         mm_frame.columnconfigure(0, weight=1)
         ttk.Entry(mm_frame, textvariable=self.mod_matrix_var).grid(row=0, column=0, sticky="ew")
         ttk.Button(mm_frame, text="Browse...", command=self.browse_mod_matrix).grid(row=0, column=1, padx=(5,0))
 
         self.fix_notes_var = tk.BooleanVar()
-        ttk.Checkbutton(frame, text="Fix sample notes", variable=self.fix_notes_var).grid(row=9, column=0, columnspan=2, sticky="w", pady=(10,0))
+        ttk.Checkbutton(frame, text="Fix sample notes", variable=self.fix_notes_var).grid(row=8, column=0, columnspan=2, sticky="w", pady=(10,0))
 
         btn_frame = ttk.Frame(frame)
-<<<<<<< Updated upstream
-        btn_frame.grid(row=10, column=0, columnspan=2, pady=(15,0), sticky="e")
-=======
         btn_frame.grid(row=9, column=0, columnspan=2, pady=(15,0), sticky="e")
->>>>>>> Stashed changes
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
 
@@ -1116,7 +1095,6 @@ class BatchProgramEditorWindow(tk.Toplevel):
             batch_edit_programs,
             self.rename_var.get(),
             self.version_var.get().strip() or None,
-            self.firmware_var.get(),
             self.format_var.get(),
             self.creative_var.get(),
             self.master.creative_config,
@@ -2317,27 +2295,17 @@ class App(tk.Tk):
             self.progress.config(mode='indeterminate')
             self.progress.start()
             try:
-                try:
-                    result = process_func(folder, *args)
-                except TypeError as e:
-                    param_count = len(inspect.signature(process_func).parameters)
-                    if 1 + len(args) > param_count:
-                        trimmed = args[: param_count - 1]
-                        result = process_func(folder, *trimmed)
-                    else:
-                        raise
-                logging.info(
-                    f"Batch process '{process_func.__name__}' completed. {result or 0} item(s) affected."
-                )
-                self.root.after(
-                    0,
-                    lambda: messagebox.showinfo(
-                        "Done", f"Process complete. {result or 0} item(s) affected.", parent=self.root
-                    ),
-                )
+                result = process_func(folder, *args)
+                logging.info(f"Batch process '{process_func.__name__}' completed. {result or 0} item(s) affected.")
+                def show_success():
+                    messagebox.showinfo("Done", f"Process complete. {result or 0} item(s) affected.", parent=self.root)
+                self.root.after(0, show_success)
             except Exception as e:
-                logging.error(f"Error in batch process: {e}\n{traceback.format_exc()}")
-                self.root.after(0, lambda: messagebox.showerror("Error", f"Operation failed:\n{e}", parent=self.root))
+                error_msg = str(e)
+                logging.error(f"Error in batch process: {error_msg}\n{traceback.format_exc()}")
+                def show_error():
+                    messagebox.showerror("Error", f"Operation failed:\n{error_msg}", parent=self.root)
+                self.root.after(0, show_error)
             finally:
                 self.progress.stop()
                 self.progress.config(mode='determinate')
@@ -2517,7 +2485,6 @@ def batch_edit_programs(
     folder_path,
     rename=False,
     version=None,
-    firmware_version='3.5.0',
     format_version=None,
     creative_mode='off',
     creative_config=None,
@@ -2538,7 +2505,6 @@ def batch_edit_programs(
     options = InstrumentOptions(
         creative_mode=creative_mode,
         creative_config=creative_config or {},
-        firmware_version=firmware_version,
         format_version=format_version if format_version else 'advanced'
     )
     builder = InstrumentBuilder(folder_path, None, options)
