@@ -29,6 +29,7 @@ try:
         apply_mod_matrix,
         set_engine_mode,
         set_application_version,
+        fix_sample_notes,
         name_to_midi,
         infer_note_from_filename,
         extract_root_note_from_wav,
@@ -888,7 +889,10 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Combobox(frame, textvariable=self.version_var, values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(10,0))
 
         ttk.Label(frame, text="Format:").grid(row=2, column=0, sticky="w", pady=(10,0))
+        self.format_var = tk.StringVar(value="advanced")
+        ttk.Combobox(frame, textvariable=self.format_var, values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
         ttk.Combobox(frame, textvariable=self.format_var, values=['legacy','advanced'], state="readonly").grid(row=2, column=1, sticky="ew", pady=(10,0))
+        main
 
         ttk.Label(frame, text="Creative Mode:").grid(row=3, column=0, sticky="w", pady=(10,0))
         self.creative_var = tk.StringVar(value="off")
@@ -925,7 +929,11 @@ class BatchProgramEditorWindow(tk.Toplevel):
         ttk.Entry(mm_frame, textvariable=self.mod_matrix_var).grid(row=0, column=0, sticky="ew")
         ttk.Button(mm_frame, text="Browse...", command=self.browse_mod_matrix).grid(row=0, column=1, padx=(5,0))
 
+        self.fix_notes_var = tk.BooleanVar()
+        ttk.Checkbutton(frame, text="Fix sample notes", variable=self.fix_notes_var).grid(row=8, column=0, columnspan=2, sticky="w", pady=(10,0))
+
         btn_frame = ttk.Frame(frame)
+        btn_frame.grid(row=9, column=0, columnspan=2, pady=(15,0), sticky="e")
         btn_frame.grid(row=8, column=0, columnspan=2, pady=(15,0), sticky="e")
         ttk.Button(btn_frame, text="Apply", command=self.apply_edits).pack(side="right")
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(5,0))
@@ -977,6 +985,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
             batch_edit_programs,
             self.rename_var.get(),
             self.version_var.get().strip() or None,
+            self.format_var.get(),
             self.format_var.get().strip() or None,
             self.creative_var.get(),
             self.master.creative_config,
@@ -986,6 +995,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
             sustain,
             release,
             self.mod_matrix_var.get().strip() or None,
+            self.fix_notes_var.get(),
         )
         self.destroy()
 
@@ -2370,6 +2380,7 @@ def batch_edit_programs(
     sustain=None,
     release=None,
     mod_matrix_file=None,
+    fix_notes=False,
 ):
     """Batch edit XPM files with optional renaming, version, and engine updates."""
     edited = 0
@@ -2432,6 +2443,10 @@ def batch_edit_programs(
 
                 if matrix:
                     if apply_mod_matrix(root, matrix):
+                        changed = True
+
+                if fix_notes:
+                    if fix_sample_notes(root, os.path.dirname(path)):
                         changed = True
 
                 if changed:
