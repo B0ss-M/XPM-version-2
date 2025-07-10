@@ -460,8 +460,6 @@ class ExpansionDoctorWindow(tk.Toplevel):
             rename=False,
             version=target,
             firmware_version=target,
-        )
-        self.status.set(f"Updated {updated} XPM(s) to version {target}. Rescanning...")
             format_version=fmt,
         )
         self.status.set(
