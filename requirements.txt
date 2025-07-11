@@ -1,5 +1,18 @@
-# This project uses only the Python standard library.
+# Required packages for XPM-version-2
 # Ensure your Python distribution includes Tkinter support.
-Pillow
-numpy
-soundfile
+
+# Image processing
+Pillow>=10.0.0
+
+# Audio processing
+numpy>=1.24.0
+soundfile>=0.12.0
+librosa>=0.10.0
+scipy>=1.10.0
+
+# XML processing
+lxml>=4.9.0
+
+# Development tools (optional)
+pytest>=7.0.0  # For running tests
+black>=22.0.0  # For code formatting
