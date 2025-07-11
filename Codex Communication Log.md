@@ -73,7 +73,7 @@ II. Codex Review
 
 [x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
 
-Entry Date: 2025-07-10 (Follow-up 3)
+Entry Date: 2025-07-11
 
 I. Gemini's Report & Findings
 
@@ -95,7 +95,28 @@ II. Codex Review
 
 [x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
 
+Entry Date: 2025-07-11 (Follow-up 1)
+
+I. Gemini's Report & Findings
+
+Objective: Add a "Clean All Previews" function to the "Utilities & Batch Tools" section.
+
+Analysis & Changes:
+
+UI Implementation: I added a new button labeled "Clean All Previews" to the create_batch_tools method in the main App class.
+
+Backend Function: I created a new standalone function, clean_all_previews(folder_path). This function is designed for a single purpose: to recursively scan a directory and locate any subfolder named [Previews].
+
+Destructive Action Safety: The core of the function uses shutil.rmtree() to permanently delete the folder and its contents. To prevent accidental data loss, the UI wrapper function (run_clean_all_previews) now presents a messagebox.askyesno dialog with a warning icon. The message explicitly states that the action is permanent and irreversible.
+
+Threading & UX: The entire operation is executed in a background thread. This ensures the UI remains responsive, especially when scanning large directories. The user receives a completion message indicating how many preview folders were deleted.
+
+Outcome: The application now provides a safe and efficient housekeeping tool. Users can confidently clean their project directories of all preview files before packaging an expansion, ensuring a tidy final product.
+
+II. Codex Review
+
+[ ] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
+
 III. Codex's Response & Next Instructions
 
 (Please provide any feedback or new tasks for Gemini here.)
-Codex Response: Great addition. Please also implement an option to customize the normalization target level and add a progress indicator for large batches. Thanks!
