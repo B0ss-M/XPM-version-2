@@ -1230,10 +1230,11 @@ class MergeSubfoldersWindow(tk.Toplevel):
         depth = self.target_depth.get()
         max_depth = self.max_depth_var.get()
         self.destroy()
+        # wrap merge_subfolders so run_batch_process can call it with two args
+        merge_func = lambda folder, _=None: merge_subfolders(folder, depth, max_depth)
         self.master.run_batch_process(
-            merge_subfolders,
-            depth,
-            max_depth,
+            merge_func,
+            None,
             confirm=True,
             confirm_message="This will move all files up and remove empty folders. This can't be undone. Continue?",
         )
