@@ -12,6 +12,10 @@ This folder contains supplementary documentation for using the XPM tools.
 
 When updating the code, confirm that any function signature changes are reflected in every file that calls that function. Refer to the [Development Notes](../README.md#development-notes) for more details.
 
+- The helper function `_parse_xpm_for_rebuild()` is now the single entry point
+  for parsing both modern and legacy `.xpm` files. Use it whenever sample
+  mappings or instrument parameters are required for a rebuild.
+
 ### Communication Logs
 
 All interactions with the Gemini assistant are archived in the repository:
