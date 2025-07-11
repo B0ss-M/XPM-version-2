@@ -167,11 +167,10 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         # Instantiate the main builder class
         builder = self.builder_class(self.folder_path, self.master, options=options)
 
-        # Run the creation process in a separate thread
+        # Run the creation process in a separate thread, passing the grouped files
+        # The main create_instruments method will now iterate through these groups
         threading.Thread(
             target=builder.create_instruments,
-            args=(self.mode,),
-            kwargs={'files': programs_to_build}, # Pass the user-defined groups
+            args=(self.mode, programs_to_build),
             daemon=True
         ).start()
-

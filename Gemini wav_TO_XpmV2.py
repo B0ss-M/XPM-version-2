@@ -56,7 +56,7 @@ except ImportError as e:
 
 
 # --- Application Configuration ---
-APP_VERSION = "23.6" # Final version with parameter preservation
+APP_VERSION = "23.7" # Final Stable Release
 
 # --- Global Constants ---
 MPC_BEIGE = '#EAE6DA'
@@ -1885,7 +1885,7 @@ class InstrumentBuilder:
         
         return sorted_samples
 
-    def create_instruments(self, mode='multi-sample', files=None, program_name_override=None):
+    def create_instruments(self, mode='multi-sample', files=None):
         logging.info("create_instruments starting with mode %s", mode)
         if not self.validate_options():
             return
@@ -1893,9 +1893,11 @@ class InstrumentBuilder:
         created_xpms, created_count, error_count = [], 0, 0
         try:
             self.app.status_text.set("Analyzing files...")
-
-            if files is not None and program_name_override is not None:
-                 instrument_groups = {program_name_override: files}
+            
+            # If files are passed directly (from MultiSampleBuilderWindow), use them.
+            # Otherwise, group files from the main folder path.
+            if files:
+                instrument_groups = files
             elif mode == 'drum-kit':
                 instrument_groups = group_similar_files(self.folder_path) if IMPORTS_SUCCESSFUL else {}
             else:
@@ -2961,8 +2963,16 @@ def _parse_xpm_for_rebuild(xpm_path):
     logging.info(f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}.")
     for inst_elem in root.findall('.//Instrument'):
         try:
-            low_note = int(inst_elem.find('LowNote').text)
-            high_note = int(inst_elem.find('HighNote').text)
+            low_note_elem = inst_elem.find('LowNote')
+            high_note_elem = inst_elem.find('HighNote')
+            
+            # FIX: Check if essential elements exist before proceeding
+            if low_note_elem is None or high_note_elem is None:
+                logging.warning(f"Skipping Instrument element in {os.path.basename(xpm_path)} due to missing LowNote/HighNote tags.")
+                continue
+
+            low_note = int(low_note_elem.text)
+            high_note = int(high_note_elem.text)
 
             for layer in inst_elem.findall('.//Layer'):
                 sample_file_elem = layer.find('SampleFile')
@@ -2988,13 +2998,15 @@ def _parse_xpm_for_rebuild(xpm_path):
                     'velocity_high': int(layer_params.get('VelEnd', 127)),
                     'layer_params': layer_params # Store all preserved params
                 })
-        except (AttributeError, ValueError) as e:
+        except (AttributeError, ValueError, TypeError) as e:
             logging.warning(f"Skipping malformed Instrument element in {os.path.basename(xpm_path)}: {e}")
             continue
 
-    if mappings:
-         logging.info(f"Successfully parsed {len(mappings)} samples from legacy structure in {os.path.basename(xpm_path)}")
+    if not mappings:
+        logging.warning(f"No valid sample mappings could be parsed from {os.path.basename(xpm_path)}")
+        return None, None # Explicitly return None on failure
 
+    logging.info(f"Successfully parsed {len(mappings)} samples from {os.path.basename(xpm_path)}")
     return mappings, instrument_params
 
 
