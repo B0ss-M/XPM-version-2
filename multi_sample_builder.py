@@ -389,17 +389,22 @@ class MultiSampleBuilderWindow(tk.Toplevel):
             for name, files in self.groups.items():
                 logging.info("Building group '%s' with %d file(s)", name, len(files))
                 mappings = []
+                root_notes = []
+                explicit_range = False
                 for f in files:
                     _, mapping = parse_filename_mapping(f)
                     if mapping is None:
                         mappings = None
                         break
+                    if mapping.get("low_note") != mapping.get("high_note"):
+                        explicit_range = True
+                    root_notes.append(mapping.get("root_note"))
                     mapping['sample_path'] = os.path.join(self.master.folder_path.get(), f)
                     mappings.append(mapping)
                 output_folder = os.path.dirname(
                     os.path.join(self.master.folder_path.get(), files[0])
                 )
-                if mappings:
+                if mappings and explicit_range:
                     builder._create_xpm(
                         name,
                         files,
@@ -408,8 +413,8 @@ class MultiSampleBuilderWindow(tk.Toplevel):
                         mappings=mappings,
                     )
                 else:
-                    notes = None
-                    if mode_var.get() != "one-shot":
+                    notes = root_notes if mappings else None
+                    if notes is None and mode_var.get() != "one-shot":
                         notes = self.generate_notes(len(files), map_mode)
                     builder._create_xpm(
                         name,
