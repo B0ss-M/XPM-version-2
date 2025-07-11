@@ -2130,7 +2130,7 @@ class InstrumentBuilder:
                 'is_valid': True,
                 'path': sample_path,
                 'frames': frames,
-                'root_note': extract_root_note_from_wav(sample_path),
+                'root_note': extract_root_note_from_wav(sample_path) or infer_note_from_filename(sample_path),
                 'is_scw': is_scw
             }
         except Exception as e:

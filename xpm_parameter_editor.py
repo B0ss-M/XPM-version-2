@@ -11,6 +11,8 @@ import xml.etree.ElementTree as ET
 from typing import Dict, Optional
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
+from audio_pitch import detect_fundamental_pitch
+
 
 def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
     """Update ``elem.text`` if ``value`` differs.
@@ -193,7 +195,11 @@ def infer_note_from_filename(filename: str) -> Optional[int]:
 
 
 def extract_root_note_from_wav(filepath: str) -> Optional[int]:
-    """Return the MIDI root note from the WAV ``smpl`` chunk if present."""
+    """Return the MIDI root note from a WAV file.
+
+    If the ``smpl`` chunk is missing, a short segment of the audio is
+    analyzed to estimate the pitch.
+    """
 
     try:
         with open(filepath, 'rb') as f:
@@ -205,7 +211,8 @@ def extract_root_note_from_wav(filepath: str) -> Optional[int]:
                 return note
     except Exception as exc:
         logging.error("Could not extract root note from WAV %s: %s", filepath, exc)
-    return None
+
+    return detect_fundamental_pitch(filepath)
 
 
 def fix_sample_notes(root: ET.Element, folder: str) -> bool:

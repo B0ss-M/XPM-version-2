@@ -38,6 +38,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - Multi-sample builder prompts for Drum Program or Instrument Keygroup when building.
 - Expansion Builder resizes uploaded artwork to 600x600 if Pillow is installed.
 - Expansion Doctor can rewrite programs to any firmware version and legacy or advanced format.
+- Unknown samples without note metadata are now analyzed to detect their pitch automatically.
 
 ## Installation
 
@@ -45,6 +46,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
    ```bash
    pip install -r requirements.txt
    ```
+   The package list includes **soundfile** and **numpy** which are required for automatic pitch detection.
 2. Launch the GUI:
    ```bash
     python "Gemini wav_TO_XpmV2.py"

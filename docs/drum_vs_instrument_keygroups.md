@@ -147,6 +147,7 @@ Each sample occupies its own keygroup. The `Number` tag should match the keygrou
 ## 6. Automatic Mapping Repairs
 
 The `batch_program_editor.py` tool offers a `--verify-map` mode. When enabled it searches each program's folder for audio files that are not referenced in the XPM. Any extras are assigned to new keygroups automatically. The target note is guessed from the file name (e.g., `Piano_C3.wav` → MIDI 60) or extracted from WAV metadata if present.
+If no metadata is found, the tools now analyze the sample itself to detect its fundamental pitch automatically.
 
 ---
 
