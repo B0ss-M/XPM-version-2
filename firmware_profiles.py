@@ -157,3 +157,6 @@ def get_program_parameters(
         params.pop(key, None)
 
     return params
+
+# Provide backward compatibility alias for fw_program_parameters
+fw_program_parameters = get_program_parameters
