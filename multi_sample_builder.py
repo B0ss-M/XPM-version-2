@@ -4,7 +4,13 @@ import logging
 import re
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
-from xpm_parameter_editor import name_to_midi
+from xpm_parameter_editor import name_to_midi, extract_root_note_from_wav
+
+NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+def midi_to_name(num: int) -> str:
+    """Convert a MIDI note number to a name like ``C4``."""
+    return NOTE_NAMES[num % 12] + str(num // 12 - 1)
 
 AUDIO_EXTS = ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')
 
@@ -92,6 +98,8 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         left_btns.pack(fill="x", pady=5)
         ttk.Button(left_btns, text="Auto Group Prefix", command=self.auto_group).pack(side="left")
         ttk.Button(left_btns, text="Auto Group Folders", command=self.auto_group_folders).pack(side="left", padx=(5,0))
+        ttk.Button(left_btns, text="Group Selected", command=self.group_selected_prefix).pack(side="left", padx=(5,0))
+        ttk.Button(left_btns, text="Detect Root Note", command=self.detect_root_note).pack(side="left", padx=(5,0))
         ttk.Button(left_btns, text="Add to Group →", command=self.add_selected).pack(side="right")
 
         right = ttk.Frame(main)
@@ -103,6 +111,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         self.group_combo.pack(side="left", fill="x", expand=True)
         self.group_combo.bind("<<ComboboxSelected>>", self.refresh_group_files)
         ttk.Button(top, text="Add Group", command=self.add_group).pack(side="left", padx=5)
+        ttk.Button(top, text="Rename Group", command=self.rename_group).pack(side="left")
         ttk.Button(top, text="Remove Group", command=self.remove_group).pack(side="left")
 
         ttk.Label(right, text="Files in Group:").pack(anchor="w", pady=(5,0))
@@ -166,15 +175,26 @@ class MultiSampleBuilderWindow(tk.Toplevel):
             self.group_var.set('')
             self.refresh_file_list()
 
+    def rename_group(self):
+        grp = self.group_var.get()
+        if grp not in self.groups:
+            return
+        new_name = simpledialog.askstring("Rename Group", "Enter new name:", parent=self, initialvalue=grp)
+        if new_name and new_name not in self.groups:
+            self.groups[new_name] = self.groups.pop(grp)
+            self.group_var.set(new_name)
+            self.refresh_group_combo()
+
     def add_selected(self):
         grp = self.group_var.get()
         if grp not in self.groups:
             messagebox.showwarning("No Group", "Please select or create a group first.", parent=self)
             return
-        indices = list(self.file_list.curselection())
-        for i in reversed(indices):
-            f = self.unassigned.pop(i)
-            self.groups[grp].append(f)
+        selections = [self.file_list.get(i) for i in self.file_list.curselection()]
+        for fname in selections:
+            if fname in self.unassigned:
+                self.unassigned.remove(fname)
+                self.groups[grp].append(fname)
         self.refresh_file_list()
         self.refresh_group_files()
 
@@ -197,6 +217,27 @@ class MultiSampleBuilderWindow(tk.Toplevel):
             self.groups.setdefault(group_name, []).append(f)
             self.unassigned.remove(f)
         self.refresh_file_list()
+
+    def group_selected_prefix(self):
+        """Create a new group from the selected files using the prefix before ``_``."""
+        selections = [self.file_list.get(i) for i in self.file_list.curselection()]
+        if not selections:
+            return
+        prefix = os.path.basename(selections[0]).split('_')[0]
+        name = prefix or 'Group'
+        counter = 1
+        base_name = name
+        while name in self.groups:
+            counter += 1
+            name = f"{base_name}_{counter}"
+        self.groups[name] = []
+        self.group_var.set(name)
+        for fname in selections:
+            if fname in self.unassigned:
+                self.unassigned.remove(fname)
+                self.groups[name].append(fname)
+        self.refresh_file_list()
+        self.refresh_group_files()
 
     def auto_group_folders(self):
         """Preview and group unassigned samples by their parent folders."""
@@ -231,6 +272,33 @@ class MultiSampleBuilderWindow(tk.Toplevel):
 
         ttk.Button(btns, text="Group", command=do_group).pack(side="right")
         ttk.Button(btns, text="Cancel", command=preview.destroy).pack(side="right", padx=(0,5))
+
+    def detect_root_note(self):
+        """Analyze selected files and append detected root note to their names."""
+        selections = [self.file_list.get(i) for i in self.file_list.curselection()]
+        if not selections:
+            return
+        folder = self.master.folder_path.get()
+        for rel in selections:
+            path = os.path.join(folder, rel)
+            note = extract_root_note_from_wav(path)
+            if note is None:
+                continue
+            base, ext = os.path.splitext(os.path.basename(path))
+            if re.search(r'_[A-G][#b]?\d+$', base, re.IGNORECASE):
+                continue
+            note_name = midi_to_name(note)
+            new_base = f"{base}_{note_name}"
+            new_path = os.path.join(os.path.dirname(path), new_base + ext)
+            try:
+                os.rename(path, new_path)
+            except Exception as exc:
+                logging.error("Rename failed for %s: %s", path, exc)
+                continue
+            new_rel = os.path.relpath(new_path, folder)
+            idx = self.unassigned.index(rel)
+            self.unassigned[idx] = new_rel
+        self.refresh_file_list()
 
     def generate_notes(self, count, mode):
         notes, note = [], 60
