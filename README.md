@@ -15,7 +15,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
   The matrix file should be a `.json` list where each entry contains a `Num` value and the desired
   parameters for that modulation slot.
   parameters for that modulation slot. The command-line version exposes the same options via
-  `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments.
+  `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments. The `--verify-map` option can also rebuild programs when extra WAV files are found, assigning them to new keygroups based on their filenames.
 - `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename, firmware, and format changes.
   This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
   The editor now provides drop-down selectors for **Application Version** and **Format**

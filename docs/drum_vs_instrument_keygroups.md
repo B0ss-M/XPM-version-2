@@ -9,7 +9,7 @@ This document explains the fundamental differences between **drum keygroups** an
 
 - **Drum Keygroup**: A collection of independent samples, each assigned to a single MIDI key with a defined velocity layer or range. There is no cross-key interpolation; each sample triggers only on its assigned key (or velocity sub-range).
 
-- **Instrument Keygroup**: A set of samples spread across a contiguous key range (e.g., piano: C2–C6). Samples are mapped so that neighboring notes interpolate or crossfade, simulating continuous pitch and timbre changes.
+- **Instrument Keygroup**: A multi-sampled instrument built from a series of individual keygroups. Each source sample lives in its own keygroup with its own note range. Layers are reserved only for velocity switching, **not** for mapping additional notes.
 
 ---
 
@@ -17,9 +17,9 @@ This document explains the fundamental differences between **drum keygroups** an
 
 | Parameter         | Drum Keygroup                                     | Instrument Keygroup                                      |
 |-------------------|---------------------------------------------------|----------------------------------------------------------|
-| `note_low`        | Fixed value (e.g., 36 for kick)                   | Bottom of key range (e.g., 48 for C3)                    |
-| `note_high`       | Same as `note_low`                                | Top of key range (e.g., 72 for C6)                       |
-| `sample_file`     | Single file per key (e.g., `kick.wav`)            | Multiple files across range (e.g., `piano_C3.wav`, etc.)|
+| `note_low`        | Fixed value (e.g., 36 for kick)                   | Start of the keygroup's zone (e.g., 48 for C2 sample)    |
+| `note_high`       | Same as `note_low`                                | End of the keygroup's zone (e.g., 59 for C2 sample)      |
+| `sample_file`     | Single file per key (e.g., `kick.wav`)            | One file per keygroup (e.g., `piano_C2.wav`)             |
 | `transpose`       | Usually `0`                                       | May vary per sample to align root note                  |
 | `velocity_low`    | Defines bottom of velocity layer                  | Often `1` for full-range instruments                     |
 | `velocity_high`   | Defines top of velocity layer                     | Often `127`                                             |
@@ -54,33 +54,45 @@ This document explains the fundamental differences between **drum keygroups** an
 
 ### 3.2 Instrument Keygroup Example
 
+Each sample occupies its own keygroup. The `Number` tag should match the keygroup's order in the program.
+
 ```xml
 <KeyGroup>
-  <Name>Piano C3–C6</Name>
-  <NoteLow>48</NoteLow>
-  <NoteHigh>72</NoteHigh>
+  <Number>1</Number>
+  <Name>Piano_C2</Name>
+  <NoteLow>36</NoteLow>
+  <NoteHigh>47</NoteHigh>
   <VelLow>1</VelLow>
   <VelHigh>127</VelHigh>
   <LoopMode>forward_loop</LoopMode>
-  <LoopStart>44100</LoopStart>
-  <LoopEnd>176400</LoopEnd>
-  <SampleMappings>
-    <Sample>
-      <File>Piano_C3.wav</File>
-      <RootKey>48</RootKey>
-    </Sample>
-    <Sample>
-      <File>Piano_C4.wav</File>
-      <RootKey>60</RootKey>
-    </Sample>
-    <!-- more mappings -->
-  </SampleMappings>
+  <Layers>
+    <Layer number="1">
+      <SampleFile>Piano_C2.wav</SampleFile>
+      <RootNote>36</RootNote>
+    </Layer>
+  </Layers>
+</KeyGroup>
+
+<KeyGroup>
+  <Number>2</Number>
+  <Name>Piano_C3</Name>
+  <NoteLow>48</NoteLow>
+  <NoteHigh>59</NoteHigh>
+  <VelLow>1</VelLow>
+  <VelHigh>127</VelHigh>
+  <LoopMode>forward_loop</LoopMode>
+  <Layers>
+    <Layer number="1">
+      <SampleFile>Piano_C3.wav</SampleFile>
+      <RootNote>48</RootNote>
+    </Layer>
+  </Layers>
 </KeyGroup>
 ```
 
-- **Range**: C3 (48) to C6 (72).
-- **Looping**: Sustain loop defined by frame indices.
-- **Multiple Samples**: Crossfaded by root-key distances.
+- **Zones**: Each keygroup defines its own `NoteLow`/`NoteHigh` range.
+- **Looping**: Optional sustain loops per keygroup.
+- **Layers**: Additional layers are used only for velocity splits.
 
 ---
 
@@ -122,13 +134,19 @@ This document explains the fundamental differences between **drum keygroups** an
 
 | Field          | Drum Kit Value             | Instrument Kit Value        |
 |----------------|----------------------------|-----------------------------|
-| `NoteLow`      | Single MIDI note (e.g.,36) | Start of range (e.g.,48)    |
-| `NoteHigh`     | Same as `NoteLow`          | End of range (e.g.,72)      |
+| `NoteLow`      | Single MIDI note (e.g.,36) | Zone start for that sample  |
+| `NoteHigh`     | Same as `NoteLow`          | Zone end for that sample    |
 | `VelLow`       | 1 (or layer-specific)      | 1                           |
 | `VelHigh`      | 127 (or layer-specific)    | 127                         |
 | `LoopMode`     | `one_shot`                 | `forward_loop` or `none`    |
 | `LoopStart/End`| N/A                        | Required for sustain loops  |
-| `Samples`      | One per key (or layer)     | Many across range           |
+| `Samples`      | One per key (or layer)     | One per keygroup; consecutive keygroups cover the range |
+
+---
+
+## 6. Automatic Mapping Repairs
+
+The `batch_program_editor.py` tool offers a `--verify-map` mode. When enabled it searches each program's folder for audio files that are not referenced in the XPM. Any extras are assigned to new keygroups automatically. The target note is guessed from the file name (e.g., `Piano_C3.wav` → MIDI 60) or extracted from WAV metadata if present.
 
 ---
 
