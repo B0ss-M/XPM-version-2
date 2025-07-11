@@ -27,6 +27,21 @@ def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
     return False
 
 
+def find_program_pads(root: ET.Element) -> Optional[ET.Element]:
+    """Return the ProgramPads element regardless of version."""
+
+    pads_elem = root.find('.//ProgramPads-v2.10')
+    if pads_elem is None:
+        pads_elem = root.find('.//ProgramPads')
+    if pads_elem is not None:
+        return pads_elem
+
+    for elem in root.iter():
+        tag = getattr(elem, 'tag', '')
+        if isinstance(tag, str) and tag.startswith('ProgramPads-v'):
+            return elem
+    return None
+
 def set_layer_keytrack(root: ET.Element, keytrack: bool) -> bool:
     """Enable or disable KeyTrack on all ``Layer`` elements."""
 
@@ -116,7 +131,7 @@ def set_engine_mode(root: ET.Element, mode: str) -> bool:
 
     changed = False
 
-    pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+    pads_elem = find_program_pads(root)
     if pads_elem is not None and pads_elem.text:
         try:
             data = json.loads(xml_unescape(pads_elem.text))
@@ -222,7 +237,7 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
 
     changed = False
 
-    pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+    pads_elem = find_program_pads(root)
     if pads_elem is not None and pads_elem.text:
         try:
             data = json.loads(xml_unescape(pads_elem.text))

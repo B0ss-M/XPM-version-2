@@ -36,6 +36,7 @@ try:
         set_engine_mode,
         set_application_version,
         fix_sample_notes,
+        find_program_pads,
         name_to_midi,
         infer_note_from_filename,
         extract_root_note_from_wav,
@@ -166,9 +167,7 @@ def validate_xpm_file(xpm_path, expected_samples):
         root = ET.fromstring(xml_text)
 
         # Check for modern ProgramPads section
-        pads_elem = root.find('.//ProgramPads-v2.10')
-        if pads_elem is None:
-            pads_elem = root.find('.//ProgramPads')
+        pads_elem = find_program_pads(root)
         if pads_elem is not None and pads_elem.text:
             # If it exists, validate its contents
             json_text = xml_unescape(pads_elem.text)
@@ -262,9 +261,7 @@ def parse_xpm_samples(xpm_path):
         tree = ET.parse(xpm_path)
         root = tree.getroot()
 
-        pads_elem = root.find('.//ProgramPads-v2.10')
-        if pads_elem is None:
-            pads_elem = root.find('.//ProgramPads')
+        pads_elem = find_program_pads(root)
         if pads_elem is not None and pads_elem.text:
             try:
                 data = json.loads(xml_unescape(pads_elem.text))
@@ -544,9 +541,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 keygroup_mode.text = val
                 changed = True
 
-        pads_elem = program.find('ProgramPads-v2.10')
-        if pads_elem is None:
-            pads_elem = program.find('ProgramPads')
+        pads_elem = find_program_pads(program)
         if pads_elem is not None and pads_elem.text:
             try:
                 data = json.loads(xml_unescape(pads_elem.text))
@@ -1656,9 +1651,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                     inst_params[child.tag] = child.text or ''
 
         # Modern JSON-based format (v3.4+)
-        pads_elem = root.find('.//ProgramPads-v2.10')
-        if pads_elem is None:
-            pads_elem = root.find('.//ProgramPads')
+        pads_elem = find_program_pads(root)
         if pads_elem is not None and pads_elem.text:
             try:
                 data = json.loads(xml_unescape(pads_elem.text))
@@ -2121,9 +2114,7 @@ class InstrumentBuilder:
                 preview_sample_name = None
 
                 # Modern format check (JSON inside ProgramPads)
-                pads_elem = root.find('.//ProgramPads-v2.10')
-                if pads_elem is None:
-                    pads_elem = root.find('.//ProgramPads')
+                pads_elem = find_program_pads(root)
                 if pads_elem is not None and pads_elem.text:
                     pads_data = json.loads(xml_unescape(pads_elem.text))
                     pads = pads_data.get('pads', {})
@@ -2859,9 +2850,7 @@ def _parse_xpm_for_rebuild(xpm_path):
                 instrument_params[child.tag] = child.text
 
     # Try parsing modern JSON format first
-    pads_elem = root.find('.//ProgramPads-v2.10')
-    if pads_elem is None:
-        pads_elem = root.find('.//ProgramPads')
+    pads_elem = find_program_pads(root)
     if pads_elem is not None and pads_elem.text:
         try:
             data = json.loads(xml_unescape(pads_elem.text))
