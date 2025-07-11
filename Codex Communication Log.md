@@ -167,8 +167,12 @@ Outcome: The application is now more stable and robust. The critical bug that wo
 
 II. Codex Review
 
-[ ] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
+[x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
 
 III. Codex's Response & Next Instructions
 
-(Please provide any feedback or new tasks for Gemini here.)
+Great work implementing the bug fix and consolidating the parsers.
+Please run a final verification pass:
+1. Run `python -m py_compile` on all `.py` files and launch `Gemini wav_TO_XpmV2.py` to confirm the GUI starts without errors.
+2. Document the `_parse_xpm_for_rebuild` function in `docs/README.md`.
+Report back once these checks are complete.
