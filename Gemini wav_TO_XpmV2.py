@@ -256,7 +256,11 @@ def parse_xpm_samples(xpm_path):
 
         pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
         if pads_elem is not None and pads_elem.text:
-            data = json.loads(xml_unescape(pads_elem.text))
+            try:
+                data = json.loads(xml_unescape(pads_elem.text))
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON decode error in {xpm_path}: {e}")
+                data = {}
             pads = data.get('pads', {})
             for pad in pads.values():
                 if isinstance(pad, dict) and pad.get('samplePath'):
@@ -1538,7 +1542,11 @@ class BatchProgramFixerWindow(tk.Toplevel):
         mappings = []
         inst_params = {}
         xpm_dir = os.path.dirname(xpm_path)
-        tree = ET.parse(xpm_path)
+        try:
+            tree = ET.parse(xpm_path)
+        except ET.ParseError as e:
+            logging.error(f"XML parse error for {xpm_path}: {e}")
+            return mappings, inst_params
         root = tree.getroot()
 
         # Capture parameters from the first Instrument element so we can
@@ -1552,7 +1560,11 @@ class BatchProgramFixerWindow(tk.Toplevel):
         # Modern JSON-based format (v3.4+)
         pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
         if pads_elem is not None and pads_elem.text:
-            data = json.loads(xml_unescape(pads_elem.text))
+            try:
+                data = json.loads(xml_unescape(pads_elem.text))
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON decode error in {xpm_path}: {e}")
+                data = {}
             pads = data.get('pads', {})
             for pad_data in pads.values():
                 if isinstance(pad_data, dict) and pad_data.get('samplePath'):
