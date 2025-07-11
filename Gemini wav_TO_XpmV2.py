@@ -1582,18 +1582,28 @@ class BatchProgramFixerWindow(tk.Toplevel):
                     continue
 
                 extra_files = find_unreferenced_audio_files(xpm_path, sample_mappings)
-                for path in extra_files:
-                    midi = extract_root_note_from_wav(path) or infer_note_from_filename(path)
-                    if midi is None:
-                        midi = 60
-                    sample_mappings.append({
-                        'sample_path': path,
-                        'root_note': midi,
-                        'low_note': midi,
-                        'high_note': midi,
-                        'velocity_low': 0,
-                        'velocity_high': 127,
-                    })
+                if extra_files and self._ask_yesno_safe(
+                    "Include Unreferenced Samples?",
+                    (
+                        f"Found {len(extra_files)} additional audio file(s) in the folder for "
+                        f"{os.path.basename(xpm_path)} that are not referenced.\n"
+                        "Include these samples when rebuilding?"
+                    ),
+                ):
+                    for path in extra_files:
+                        midi = extract_root_note_from_wav(path) or infer_note_from_filename(path)
+                        if midi is None:
+                            midi = 60
+                        sample_mappings.append(
+                            {
+                                'sample_path': path,
+                                'root_note': midi,
+                                'low_note': midi,
+                                'high_note': midi,
+                                'velocity_low': 0,
+                                'velocity_high': 127,
+                            }
+                        )
 
                 program_name = os.path.splitext(os.path.basename(xpm_path))[0]
                 output_folder = os.path.dirname(xpm_path)
