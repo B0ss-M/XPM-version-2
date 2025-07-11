@@ -96,11 +96,21 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         vsb_left.pack(side="right", fill="y")
         left_btns = ttk.Frame(left)
         left_btns.pack(fill="x", pady=5)
-        ttk.Button(left_btns, text="Auto Group Prefix", command=self.auto_group).pack(side="left")
-        ttk.Button(left_btns, text="Auto Group Folders", command=self.auto_group_folders).pack(side="left", padx=(5,0))
-        ttk.Button(left_btns, text="Group Selected", command=self.group_selected_prefix).pack(side="left", padx=(5,0))
-        ttk.Button(left_btns, text="Detect Root Note", command=self.detect_root_note).pack(side="left", padx=(5,0))
-        ttk.Button(left_btns, text="Add to Group →", command=self.add_selected).pack(side="right")
+
+        btn_ag_prefix = ttk.Button(left_btns, text="Auto Group Prefix", command=self.auto_group)
+        btn_ag_folders = ttk.Button(left_btns, text="Auto Group Folders", command=self.auto_group_folders)
+        btn_group_sel = ttk.Button(left_btns, text="Group Selected", command=self.group_selected_prefix)
+        btn_detect_note = ttk.Button(left_btns, text="Detect Root Note", command=self.detect_root_note)
+        btn_add_group = ttk.Button(left_btns, text="Add to Group →", command=self.add_selected)
+
+        btn_ag_prefix.grid(row=0, column=0, sticky="w")
+        btn_ag_folders.grid(row=0, column=1, padx=(5, 0), sticky="w")
+        btn_group_sel.grid(row=0, column=2, padx=(5, 0), sticky="w")
+        btn_detect_note.grid(row=1, column=0, columnspan=2, sticky="w", pady=(5, 0))
+        btn_add_group.grid(row=1, column=2, sticky="e", pady=(5, 0))
+
+        for i in range(3):
+            left_btns.grid_columnconfigure(i, weight=1)
 
         right = ttk.Frame(main)
         right.pack(side="left", fill="both", expand=True, padx=(10,0))

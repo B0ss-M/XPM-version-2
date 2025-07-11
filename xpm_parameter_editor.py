@@ -206,7 +206,9 @@ def extract_root_note_from_wav(filepath: str) -> Optional[int]:
             data = f.read()
         idx = data.find(b'smpl')
         if idx != -1 and idx + 36 <= len(data):
-            note = struct.unpack('<I', data[idx + 28:idx + 32])[0]
+            # The MIDI unity note is stored 20 bytes after the 'smpl' tag
+            # (after the 8-byte chunk header and three 32-bit fields).
+            note = struct.unpack('<I', data[idx + 20:idx + 24])[0]
             if 0 <= note <= 127:
                 return note
     except Exception as exc:
