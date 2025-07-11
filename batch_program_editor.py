@@ -37,6 +37,7 @@ from xpm_parameter_editor import (
     set_engine_mode,
     set_application_version,
     fix_sample_notes,
+    find_program_pads,
     infer_note_from_filename,
     extract_root_note_from_wav,
 )
@@ -99,7 +100,7 @@ def parse_any_xpm(xpm_path: str):
             if len(list(child)) == 0:
                 inst_params[child.tag] = child.text or ''
 
-    pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+    pads_elem = find_program_pads(root)
     if pads_elem is not None and pads_elem.text:
         try:
             data = json.loads(xml_unescape(pads_elem.text))

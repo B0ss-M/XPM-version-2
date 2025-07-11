@@ -55,7 +55,7 @@ def _load_advanced_params():
         return advanced
 
     for child in program:
-        if child.tag in {'ProgramName', 'ProgramPads-v2.10', 'Instruments', 'Version'}:
+        if child.tag in {'ProgramName', 'Instruments', 'Version'} or child.tag.startswith('ProgramPads'):
             continue
         if len(list(child)) == 0:
             advanced[child.tag] = child.text or ''
