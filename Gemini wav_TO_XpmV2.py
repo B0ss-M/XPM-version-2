@@ -69,6 +69,7 @@ EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
+    # Python 3.9+ provides ``xml.etree.ElementTree.indent``
     if hasattr(ET, "indent"):
         ET.indent(tree, space=space)
     else:
@@ -84,17 +85,16 @@ def indent_tree(tree, space="  "):
                     if not child.tail or not child.tail.strip():
                         child.tail = i + space
                 if not elem[-1].tail or not elem[-1].tail.strip():
-                    elem.tail = i
+                    elem[-1].tail = i
             elif level and (not elem.tail or not elem.tail.strip()):
                 elem.tail = i
+
         _indent(tree.getroot())
 
     # Ensure newline at end of file for consistency
     root = tree.getroot()
     if not (root.tail and root.tail.endswith("\n")):
         root.tail = "\n"
-
-        _indent(tree.getroot())
 
 #<editor-fold desc="Logging and Core Helpers">
 class TextHandler(logging.Handler):
