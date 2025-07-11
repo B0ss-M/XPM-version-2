@@ -25,6 +25,10 @@ def indent_tree(tree: ET.ElementTree, space: str = "  ") -> None:
 
         _indent(tree.getroot())
 
+    root = tree.getroot()
+    if not (root.tail and root.tail.endswith("\n")):
+        root.tail = "\n"
+
 from xpm_parameter_editor import (
     set_layer_keytrack,
     set_volume_adsr,
