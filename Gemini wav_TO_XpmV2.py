@@ -56,7 +56,7 @@ except ImportError as e:
 
 
 # --- Application Configuration ---
-APP_VERSION = "23.4" # Updated version
+APP_VERSION = "23.5" # Final version
 
 # --- Global Constants ---
 MPC_BEIGE = '#EAE6DA'
@@ -2551,14 +2551,24 @@ class App(tk.Tk):
         builder = InstrumentBuilder(folder, self, options=options)
         threading.Thread(target=builder.create_instruments, args=(mode,), daemon=True).start()
 
+    # RESTORED: Build buttons now open the MultiSampleBuilderWindow
     def build_multi_sample_instruments(self):
-        self.build_instruments('multi-sample')
+        if IMPORTS_SUCCESSFUL:
+            self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions, 'multi-sample')
+        else:
+            self.build_instruments('multi-sample')
 
     def build_one_shot_instruments(self):
-        self.build_instruments('one-shot')
+        if IMPORTS_SUCCESSFUL:
+            self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions, 'one-shot')
+        else:
+            self.build_instruments('one-shot')
 
     def build_drum_kit_instruments(self):
-        self.build_instruments('drum-kit')
+        if IMPORTS_SUCCESSFUL:
+            self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions, 'drum-kit')
+        else:
+            self.build_instruments('drum-kit')
 
     def run_batch_process(self, process_func, params_dict, confirm=False, confirm_message=""):
         folder = self.folder_path.get()
