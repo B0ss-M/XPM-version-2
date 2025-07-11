@@ -52,11 +52,12 @@ def parse_filename_mapping(filename):
 class MultiSampleBuilderWindow(tk.Toplevel):
     """Interactive tool for grouping samples and creating multi-sample instruments."""
 
-    def __init__(self, master, builder_cls, options_cls):
+    def __init__(self, master, builder_cls, options_cls, default_mode="multi-sample"):
         super().__init__(master.root)
         self.master = master
         self.builder_cls = builder_cls
         self.options_cls = options_cls
+        self.default_mode = default_mode
         self.title("Multi-Sample Instrument Builder")
         self.geometry("750x500")
         self.groups = {}
@@ -252,7 +253,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         popup = tk.Toplevel(self)
         popup.title("Select Build Mode")
 
-        mode_var = tk.StringVar(value="multi-sample")
+        mode_var = tk.StringVar(value=self.default_mode)
         ttk.Radiobutton(
             popup,
             text="Instrument Keygroup",
