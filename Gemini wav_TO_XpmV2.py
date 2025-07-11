@@ -70,7 +70,6 @@ EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
-    # Python 3.9+ provides ``xml.etree.ElementTree.indent``
     if hasattr(ET, "indent"):
         ET.indent(tree, space=space)
     else:
@@ -86,16 +85,11 @@ def indent_tree(tree, space="  "):
                     if not child.tail or not child.tail.strip():
                         child.tail = i + space
                 if not elem[-1].tail or not elem[-1].tail.strip():
-                    elem[-1].tail = i
+                    elem.tail = i
             elif level and (not elem.tail or not elem.tail.strip()):
                 elem.tail = i
 
         _indent(tree.getroot())
-
-    # Ensure newline at end of file for consistency
-    root = tree.getroot()
-    if not (root.tail and root.tail.endswith("\n")):
-        root.tail = "\n"
 
 #<editor-fold desc="Logging and Core Helpers">
 class TextHandler(logging.Handler):
@@ -437,48 +431,12 @@ class ExpansionDoctorWindow(tk.Toplevel):
             return
         target_fw = self.version_var.get()
         target_fmt = self.format_var.get()
-        updated = 0
-        for path in glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True):
-            try:
-                tree = ET.parse(path)
-                root = tree.getroot()
-                changed = False
-                ver_elem = root.find('.//Application_Version')
-                if ver_elem is None:
-                    version_node = root.find('Version')
-                    if version_node is None:
-                        version_node = ET.Element('Version')
-                        root.insert(0, version_node)
-                        ET.SubElement(version_node, 'File_Version').text = '2.1'
-                        ET.SubElement(version_node, 'Application').text = 'MPC-V'
-                        ET.SubElement(version_node, 'Platform').text = 'Linux'
-                    ver_elem = version_node.find('Application_Version')
-                    if ver_elem is None:
-                        ver_elem = ET.SubElement(version_node, 'Application_Version')
-                if ver_elem.text != target_fw:
-                    ver_elem.text = target_fw
-                    changed = True
-
-                if self._apply_format(root, target_fmt):
-                    changed = True
-
-                if changed:
-                    indent_tree(tree)
-                    tree.write(path, encoding='utf-8', xml_declaration=True)
-                    updated += 1
-            except Exception as exc:
-                logging.error(f"Error updating {path}: {exc}")
+        
+        # CORRECTED: Call batch_edit_programs with a dictionary
+        params = {'rename': False, 'version': target_fw, 'format_version': target_fmt}
+        updated = batch_edit_programs(folder, params)
 
         self.status.set(f"Updated {updated} XPM(s) to version {target_fw} ({target_fmt}). Rescanning...")
-        target = self.master.firmware_version.get()
-        fmt = self.format_var.get()
-        updated = batch_edit_programs(
-            folder,
-            {'rename': False, 'version': target, 'format_version': fmt}
-        )
-        self.status.set(
-            f"Updated {updated} XPM(s) to version {target} ({fmt}). Rescanning..."
-        )
         self.scan_broken_links()
 
     def fix_keygroups(self):
@@ -493,7 +451,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
         for path in glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True):
             try:
-                mappings, inst_params = self._parse_any_xpm(path)
+                mappings, inst_params = _parse_xpm_for_rebuild(path)
                 if not mappings:
                     continue
                 ranges = {(m['low_note'], m['high_note']) for m in mappings}
@@ -1274,7 +1232,7 @@ class SmartSplitWindow(tk.Toplevel):
     def apply_split(self):
         mode = self.split_mode.get()
         self.destroy()
-        self.master.run_batch_process(split_files_smartly, mode)
+        self.master.run_batch_process(split_files_smartly, {'mode': mode})
 
 class MergeSubfoldersWindow(tk.Toplevel):
     def __init__(self, master):
@@ -1316,7 +1274,7 @@ class MergeSubfoldersWindow(tk.Toplevel):
         merge_func = lambda folder, _=None: merge_subfolders(folder, depth, max_depth)
         self.master.run_batch_process(
             merge_func,
-            None,
+            {},
             confirm=True,
             confirm_message="This will move all files up and remove empty folders. This can't be undone. Continue?",
         )
@@ -1571,7 +1529,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
             xpm_path = self.xpm_map[item_id]
             self.tree.set(item_id, "Status", "Rebuilding...")
             try:
-                sample_mappings, inst_params = self._parse_any_xpm(xpm_path)
+                sample_mappings, inst_params = _parse_xpm_for_rebuild(xpm_path)
                 if not sample_mappings:
                     self.tree.set(item_id, "Status", "Parse Error")
                     continue
@@ -1630,75 +1588,6 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 logging.error(f"Critical error rebuilding {xpm_path}: {e}\n{traceback.format_exc()}")
         
         self._show_info_safe("Rebuild Complete", "Finished rebuilding selected programs.")
-
-    def _parse_any_xpm(self, xpm_path):
-        mappings = []
-        inst_params = {}
-        xpm_dir = os.path.dirname(xpm_path)
-        try:
-            tree = ET.parse(xpm_path)
-        except ET.ParseError as e:
-            logging.error(f"XML parse error for {xpm_path}: {e}")
-            return mappings, inst_params
-        root = tree.getroot()
-
-        # Capture parameters from the first Instrument element so we can
-        # preserve envelope settings when rebuilding programs.
-        inst = root.find('.//Instrument')
-        if inst is not None:
-            for child in inst:
-                if len(list(child)) == 0:
-                    inst_params[child.tag] = child.text or ''
-
-        # Modern JSON-based format (v3.4+)
-        pads_elem = find_program_pads(root)
-        if pads_elem is not None and pads_elem.text:
-            try:
-                data = json.loads(xml_unescape(pads_elem.text))
-            except json.JSONDecodeError as e:
-                logging.error(f"JSON decode error in {xpm_path}: {e}")
-                data = {}
-            pads = data.get('pads', {})
-            for pad_data in pads.values():
-                if isinstance(pad_data, dict) and pad_data.get('samplePath'):
-                    sample_path_text = pad_data['samplePath']
-                    if sample_path_text and sample_path_text.strip():
-                        mappings.append({
-                            'sample_path': os.path.join(xpm_dir, sample_path_text),
-                            'root_note': pad_data.get('rootNote', 60),
-                            'low_note': pad_data.get('lowNote', 0),
-                            'high_note': pad_data.get('highNote', 127),
-                            'velocity_low': pad_data.get('velocityLow', 0),
-                            'velocity_high': pad_data.get('velocityHigh', 127)
-                        })
-            if mappings:
-                return mappings, inst_params
-
-        # Legacy XML format
-        for inst in root.findall('.//Instrument'):
-            low_note_elem, high_note_elem = inst.find('LowNote'), inst.find('HighNote')
-            if low_note_elem is None or high_note_elem is None or not low_note_elem.text or not high_note_elem.text:
-                continue
-
-            for layer in inst.findall('.//Layer'):
-                sample_file_elem = layer.find('SampleFile')
-                root_note_elem = layer.find('RootNote')
-                vel_start_elem = layer.find('VelStart')
-                vel_end_elem = layer.find('VelEnd')
-                if sample_file_elem is None or root_note_elem is None or not sample_file_elem.text or not root_note_elem.text:
-                    continue
-
-                sample_file = sample_file_elem.text
-                if sample_file and sample_file.strip():
-                    mappings.append({
-                        'sample_path': os.path.join(xpm_dir, sample_file),
-                        'root_note': int(root_note_elem.text),
-                        'low_note': int(low_note_elem.text),
-                        'high_note': int(high_note_elem.text),
-                        'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
-                        'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127,
-                    })
-        return mappings, inst_params
 
     def get_id_from_path(self, path):
         for item_id, item_path in self.xpm_map.items():
@@ -2635,9 +2524,11 @@ class App(tk.Tk):
 
         threading.Thread(target=run, daemon=True).start()
 
-def merge_subfolders(folder_path, target_depth=0, max_depth=2):
+def merge_subfolders(folder_path, params):
     """Moves files from subfolders up to the specified depth."""
     moved_count = 0
+    target_depth = params.get('target_depth', 0)
+    max_depth = params.get('max_depth', 2)
     for root, dirs, files in os.walk(folder_path, topdown=False):
         rel = os.path.relpath(root, folder_path)
         depth = 0 if rel == '.' else len(rel.split(os.sep))
@@ -2667,11 +2558,12 @@ def merge_subfolders(folder_path, target_depth=0, max_depth=2):
 
 def merge_subfolders_to_root(folder_path, max_depth=2):
     """Backward compatible wrapper for merging to the root folder."""
-    return merge_subfolders(folder_path, 0, max_depth)
+    return merge_subfolders(folder_path, {'target_depth': 0, 'max_depth': max_depth})
 
-def split_files_smartly(folder_path, mode):
+def split_files_smartly(folder_path, params):
     """Organizes XPMs and WAVs into subfolders based on the chosen mode."""
     moved_count = 0
+    mode = params.get('mode', 'word')
 
     # First process XPM files so samples move with them
     xpm_files = glob.glob(os.path.join(folder_path, '*.xpm'))
@@ -3029,3 +2921,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
