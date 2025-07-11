@@ -56,7 +56,7 @@ except ImportError as e:
 
 
 # --- Application Configuration ---
-APP_VERSION = "23.5" # Final version
+APP_VERSION = "23.6" # Final version with parameter preservation
 
 # --- Global Constants ---
 MPC_BEIGE = '#EAE6DA'
@@ -68,6 +68,11 @@ SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
+# NEW: Define which layer parameters should be preserved during a rebuild
+LAYER_PARAMS_TO_PRESERVE = [
+    'VelStart', 'VelEnd', 'SampleStart', 'SampleEnd', 'Loop', 'LoopStart',
+    'LoopEnd', 'Direction', 'Offset', 'Volume', 'Pan', 'Tune', 'MuteGroup'
+]
 
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
@@ -1880,18 +1885,22 @@ class InstrumentBuilder:
         
         return sorted_samples
 
-    def create_instruments(self, mode='multi-sample'):
+    def create_instruments(self, mode='multi-sample', files=None, program_name_override=None):
         logging.info("create_instruments starting with mode %s", mode)
         if not self.validate_options():
             return
+
         created_xpms, created_count, error_count = [], 0, 0
         try:
             self.app.status_text.set("Analyzing files...")
 
-            if mode == 'drum-kit':
+            if files is not None and program_name_override is not None:
+                 instrument_groups = {program_name_override: files}
+            elif mode == 'drum-kit':
                 instrument_groups = group_similar_files(self.folder_path) if IMPORTS_SUCCESSFUL else {}
             else:
                 instrument_groups = self.group_wav_files(mode)
+
             if not instrument_groups:
                 self.app.status_text.set("No suitable WAV files found for this mode.")
                 self._show_info_safe("Finished", "No suitable .wav files found to create instruments.")
@@ -1900,16 +1909,16 @@ class InstrumentBuilder:
             total_groups = len(instrument_groups)
             self.app.progress["maximum"] = total_groups
 
-            for i, (program_name, files) in enumerate(instrument_groups.items()):
+            for i, (program_name, group_files) in enumerate(instrument_groups.items()):
                 try:
                     self.app.status_text.set(f"Creating: {program_name}")
                     self.app.progress["value"] = i + 1
 
                     sanitized_name = re.sub(r'[\\/*?:"<>|]', "", program_name)
-                    first_file_abs_path = os.path.join(self.folder_path, files[0])
+                    first_file_abs_path = os.path.join(self.folder_path, group_files[0])
                     output_folder = os.path.dirname(first_file_abs_path)
 
-                    if self._create_xpm(sanitized_name, files, output_folder, mode):
+                    if self._create_xpm(sanitized_name, group_files, output_folder, mode):
                         created_count += 1
                         created_xpms.append(os.path.join(output_folder, f"{sanitized_name}.xpm"))
                     else:
@@ -1963,11 +1972,8 @@ class InstrumentBuilder:
                     info = self.validate_sample_info(abs_path)
                     if not info.get('is_valid'):
                         continue
-                    info['root_note'] = m.get('root_note', info.get('root_note', start_note))
-                    info['low_note'] = m.get('low_note', info['root_note'])
-                    info['high_note'] = m.get('high_note', info['root_note'])
-                    info['velocity_low'] = m.get('velocity_low', 0)
-                    info['velocity_high'] = m.get('velocity_high', 127)
+                    # Preserve all parameters from the mapping
+                    info.update(m)
                     rel_path = os.path.relpath(abs_path, output_folder)
                     info['sample_path'] = rel_path.replace(os.sep, '/')
                     sample_infos.append(info)
@@ -2126,31 +2132,39 @@ class InstrumentBuilder:
             ET.SubElement(instrument, key).text = val
         return instrument
 
+    # REVISED: This function now preserves all layer parameters
     def add_layer_parameters(self, layer_element, sample_info, vel_start, vel_end):
         sample_name, _ = os.path.splitext(os.path.basename(sample_info['sample_path']))
         frames = sample_info.get('frames', 0)
-        is_scw = sample_info.get('is_scw', False)
-        loop_enabled = self.options.loop_one_shots or is_scw
 
+        # Start with defaults, then override with preserved values
         params = {
             'SampleName': sample_name,
             'SampleFile': sample_info['sample_path'],
             'VelStart': str(vel_start),
             'VelEnd': str(vel_end),
-            'SampleEnd': str(frames),
             'RootNote': str(sample_info['root_note']),
             'SampleStart': '0',
-            'Loop': 'On' if loop_enabled else 'Off',
+            'SampleEnd': str(frames),
+            'Loop': 'Off',
             'Direction': '0', 'Offset': '0', 'Volume': '1.0',
             'Pan': '0.5', 'Tune': '0.0', 'MuteGroup': '0'
         }
 
-        if loop_enabled:
-            params['LoopStart'] = '0'
-            params['LoopEnd'] = str(max(frames - 1, 0))
+        # Override defaults with any parameters preserved from the original file
+        if 'layer_params' in sample_info:
+            for key, value in sample_info['layer_params'].items():
+                if key in params:
+                    params[key] = value
+        
+        # Special handling for loop points if loop is on
+        if params.get('Loop') == 'On':
+            params['LoopStart'] = sample_info.get('layer_params', {}).get('LoopStart', '0')
+            params['LoopEnd'] = sample_info.get('layer_params', {}).get('LoopEnd', str(max(frames - 1, 0)))
 
         for key, value in params.items():
-            ET.SubElement(layer_element, key).text = value
+            ET.SubElement(layer_element, key).text = str(value)
+
 
     def apply_creative_mode(self, instrument_element, layer_element, layer_index, total_layers):
         mode = self.options.creative_mode
@@ -2534,41 +2548,25 @@ class App(tk.Tk):
     def open_creative_config(self): self.open_window(CreativeModeConfigWindow, self.creative_mode_var.get())
     #</editor-fold>
 
-    def build_instruments(self, mode):
-        folder = self.folder_path.get()
-        if not folder or not os.path.isdir(folder):
-            messagebox.showerror("Error", "Please select a valid folder first.", parent=self.root)
-            return
-        options = InstrumentOptions(
-            loop_one_shots=self.loop_one_shots_var.get(),
-            analyze_scw=self.analyze_scw_var.get(),
-            creative_mode=self.creative_mode_var.get(),
-            recursive_scan=self.recursive_scan_var.get(),
-            firmware_version=self.firmware_version.get(),
-            polyphony=self.polyphony_var.get(),
-            creative_config=self.creative_config
-        )
-        builder = InstrumentBuilder(folder, self, options=options)
-        threading.Thread(target=builder.create_instruments, args=(mode,), daemon=True).start()
-
     # RESTORED: Build buttons now open the MultiSampleBuilderWindow
     def build_multi_sample_instruments(self):
         if IMPORTS_SUCCESSFUL:
             self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions, 'multi-sample')
         else:
-            self.build_instruments('multi-sample')
+            messagebox.showerror("Missing Dependency", "The 'multi_sample_builder.py' script is required for this feature.")
 
     def build_one_shot_instruments(self):
         if IMPORTS_SUCCESSFUL:
             self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions, 'one-shot')
         else:
-            self.build_instruments('one-shot')
+            messagebox.showerror("Missing Dependency", "The 'multi_sample_builder.py' script is required for this feature.")
 
     def build_drum_kit_instruments(self):
         if IMPORTS_SUCCESSFUL:
             self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions, 'drum-kit')
         else:
-            self.build_instruments('drum-kit')
+             messagebox.showerror("Missing Dependency", "The 'multi_sample_builder.py' script is required for this feature.")
+
 
     def run_batch_process(self, process_func, params_dict, confirm=False, confirm_message=""):
         folder = self.folder_path.get()
@@ -2934,7 +2932,7 @@ def _parse_xpm_for_rebuild(xpm_path):
     """
     Parses an XPM file (legacy or modern) to extract all necessary info
     for a complete rebuild, including detailed sample mappings and all
-    instrument parameters.
+    instrument and layer parameters.
     """
     mappings = []
     instrument_params = {}
@@ -2959,32 +2957,7 @@ def _parse_xpm_for_rebuild(xpm_path):
             if len(list(child)) == 0 and child.text is not None:
                 instrument_params[child.tag] = child.text
 
-    # Try parsing modern JSON format first as it's more explicit
-    pads_elem = find_program_pads(root)
-    if pads_elem is not None and pads_elem.text:
-        try:
-            data = json.loads(xml_unescape(pads_elem.text))
-            pads = data.get('pads', {})
-            for pad_data in pads.values():
-                if isinstance(pad_data, dict) and pad_data.get('samplePath'):
-                    sample_path_text = pad_data['samplePath']
-                    if sample_path_text and sample_path_text.strip():
-                        abs_path = os.path.normpath(os.path.join(xpm_dir, sample_path_text))
-                        mappings.append({
-                            'sample_path': abs_path,
-                            'root_note': pad_data.get('rootNote', 60),
-                            'low_note': pad_data.get('lowNote', 0),
-                            'high_note': pad_data.get('highNote', 127),
-                            'velocity_low': pad_data.get('velocityLow', 0),
-                            'velocity_high': pad_data.get('velocityHigh', 127)
-                        })
-            if mappings:
-                logging.info(f"Successfully parsed {len(mappings)} samples from modern ProgramPads in {os.path.basename(xpm_path)}")
-                return mappings, instrument_params
-        except json.JSONDecodeError:
-            logging.warning(f"JSON in ProgramPads for {xpm_path} is invalid. Falling back to legacy parse.")
-
-    # Fallback to legacy XML format if modern parse fails or is absent
+    # Fallback to legacy XML format as it contains the most detailed layer info
     logging.info(f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}.")
     for inst_elem in root.findall('.//Instrument'):
         try:
@@ -2998,16 +2971,22 @@ def _parse_xpm_for_rebuild(xpm_path):
                     continue
 
                 abs_path = os.path.normpath(os.path.join(xpm_dir, sample_file_elem.text))
-                vel_start_elem = layer.find('VelStart')
-                vel_end_elem = layer.find('VelEnd')
+                
+                # NEW: Extract all desired layer parameters
+                layer_params = {}
+                for param_name in LAYER_PARAMS_TO_PRESERVE:
+                    elem = layer.find(param_name)
+                    if elem is not None and elem.text is not None:
+                        layer_params[param_name] = elem.text
 
                 mappings.append({
                     'sample_path': abs_path,
                     'root_note': int(root_note_elem.text) if root_note_elem is not None and root_note_elem.text else 60,
                     'low_note': low_note,
                     'high_note': high_note,
-                    'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
-                    'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127,
+                    'velocity_low': int(layer_params.get('VelStart', 0)),
+                    'velocity_high': int(layer_params.get('VelEnd', 127)),
+                    'layer_params': layer_params # Store all preserved params
                 })
         except (AttributeError, ValueError) as e:
             logging.warning(f"Skipping malformed Instrument element in {os.path.basename(xpm_path)}: {e}")
