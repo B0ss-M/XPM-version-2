@@ -388,6 +388,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         ttk.Label(options, text="Format:").pack(side="left")
         ttk.Combobox(options, textvariable=self.format_var,
                      values=['legacy','advanced'], state='readonly', width=9).pack(side="left")
+        ttk.Button(btn_frame, text="Fix Keygroups", command=self.fix_keygroups).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Rewrite Versions", command=self.fix_versions).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Rescan", command=self.scan_broken_links).pack(side="left", padx=5)
         ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=5)
@@ -481,6 +482,53 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.status.set(
             f"Updated {updated} XPM(s) to version {target} ({fmt}). Rescanning..."
         )
+        self.scan_broken_links()
+
+    def fix_keygroups(self):
+        folder = self.master.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "No valid folder selected.", parent=self)
+            return
+
+        firmware = self.version_var.get()
+        fmt = self.format_var.get()
+        fixed = 0
+
+        for path in glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True):
+            try:
+                mappings, inst_params = self._parse_any_xpm(path)
+                if not mappings:
+                    continue
+                ranges = {(m['low_note'], m['high_note']) for m in mappings}
+                if len(ranges) == 1 and len(mappings) > 1:
+                    new_maps = []
+                    for m in mappings:
+                        note = extract_root_note_from_wav(m['sample_path']) or infer_note_from_filename(m['sample_path'])
+                        if note is None:
+                            note = 60
+                        new_maps.append({
+                            'sample_path': m['sample_path'],
+                            'root_note': note,
+                            'low_note': note,
+                            'high_note': note,
+                            'velocity_low': m.get('velocity_low', 0),
+                            'velocity_high': m.get('velocity_high', 127),
+                        })
+
+                    options = InstrumentOptions(
+                        firmware_version=firmware,
+                        polyphony=self.master.polyphony_var.get(),
+                        format_version=fmt,
+                    )
+                    builder = InstrumentBuilder(os.path.dirname(path), self.master, options)
+                    shutil.copy2(path, path + '.kgfix.bak')
+                    program_name = os.path.splitext(os.path.basename(path))[0]
+                    if builder._create_xpm(program_name, [], os.path.dirname(path), mode='multi-sample', mappings=new_maps, instrument_template=inst_params):
+                        fixed += 1
+            except Exception as exc:
+                logging.error(f"Keygroup fix failed for {path}: {exc}")
+
+        messagebox.showinfo("Keygroup Fixer", f"Fixed {fixed} program(s).", parent=self)
         self.scan_broken_links()
 
     def _apply_format(self, root, fmt):
