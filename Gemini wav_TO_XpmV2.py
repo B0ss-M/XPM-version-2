@@ -2379,7 +2379,10 @@ class App(tk.Tk):
 
 
     def build_one_shot_instruments(self):
-        self.build_instruments('one-shot')
+        if IMPORTS_SUCCESSFUL:
+            self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions, 'one-shot')
+        else:
+            self.build_instruments('one-shot')
 
     def build_drum_kit_instruments(self):
         self.build_instruments('drum-kit')
