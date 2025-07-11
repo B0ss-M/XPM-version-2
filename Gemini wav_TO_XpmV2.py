@@ -568,7 +568,7 @@ class ExpansionBuilderWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root if hasattr(master, 'root') else master)
         self.title("Expansion Builder")
-        self.geometry("600x250")
+        self.geometry("600x330")
         self.resizable(True, True)
         self.master = master
         self.create_widgets()
@@ -578,24 +578,41 @@ class ExpansionBuilderWindow(tk.Toplevel):
         frame.pack(fill="both", expand=True)
         frame.grid_columnconfigure(1, weight=1)
 
-        ttk.Label(frame, text="Expansion Name:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
-        self.name_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.name_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=2)
+        ttk.Label(frame, text="Identifier:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
+        self.identifier_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.identifier_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Author:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
-        self.author_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.author_var).grid(row=1, column=1, columnspan=2, sticky="ew", pady=2)
+        ttk.Label(frame, text="Title:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
+        self.title_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.title_var).grid(row=1, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Description:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
-        self.desc_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.desc_var).grid(row=2, column=1, columnspan=2, sticky="ew", pady=2)
+        ttk.Label(frame, text="Manufacturer:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
+        self.manufacturer_var = tk.StringVar(value="Akai Professional / MSX")
+        ttk.Entry(frame, textvariable=self.manufacturer_var).grid(row=2, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Image (JPG/PNG):").grid(row=3, column=0, sticky="e", padx=5, pady=2)
+        ttk.Label(frame, text="Version:").grid(row=3, column=0, sticky="e", padx=5, pady=2)
+        self.version_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.version_var).grid(row=3, column=1, columnspan=2, sticky="ew", pady=2)
+
+        ttk.Label(frame, text="Type:").grid(row=4, column=0, sticky="e", padx=5, pady=2)
+        self.type_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.type_var).grid(row=4, column=1, columnspan=2, sticky="ew", pady=2)
+
+        ttk.Label(frame, text="Image (JPG/PNG):").grid(row=5, column=0, sticky="e", padx=5, pady=2)
         self.image_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.image_var).grid(row=3, column=1, sticky="ew", pady=2)
-        ttk.Button(frame, text="Browse...", command=self.browse_image).grid(row=3, column=2, padx=5, pady=2)
+        ttk.Entry(frame, textvariable=self.image_var).grid(row=5, column=1, sticky="ew", pady=2)
+        ttk.Button(frame, text="Browse...", command=self.browse_image).grid(row=5, column=2, padx=5, pady=2)
 
-        ttk.Button(frame, text="Create Expansion.xml", command=self.create_file).grid(row=4, column=0, columnspan=3, pady=10)
+        ttk.Label(frame, text="Directory:").grid(row=6, column=0, sticky="e", padx=5, pady=2)
+        default_dir = os.path.basename(self.master.folder_path.get()) if hasattr(self.master, 'folder_path') else ''
+        self.directory_var = tk.StringVar(value=default_dir)
+        ttk.Entry(frame, textvariable=self.directory_var).grid(row=6, column=1, columnspan=2, sticky="ew", pady=2)
+
+        ttk.Label(frame, text="Separator:").grid(row=7, column=0, sticky="e", padx=5, pady=2)
+        self.separator_var = tk.StringVar(value="-")
+        ttk.Entry(frame, textvariable=self.separator_var).grid(row=7, column=1, columnspan=2, sticky="ew", pady=2)
+
+        ttk.Button(frame, text="Create Expansion.xml", command=self.create_file).grid(row=8, column=0, columnspan=3, pady=10)
 
     def browse_image(self):
         path = filedialog.askopenfilename(parent=self, title="Select Image", filetypes=[("Image Files", "*.jpg *.jpeg *.png")])
@@ -607,24 +624,31 @@ class ExpansionBuilderWindow(tk.Toplevel):
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "No valid folder selected.", parent=self)
             return
-        name = self.name_var.get().strip()
-        if not name:
-            messagebox.showerror("Error", "Expansion name is required.", parent=self)
-            return
 
-        author = self.author_var.get().strip()
-        desc = self.desc_var.get().strip()
+        identifier = self.identifier_var.get().strip()
+        title = self.title_var.get().strip()
+        manufacturer = self.manufacturer_var.get().strip()
+        version = self.version_var.get().strip()
+        type_value = self.type_var.get().strip()
+        directory = self.directory_var.get().strip() or os.path.basename(folder)
+        separator = self.separator_var.get().strip()
         image_path = self.image_var.get().strip()
 
+        if not identifier or not title:
+            messagebox.showerror("Error", "Identifier and Title are required.", parent=self)
+            return
+
         xml_path = os.path.join(folder, "Expansion.xml")
-        root = ET.Element('Expansion')
-        ET.SubElement(root, 'Name').text = name
-        ET.SubElement(root, 'Author').text = author
-        ET.SubElement(root, 'Description').text = desc
+        root = ET.Element('expansion', version="1.0")
+        ET.SubElement(root, 'identifier').text = identifier
+        ET.SubElement(root, 'title').text = title
+        ET.SubElement(root, 'manufacturer').text = manufacturer
+        ET.SubElement(root, 'version').text = version
+        ET.SubElement(root, 'type').text = type_value
 
         if image_path and os.path.exists(image_path):
             image_basename = os.path.basename(image_path)
-            ET.SubElement(root, 'Image').text = image_basename
+            ET.SubElement(root, 'img').text = image_basename
             dest_path = os.path.join(folder, image_basename)
             try:
                 if PIL_AVAILABLE:
@@ -637,6 +661,9 @@ class ExpansionBuilderWindow(tk.Toplevel):
             except Exception as e:
                 logging.error(f"Failed to copy image: {e}")
                 messagebox.showerror("Image Error", f"Failed to copy image to expansion folder:\n{e}", parent=self)
+
+        ET.SubElement(root, 'directory').text = directory
+        ET.SubElement(root, 'separator').text = separator
 
         tree = ET.ElementTree(root)
         indent_tree(tree)
