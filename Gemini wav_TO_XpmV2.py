@@ -43,6 +43,7 @@ try:
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
+    from sample_mapping_editor import SampleMappingEditorWindow
     from firmware_profiles import (
         get_pad_settings,
         get_program_parameters as fw_program_parameters,
@@ -1366,6 +1367,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
         ttk.Button(actions_frame, text="Deselect All", command=lambda: self.toggle_all_checks(False)).pack(side="left", padx=5)
         ttk.Button(actions_frame, text="Analyze & Relink Selected", command=self.run_relink_thread).pack(side="left", padx=20)
         ttk.Button(actions_frame, text="Rebuild Selected", command=self.run_rebuild_thread).pack(side="left", padx=5)
+        ttk.Button(actions_frame, text="Edit Samples...", command=self.open_sample_editor).pack(side="left", padx=5)
 
     def _show_info_safe(self, title, message):
         self.master.root.after(0, lambda: messagebox.showinfo(title, message, parent=self))
@@ -1457,6 +1459,18 @@ class BatchProgramFixerWindow(tk.Toplevel):
             messagebox.showwarning("No Selection", "Please select at least one program to rebuild.", parent=self)
             return
         threading.Thread(target=self.rebuild_batch, args=(selected_ids,), daemon=True).start()
+
+    def open_sample_editor(self):
+        selected_ids = self.get_selected_items()
+        if len(selected_ids) != 1:
+            messagebox.showwarning(
+                "Select One Program",
+                "Please select exactly one program to edit.",
+                parent=self,
+            )
+            return
+        xpm_path = self.xpm_map[selected_ids[0]]
+        self.master.open_window(SampleMappingEditorWindow, xpm_path)
 
     def analyze_and_relink_batch(self, item_ids):
         all_missing_samples = set()
@@ -2315,7 +2329,8 @@ class App(tk.Tk):
         folder_independent_windows = [
             ExpansionBuilderWindow,
             CreativeModeConfigWindow,
-            BatchProgramFixerWindow
+            BatchProgramFixerWindow,
+            SampleMappingEditorWindow,
         ]
         if window_class not in folder_independent_windows and (
             not self.folder_path.get() or not os.path.isdir(self.folder_path.get())
