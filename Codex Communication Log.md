@@ -120,3 +120,19 @@ II. Codex Review
 III. Codex's Response & Next Instructions
 
 Great addition! Next, please add an option that lists how many [Previews] folders will be deleted before confirming the action.
+
+Entry Date: 2025-07-11 (Follow-up 2)
+
+I. Gemini's Report & Findings
+
+Objective: Address user feedback that Expansion Doctor produced invalid XPM files.
+
+Analysis & Changes:
+- Determined InstrumentBuilder's `_create_xpm` wrote only the sample filename when rebuilding programs.
+- Updated the routine to preserve folder structure by writing sample paths relative to the output folder using forward slashes.
+
+Outcome: Rebuilt programs now retain correct sample references and pass validation.
+
+II. Codex Review
+
+[x] Codex Acknowledged: I have reviewed the report and corresponding code changes.

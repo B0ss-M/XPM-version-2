@@ -1788,7 +1788,8 @@ class InstrumentBuilder:
                     info['high_note'] = m.get('high_note', info['midi_note'])
                     info['velocity_low'] = m.get('velocity_low', 0)
                     info['velocity_high'] = m.get('velocity_high', 127)
-                    info['sample_path'] = os.path.basename(abs_path)
+                    rel_path = os.path.relpath(abs_path, output_folder)
+                    info['sample_path'] = rel_path.replace(os.sep, '/')
                     sample_infos.append(info)
             else:
                 for idx, file_path in enumerate(sample_files):
@@ -1808,7 +1809,8 @@ class InstrumentBuilder:
                         info['high_note'] = midi_note
                         info['velocity_low'] = 0
                         info['velocity_high'] = 127
-                        info['sample_path'] = os.path.basename(file_path)
+                        rel_path = os.path.relpath(abs_path, output_folder)
+                        info['sample_path'] = rel_path.replace(os.sep, '/')
                         sample_infos.append(info)
 
             if not sample_infos:
