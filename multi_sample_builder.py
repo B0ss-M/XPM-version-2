@@ -250,11 +250,13 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         self.refresh_group_files()
 
     def auto_group_folders(self):
-        """Preview and group unassigned samples by their parent folders."""
+        """Preview and group unassigned samples by common filename prefixes."""
         counts = {}
         for f in self.unassigned:
-            folder = os.path.dirname(f)
-            name = os.path.basename(folder) if folder else os.path.basename(self.master.folder_path.get())
+            name, _ = parse_filename_mapping(f)
+            if not name:
+                base = os.path.splitext(os.path.basename(f))[0]
+                name = re.split(r"[ _-]+", base)[0]
             counts[name] = counts.get(name, 0) + 1
 
         preview = tk.Toplevel(self)
@@ -262,7 +264,7 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         preview.geometry("300x300")
 
         tree = ttk.Treeview(preview, columns=("count"), show="headings")
-        tree.heading("#1", text="Folder")
+        tree.heading("#1", text="Group")
         tree.heading("count", text="Files")
         for folder, cnt in sorted(counts.items()):
             tree.insert("", "end", values=(folder, cnt))
@@ -273,8 +275,10 @@ class MultiSampleBuilderWindow(tk.Toplevel):
 
         def do_group():
             for f in list(self.unassigned):
-                folder = os.path.dirname(f)
-                name = os.path.basename(folder) if folder else os.path.basename(self.master.folder_path.get())
+                name, _ = parse_filename_mapping(f)
+                if not name:
+                    base = os.path.splitext(os.path.basename(f))[0]
+                    name = re.split(r"[ _-]+", base)[0]
                 self.groups.setdefault(name, []).append(f)
                 self.unassigned.remove(f)
             self.refresh_file_list()
