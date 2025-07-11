@@ -47,7 +47,10 @@ The logic was re-engineered to handle batch operations efficiently.
 * **Looping Rebuild:** When you click "Rebuild Selected," the tool iterates through every program you've checked.  
 * **Robust Parsing & Rebuilding:** For each program, it performs the same "Clean Slate Rebuild" as before—parsing the sample map and using the InstrumentBuilder to generate a brand new, clean .xpm file targeted to your selected firmware.  
 * **Status Updates:** The status for each file is updated in the list in real-time, showing "Rebuilding...", "Rebuilt", or "Error".
-* **Unmapped Sample Detection:** The fixer now scans each program's folder for audio files not referenced in the XPM. Any missing mappings are automatically included when the program is rebuilt.
+* **Unmapped Sample Detection:** The fixer scans each program's folder for audio
+  files not referenced in the XPM. Starting with this release, you are asked
+  whether to include these extras when rebuilding instead of adding them
+  automatically.
 
 ## **3\. Critical Bug Fix**
 
