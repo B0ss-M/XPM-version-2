@@ -12,7 +12,7 @@ This checklist tracks the major functions of **Gemini wav_TO_XpmV2.py**. Each it
 - [ ] Normalize Program Levels
 - [ ] Expansion Doctor
 - [ ] File Renamer
-- [ ] Merge Subfolders
+- [x] Merge Subfolders
 - [ ] Smart Split
 - [ ] Generate All Previews
 - [ ] Clean All Previews

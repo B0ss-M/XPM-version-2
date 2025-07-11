@@ -2259,15 +2259,17 @@ class App(tk.Tk):
     def create_batch_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Utilities & Batch Tools", padding="10")
         frame.grid(row=5, column=0, sticky="ew", pady=(10, 0))
-        for i in range(4): frame.grid_columnconfigure(i, weight=1)
+        for i in range(5):
+            frame.grid_columnconfigure(i, weight=1)
         ttk.Button(frame, text="Expansion Doctor", command=self.open_expansion_doctor).grid(row=0, column=0, sticky="ew", padx=2)
         ttk.Button(frame, text="File Renamer", command=self.open_file_renamer).grid(row=0, column=1, sticky="ew", padx=2)
-        ttk.Button(frame, text="Merge Subfolders", command=self.open_merge_subfolders).grid(row=1, column=0, sticky="ew", padx=2, pady=2)
-        ttk.Button(frame, text="Smart Split...", command=self.open_smart_split_window).grid(row=1, column=1, sticky="ew", padx=2, pady=2)
-
         ttk.Button(frame, text="Generate All Previews", command=self.generate_previews).grid(row=0, column=2, sticky="ew", padx=2)
         ttk.Button(frame, text="Clean All Previews", command=self.run_clean_all_previews).grid(row=0, column=3, sticky="ew", padx=2)
-        ttk.Button(frame, text="Package Expansion (.zip)", command=self.package_expansion, style="Accent.TButton").grid(row=1, column=2, columnspan=2, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Expansion Builder", command=self.open_expansion_builder).grid(row=0, column=4, sticky="ew", padx=2)
+
+        ttk.Button(frame, text="Merge Subfolders", command=self.open_merge_subfolders).grid(row=1, column=0, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Smart Split...", command=self.open_smart_split_window).grid(row=1, column=1, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Package Expansion (.zip)", command=self.package_expansion, style="Accent.TButton").grid(row=1, column=2, columnspan=3, sticky="ew", padx=2, pady=2)
 
     def create_log_viewer(self, parent):
         log_frame = ttk.LabelFrame(parent, text="Log", padding=5)
