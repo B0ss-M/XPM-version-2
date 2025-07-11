@@ -454,32 +454,49 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 mappings, inst_params = _parse_xpm_for_rebuild(path)
                 if not mappings:
                     continue
-                ranges = {(m['low_note'], m['high_note']) for m in mappings}
-                if len(ranges) == 1 and len(mappings) > 1:
-                    new_maps = []
-                    for m in mappings:
-                        note = extract_root_note_from_wav(m['sample_path']) or infer_note_from_filename(m['sample_path'])
-                        if note is None:
-                            note = 60
-                        new_maps.append({
-                            'sample_path': m['sample_path'],
-                            'root_note': note,
-                            'low_note': note,
-                            'high_note': note,
-                            'velocity_low': m.get('velocity_low', 0),
-                            'velocity_high': m.get('velocity_high', 127),
+
+                program_name = os.path.splitext(os.path.basename(path))[0]
+                extras = find_unreferenced_audio_files(path, mappings)
+                for wav_path in extras:
+                    if os.path.basename(wav_path).lower().startswith(program_name.lower()):
+                        midi = extract_root_note_from_wav(wav_path) or infer_note_from_filename(wav_path) or 60
+                        mappings.append({
+                            'sample_path': wav_path,
+                            'root_note': midi,
+                            'low_note': midi,
+                            'high_note': midi,
+                            'velocity_low': 0,
+                            'velocity_high': 127,
                         })
 
-                    options = InstrumentOptions(
-                        firmware_version=firmware,
-                        polyphony=self.master.polyphony_var.get(),
-                        format_version=fmt,
-                    )
-                    builder = InstrumentBuilder(os.path.dirname(path), self.master, options)
-                    shutil.copy2(path, path + '.kgfix.bak')
-                    program_name = os.path.splitext(os.path.basename(path))[0]
-                    if builder._create_xpm(program_name, [], os.path.dirname(path), mode='multi-sample', mappings=new_maps, instrument_template=inst_params):
-                        fixed += 1
+                ranges = {(m['low_note'], m['high_note']) for m in mappings}
+                needs_rebuild = (len(ranges) == 1 and len(mappings) > 1) or extras
+                if not needs_rebuild:
+                    continue
+
+                new_maps = []
+                for m in mappings:
+                    note = extract_root_note_from_wav(m['sample_path']) or infer_note_from_filename(m['sample_path'])
+                    if note is None:
+                        note = m.get('root_note', 60)
+                    new_maps.append({
+                        'sample_path': m['sample_path'],
+                        'root_note': note,
+                        'low_note': note,
+                        'high_note': note,
+                        'velocity_low': m.get('velocity_low', 0),
+                        'velocity_high': m.get('velocity_high', 127),
+                    })
+
+                options = InstrumentOptions(
+                    firmware_version=firmware,
+                    polyphony=self.master.polyphony_var.get(),
+                    format_version=fmt,
+                )
+                builder = InstrumentBuilder(os.path.dirname(path), self.master, options)
+                shutil.copy2(path, path + '.kgfix.bak')
+                if builder._create_xpm(program_name, [], os.path.dirname(path), mode='multi-sample', mappings=new_maps, instrument_template=inst_params):
+                    fixed += 1
             except Exception as exc:
                 logging.error(f"Keygroup fix failed for {path}: {exc}")
 
