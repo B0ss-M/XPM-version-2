@@ -87,6 +87,12 @@ def indent_tree(tree, space="  "):
                     elem.tail = i
             elif level and (not elem.tail or not elem.tail.strip()):
                 elem.tail = i
+        _indent(tree.getroot())
+
+    # Ensure newline at end of file for consistency
+    root = tree.getroot()
+    if not (root.tail and root.tail.endswith("\n")):
+        root.tail = "\n"
 
         _indent(tree.getroot())
 
