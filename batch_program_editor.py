@@ -2,6 +2,9 @@ import os
 import argparse
 import logging
 import xml.etree.ElementTree as ET
+import json
+from collections import defaultdict
+from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 def indent_tree(tree: ET.ElementTree, space: str = "  ") -> None:
     """Indent an ElementTree for pretty printing."""
@@ -30,7 +33,181 @@ from xpm_parameter_editor import (
     set_engine_mode,
     set_application_version,
     fix_sample_notes,
+    infer_note_from_filename,
+    extract_root_note_from_wav,
 )
+from firmware_profiles import get_pad_settings
+
+
+def build_program_pads_json(firmware: str, mappings=None, engine_override: str | None = None) -> str:
+    """Return ProgramPads JSON escaped for XML embedding."""
+    pad_cfg = get_pad_settings(firmware, engine_override)
+    pads_type = pad_cfg['type']
+    universal_pad = pad_cfg['universal_pad']
+    engine = pad_cfg.get('engine')
+
+    pads = {f"value{i}": 0 for i in range(128)}
+    if mappings:
+        for m in mappings:
+            try:
+                pad_index = int(m.get('pad', m.get('midi_note', 0)))
+                if 0 <= pad_index < 128:
+                    pads[f"value{pad_index}"] = {
+                        'samplePath': m.get('sample_path', ''),
+                        'rootNote': int(m.get('midi_note', 60)),
+                        'lowNote': int(m.get('low_note', 0)),
+                        'highNote': int(m.get('high_note', 127)),
+                        'velocityLow': int(m.get('velocity_low', 0)),
+                        'velocityHigh': int(m.get('velocity_high', 127)),
+                    }
+            except (ValueError, TypeError):
+                logging.warning("Could not process mapping: %s", m)
+
+    pads_obj = {
+        'Universal': {'value0': True},
+        'Type': {'value0': pads_type},
+        'universalPad': universal_pad,
+        'pads': pads,
+        'UnusedPads': {'value0': 1},
+        'PadsFollowTrackColour': {'value0': False},
+    }
+    if engine:
+        pads_obj['engine'] = engine
+    return xml_escape(json.dumps(pads_obj, indent=4))
+
+
+def parse_any_xpm(xpm_path: str):
+    """Return sample mappings and instrument params from any XPM format."""
+    mappings: list[dict] = []
+    inst_params: dict[str, str] = {}
+    xpm_dir = os.path.dirname(xpm_path)
+    try:
+        tree = ET.parse(xpm_path)
+    except ET.ParseError as exc:
+        logging.error("XML parse error for %s: %s", xpm_path, exc)
+        return mappings, inst_params
+
+    root = tree.getroot()
+
+    inst = root.find('.//Instrument')
+    if inst is not None:
+        for child in inst:
+            if len(list(child)) == 0:
+                inst_params[child.tag] = child.text or ''
+
+    pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+    if pads_elem is not None and pads_elem.text:
+        try:
+            data = json.loads(xml_unescape(pads_elem.text))
+        except json.JSONDecodeError as e:
+            logging.error("JSON decode error in %s: %s", xpm_path, e)
+            data = {}
+        pads = data.get('pads', {})
+        for pad_data in pads.values():
+            if isinstance(pad_data, dict) and pad_data.get('samplePath'):
+                path_text = pad_data['samplePath']
+                if path_text and path_text.strip():
+                    mappings.append({
+                        'sample_path': os.path.join(xpm_dir, path_text),
+                        'root_note': pad_data.get('rootNote', 60),
+                        'low_note': pad_data.get('lowNote', 0),
+                        'high_note': pad_data.get('highNote', 127),
+                        'velocity_low': pad_data.get('velocityLow', 0),
+                        'velocity_high': pad_data.get('velocityHigh', 127),
+                    })
+        if mappings:
+            return mappings, inst_params
+
+    for inst in root.findall('.//Instrument'):
+        low_note_elem = inst.find('LowNote')
+        high_note_elem = inst.find('HighNote')
+        if low_note_elem is None or high_note_elem is None or not low_note_elem.text or not high_note_elem.text:
+            continue
+        for layer in inst.findall('.//Layer'):
+            sample_file_elem = layer.find('SampleFile')
+            root_note_elem = layer.find('RootNote')
+            vel_start_elem = layer.find('VelStart')
+            vel_end_elem = layer.find('VelEnd')
+            if sample_file_elem is None or root_note_elem is None or not sample_file_elem.text or not root_note_elem.text:
+                continue
+            sample_file = sample_file_elem.text
+            if sample_file and sample_file.strip():
+                mappings.append({
+                    'sample_path': os.path.join(xpm_dir, sample_file),
+                    'root_note': int(root_note_elem.text),
+                    'low_note': int(low_note_elem.text),
+                    'high_note': int(high_note_elem.text),
+                    'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
+                    'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127,
+                })
+
+    return mappings, inst_params
+
+
+def find_unreferenced_audio_files(xpm_path: str, mappings: list[dict]) -> list[str]:
+    """Return audio files in the same folder not referenced by mappings."""
+    xpm_dir = os.path.dirname(xpm_path)
+    try:
+        audio_files = [f for f in os.listdir(xpm_dir) if os.path.splitext(f)[1].lower() in ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')]
+    except Exception:
+        return []
+
+    used = {os.path.basename(m.get('sample_path', '')).lower() for m in mappings}
+    return [os.path.join(xpm_dir, f) for f in audio_files if f.lower() not in used]
+
+
+def create_simple_xpm(program_name: str, mappings: list[dict], output_folder: str, firmware: str, format_version: str, inst_params: dict | None = None) -> bool:
+    """Create a minimal XPM file from mappings."""
+    note_layers: dict[tuple[int, int], list[dict]] = defaultdict(list)
+    for m in mappings:
+        key = (m['low_note'], m['high_note'])
+        note_layers[key].append(m)
+
+    root = ET.Element('MPCVObject')
+    version = ET.SubElement(root, 'Version')
+    ET.SubElement(version, 'File_Version').text = '2.1'
+    ET.SubElement(version, 'Application').text = 'MPC-V'
+    ET.SubElement(version, 'Application_Version').text = firmware
+    ET.SubElement(version, 'Platform').text = 'Linux'
+
+    program = ET.SubElement(root, 'Program', {'type': 'Keygroup'})
+    ET.SubElement(program, 'ProgramName').text = xml_escape(program_name)
+
+    pads_tag = 'ProgramPads-v2.10' if firmware in {'3.4.0', '3.5.0'} else 'ProgramPads'
+    pads_json = build_program_pads_json(firmware, mappings, engine_override=format_version)
+    ET.SubElement(program, pads_tag).text = pads_json
+
+    instruments = ET.SubElement(program, 'Instruments')
+    for idx, (low, high) in enumerate(sorted(note_layers.keys()), start=1):
+        inst_elem = ET.SubElement(instruments, 'Instrument', {'number': str(idx)})
+        ET.SubElement(inst_elem, 'LowNote').text = str(low)
+        ET.SubElement(inst_elem, 'HighNote').text = str(high)
+        if inst_params:
+            for k, v in inst_params.items():
+                ET.SubElement(inst_elem, k).text = v
+        layers = ET.SubElement(inst_elem, 'Layers')
+        for l_idx, m in enumerate(sorted(note_layers[(low, high)], key=lambda x: x.get('velocity_low', 0)), start=1):
+            layer = ET.SubElement(layers, 'Layer', {'number': str(l_idx)})
+            ET.SubElement(layer, 'SampleName').text = os.path.splitext(os.path.basename(m['sample_path']))[0]
+            ET.SubElement(layer, 'SampleFile').text = os.path.basename(m['sample_path'])
+            ET.SubElement(layer, 'VelStart').text = str(m.get('velocity_low', 0))
+            ET.SubElement(layer, 'VelEnd').text = str(m.get('velocity_high', 127))
+            ET.SubElement(layer, 'SampleEnd').text = '0'
+            ET.SubElement(layer, 'RootNote').text = str(m['root_note'])
+            ET.SubElement(layer, 'SampleStart').text = '0'
+            ET.SubElement(layer, 'Loop').text = 'Off'
+            ET.SubElement(layer, 'Direction').text = '0'
+            ET.SubElement(layer, 'Offset').text = '0'
+            ET.SubElement(layer, 'Volume').text = '1.0'
+            ET.SubElement(layer, 'Pan').text = '0.5'
+            ET.SubElement(layer, 'Tune').text = '0.0'
+            ET.SubElement(layer, 'MuteGroup').text = '0'
+
+    tree = ET.ElementTree(root)
+    indent_tree(tree)
+    output_path = os.path.join(output_folder, f"{program_name}_fixed.xpm")
+    tree.write(output_path, encoding='utf-8', xml_declaration=True)
+    return True
 
 
 def edit_program(
@@ -124,6 +301,39 @@ def process_folder(
                 logging.error("Failed to edit %s: %s", path, exc)
 
 
+def verify_mappings(folder: str, firmware: str, fmt: str | None) -> None:
+    """Rebuild programs if audio files are missing from the mapping."""
+    for root_dir, _dirs, files in os.walk(folder):
+        for file in files:
+            if file.startswith('._') or not file.lower().endswith('.xpm'):
+                continue
+            path = os.path.join(root_dir, file)
+            mappings, params = parse_any_xpm(path)
+            if not mappings:
+                continue
+            extras = find_unreferenced_audio_files(path, mappings)
+            if not extras:
+                continue
+            for wav_path in extras:
+                midi = extract_root_note_from_wav(wav_path) or infer_note_from_filename(wav_path) or 60
+                mappings.append({
+                    'sample_path': wav_path,
+                    'root_note': midi,
+                    'low_note': midi,
+                    'high_note': midi,
+                    'velocity_low': 0,
+                    'velocity_high': 127,
+                })
+            create_simple_xpm(
+                os.path.splitext(os.path.basename(path))[0],
+                mappings,
+                os.path.dirname(path),
+                firmware,
+                fmt or 'advanced',
+                params,
+            )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Batch edit XPM program files")
     parser.add_argument("folder", help="Folder containing .xpm files")
@@ -137,6 +347,7 @@ def main():
     parser.add_argument("--release", type=float, help="Set VolumeRelease value")
     parser.add_argument("--mod-matrix", dest="mod_matrix", help="JSON file with ModLink definitions")
     parser.add_argument("--fix-notes", action="store_true", help="Adjust note mappings using sample names")
+    parser.add_argument("--verify-map", action="store_true", help="Rebuild programs if audio files are missing")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
 
@@ -163,6 +374,9 @@ def main():
         mod_matrix,
         fix_notes,
     )
+
+    if args.verify_map:
+        verify_mappings(args.folder, args.version or '3.5.0', fmt)
 
 
 if __name__ == "__main__":
