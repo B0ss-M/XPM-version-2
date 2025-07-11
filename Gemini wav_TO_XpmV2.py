@@ -56,7 +56,7 @@ except ImportError as e:
 
 
 # --- Application Configuration ---
-APP_VERSION = "23.2" # Updated version
+APP_VERSION = "23.4" # Updated version
 
 # --- Global Constants ---
 MPC_BEIGE = '#EAE6DA'
@@ -122,7 +122,9 @@ def build_program_pads_json(firmware, mappings=None, engine_override=None):
     if mappings:
         for m in mappings:
             try:
-                pad_index = int(m.get('pad', m.get('midi_note', 0)))
+                # For instruments, the pad index is less important than the key ranges.
+                # Using the rootNote is a reasonable default.
+                pad_index = int(m.get('root_note', 0))
                 if 0 <= pad_index < 128:
                     if not isinstance(pads[f"value{pad_index}"], dict):
                          pads[f"value{pad_index}"] = {}
@@ -336,6 +338,7 @@ def find_unreferenced_audio_files(xpm_path, mappings):
 #</editor-fold>
 
 #<editor-fold desc="GUI: Utility Windows">
+# RESTORED: All utility window classes are now included.
 class ExpansionDoctorWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root if hasattr(master, 'root') else master)
@@ -676,6 +679,7 @@ class ExpansionBuilderWindow(tk.Toplevel):
         path = filedialog.askopenfilename(parent=self, title="Select Image", filetypes=[("Image Files", "*.jpg *.jpeg *.png")])
         if path:
             self.image_var.set(path)
+            self.master.last_browse_path = os.path.dirname(path)
 
     def create_file(self):
         folder = self.master.folder_path.get()
@@ -729,6 +733,600 @@ class ExpansionBuilderWindow(tk.Toplevel):
         messagebox.showinfo("Success", f"Expansion.xml created at {xml_path}", parent=self)
         self.destroy()
 
+class FileRenamerWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root if hasattr(master, 'root') else master)
+        self.title("File Renamer")
+        self.geometry("900x600")
+        self.resizable(True, True)
+        self.master = master
+        self.folder_path = master.folder_path.get()
+        self.include_folder_var = tk.BooleanVar(value=True)
+        self.rename_proposals = []
+        self.check_vars = {}
+        self.create_widgets()
+        self.scan_files()
+
+    def create_widgets(self):
+        main_frame = ttk.Frame(self, padding="10")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_rowconfigure(2, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+
+        top_frame = ttk.Frame(main_frame)
+        top_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        ttk.Button(top_frame, text="Rescan Files", command=self.scan_files).pack(side="left")
+        ttk.Checkbutton(top_frame, text="Include Folder Name in Suggestion", variable=self.include_folder_var, command=self.update_all_suggestions).pack(side="left", padx=10)
+
+        batch_frame = ttk.LabelFrame(main_frame, text="Batch Operations", padding="5")
+        batch_frame.grid(row=1, column=0, sticky="ew", pady=(0,5))
+        ttk.Label(batch_frame, text="Remove chars:").pack(side="left")
+        self.remove_chars_entry = ttk.Entry(batch_frame, width=10)
+        self.remove_chars_entry.pack(side="left", padx=2)
+        ttk.Button(batch_frame, text="Apply", command=self.batch_remove_chars).pack(side="left")
+        ttk.Label(batch_frame, text="Replace:").pack(side="left", padx=(10,0))
+        self.replace_from_entry = ttk.Entry(batch_frame, width=10)
+        self.replace_from_entry.pack(side="left", padx=2)
+        ttk.Label(batch_frame, text="with").pack(side="left")
+        self.replace_to_entry = ttk.Entry(batch_frame, width=10)
+        self.replace_to_entry.pack(side="left", padx=2)
+        ttk.Button(batch_frame, text="Apply", command=self.batch_replace).pack(side="left")
+        ttk.Button(batch_frame, text="Title Case", command=lambda: self.batch_case('title')).pack(side="left", padx=(10, 2))
+        ttk.Button(batch_frame, text="UPPERCASE", command=lambda: self.batch_case('upper')).pack(side="left", padx=2)
+        ttk.Button(batch_frame, text="lowercase", command=lambda: self.batch_case('lower')).pack(side="left", padx=2)
+
+        tree_frame = ttk.Frame(main_frame)
+        tree_frame.grid(row=2, column=0, sticky="nsew")
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
+        self.tree = Treeview(tree_frame, columns=("Select", "Original", "Suggested"), show="headings")
+        self.tree.heading("Select", text="Select")
+        self.tree.heading("Original", text="Original Filename")
+        self.tree.heading("Suggested", text="Suggested New Filename")
+        self.tree.column("Select", width=60, anchor="center", stretch=False)
+        self.tree.column("Original", width=350)
+        self.tree.column("Suggested", width=350)
+        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=vsb.set)
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        vsb.grid(row=0, column=1, sticky="ns")
+        self.tree.bind("<Button-1>", self.on_tree_click)
+        self.tree.bind('<Double-1>', self.on_edit_cell)
+
+        bottom_frame = ttk.Frame(main_frame)
+        bottom_frame.grid(row=3, column=0, sticky="ew", pady=(5,0))
+        ttk.Button(bottom_frame, text="Select All", command=lambda: self.toggle_all_checks(True)).pack(side="left")
+        ttk.Button(bottom_frame, text="Deselect All", command=lambda: self.toggle_all_checks(False)).pack(side="left", padx=5)
+        self.apply_button = ttk.Button(bottom_frame, text="Apply Selected Renames", command=self.apply_renames, state="disabled")
+        self.apply_button.pack(side="right")
+
+    def _generate_suggestion(self, proposal):
+        info = get_clean_sample_info(proposal['original_path'])
+        note_str = str(proposal['note']) if proposal['note'] is not None else ''
+        parts = []
+        if self.include_folder_var.get():
+            parts.append(info['folder'].strip())
+
+        base_name_cleaned = re.sub(r'([A-G][#b]?\-?\d+)', '', info['base'], flags=re.IGNORECASE).strip()
+        base_name_cleaned = re.sub(r'\b(\d{2,3})\b', '', base_name_cleaned).strip()
+        parts.append(base_name_cleaned)
+
+        if note_str:
+            parts.append(note_str)
+
+        final_base = ' '.join(filter(None, parts))
+        return f"{final_base}{info['ext']}"
+
+    def update_all_suggestions(self):
+        for i, row_id in enumerate(self.tree.get_children()):
+            proposal = self.rename_proposals[i]
+            new_name = self._generate_suggestion(proposal)
+            proposal['new_name'] = new_name
+            self.tree.set(row_id, "Suggested", new_name)
+
+    def scan_files(self):
+        for i in self.tree.get_children():
+            self.tree.delete(i)
+        self.rename_proposals.clear()
+        self.check_vars.clear()
+
+        if not self.folder_path or not os.path.isdir(self.folder_path):
+            messagebox.showwarning("No Folder", "Please select a source folder first.", parent=self)
+            return
+
+        wav_files = glob.glob(os.path.join(self.folder_path, '**', '*.wav'), recursive=True)
+        for path in wav_files:
+            if '.xpm.wav' in path.lower(): continue
+
+            info = get_clean_sample_info(path)
+            proposal = {
+                'original_path': path,
+                'original_name': os.path.basename(path),
+                'new_name': '',
+                'folder': info['folder'],
+                'note': info['note'],
+                'ext': info['ext'],
+                'base': info['base']
+            }
+            proposal['new_name'] = self._generate_suggestion(proposal)
+            self.rename_proposals.append(proposal)
+
+        for i, proposal in enumerate(self.rename_proposals):
+            row_id = self.tree.insert('', 'end', values=("No", proposal['original_name'], proposal['new_name']))
+            self.check_vars[row_id] = tk.BooleanVar(value=False)
+
+        self.apply_button.config(state="normal" if self.rename_proposals else "disabled")
+
+    def on_tree_click(self, event):
+        region = self.tree.identify("region", event.x, event.y)
+        if region != "cell": return
+        col = self.tree.identify_column(event.x)
+        row_id = self.tree.identify_row(event.y)
+        if not row_id: return
+
+        if col == "#1":
+            current_val = self.check_vars[row_id].get()
+            self.check_vars[row_id].set(not current_val)
+            self.tree.set(row_id, "Select", "Yes" if not current_val else "No")
+
+    def batch_remove_chars(self):
+        chars = self.remove_chars_entry.get()
+        if not chars: return
+        for row_id in self.tree.get_children():
+            if self.check_vars.get(row_id, tk.BooleanVar(value=False)).get():
+                current_name = self.tree.set(row_id, "Suggested")
+                new_name = current_name.translate({ord(c): None for c in chars})
+                self.tree.set(row_id, "Suggested", new_name)
+
+    def batch_replace(self):
+        old = self.replace_from_entry.get()
+        new = self.replace_to_entry.get()
+        if not old: return
+        for row_id in self.tree.get_children():
+            if self.check_vars.get(row_id, tk.BooleanVar(value=False)).get():
+                current_name = self.tree.set(row_id, "Suggested")
+                new_name = current_name.replace(old, new)
+                self.tree.set(row_id, "Suggested", new_name)
+
+    def batch_case(self, mode):
+        for row_id in self.tree.get_children():
+            if self.check_vars.get(row_id, tk.BooleanVar(value=False)).get():
+                current_name = self.tree.set(row_id, "Suggested")
+                name_part, ext_part = os.path.splitext(current_name)
+                if mode == 'upper': new_name_part = name_part.upper()
+                elif mode == 'lower': new_name_part = name_part.lower()
+                elif mode == 'title': new_name_part = name_part.title()
+                else: continue
+                self.tree.set(row_id, "Suggested", new_name_part + ext_part)
+
+    def on_edit_cell(self, event):
+        region = self.tree.identify("region", event.x, event.y)
+        if region != "cell": return
+        col = self.tree.identify_column(event.x)
+        if col == "#3":
+            row_id = self.tree.identify_row(event.y)
+            if not row_id: return
+            x, y, width, height = self.tree.bbox(row_id, col)
+            value = self.tree.set(row_id, "Suggested")
+            entry = ttk.Entry(self.tree)
+            entry.place(x=x, y=y, width=width, height=height)
+            entry.insert(0, value)
+            entry.focus()
+            def save_edit(event=None):
+                self.tree.set(row_id, "Suggested", entry.get())
+                entry.destroy()
+            entry.bind('<Return>', save_edit)
+            entry.bind('<FocusOut>', save_edit)
+
+    def apply_renames(self):
+        selected_proposals = []
+        for i, row_id in enumerate(self.tree.get_children()):
+            if self.check_vars.get(row_id, tk.BooleanVar(value=False)).get():
+                proposal = self.rename_proposals[i]
+                proposal['new_name'] = self.tree.set(row_id, 'Suggested')
+                selected_proposals.append(proposal)
+
+        if not selected_proposals:
+            messagebox.showinfo("No Selection", "No files were selected to rename.", parent=self)
+            return
+
+        if not messagebox.askyesno("Confirm Rename", f"This will rename {len(selected_proposals)} file(s) and modify all affected .xpm programs. This action CANNOT be undone. Are you sure?", parent=self):
+            return
+
+        rename_map = {item['original_path']: os.path.join(os.path.dirname(item['original_path']), item['new_name']) for item in selected_proposals}
+
+        all_xpms = glob.glob(os.path.join(self.folder_path, '**', '*.xpm'), recursive=True)
+
+        for xpm_path in all_xpms:
+            try:
+                tree = ET.parse(xpm_path)
+                root = tree.getroot()
+                changed = False
+                for elem in root.findall('.//SampleFile'):
+                    if elem is not None and elem.text:
+                        rel_path = elem.text.replace('/', os.sep)
+                        original_sample_path = os.path.normpath(os.path.join(os.path.dirname(xpm_path), rel_path))
+                        if original_sample_path in rename_map:
+                            new_sample_path = rename_map[original_sample_path]
+                            new_rel_path = os.path.relpath(new_sample_path, os.path.dirname(xpm_path))
+                            elem.text = new_rel_path.replace(os.sep, '/')
+
+                            parent_layer = root.find(f".//Layer[SampleFile='{elem.text}']")
+                            if parent_layer is not None:
+                                sample_name_elem = parent_layer.find('SampleName')
+                                if sample_name_elem is not None:
+                                    sample_name_elem.text = os.path.splitext(os.path.basename(new_sample_path))[0]
+                            changed = True
+                if changed:
+                    indent_tree(tree)
+                    tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
+            except Exception as e:
+                logging.error(f"Error updating XPM {xpm_path}: {e}")
+
+        for original, new in rename_map.items():
+            try:
+                if os.path.exists(original):
+                    os.rename(original, new)
+                else:
+                    logging.warning(f"Original file not found for renaming: {original}")
+            except Exception as e:
+                logging.error(f"Error renaming {original} to {new}: {e}")
+
+        messagebox.showinfo("Success", "Files renamed and programs updated.", parent=self)
+        self.scan_files()
+
+    def toggle_all_checks(self, select_all):
+        for row_id in self.tree.get_children():
+            self.check_vars[row_id].set(select_all)
+            self.tree.set(row_id, "Select", "Yes" if select_all else "No")
+
+class CreativeModeConfigWindow(tk.Toplevel):
+    def __init__(self, master, mode):
+        super().__init__(master.root)
+        self.title(f"Configure '{mode}' Mode")
+        self.geometry("350x200")
+        self.master = master
+        self.mode = mode
+        self.config = {}
+
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill="both", expand=True)
+
+        if self.mode == 'synth':
+            ttk.Label(frame, text="Resonance (0.0-1.0):").pack(anchor='w')
+            self.resonance = tk.DoubleVar(value=master.creative_config.get('synth', {}).get('resonance', 0.2))
+            ttk.Scale(frame, from_=0, to=1, variable=self.resonance, orient='horizontal').pack(fill='x', pady=2)
+            ttk.Label(frame, text="Release Time (0.0-2.0s):").pack(anchor='w', pady=(10, 0))
+            self.release = tk.DoubleVar(value=master.creative_config.get('synth', {}).get('release', 0.5))
+            ttk.Scale(frame, from_=0, to=2, variable=self.release, orient='horizontal').pack(fill='x', pady=2)
+        elif self.mode == 'lofi':
+            ttk.Label(frame, text="Filter Cutoff (0.1-0.8):").pack(anchor='w')
+            self.cutoff = tk.DoubleVar(value=master.creative_config.get('lofi', {}).get('cutoff', 0.5))
+            ttk.Scale(frame, from_=0.1, to=0.8, variable=self.cutoff, orient='horizontal').pack(fill='x', pady=2)
+            ttk.Label(frame, text="Pitch Wobble Amount (0.0-0.5):").pack(anchor='w', pady=(10, 0))
+            self.pitch_wobble = tk.DoubleVar(value=master.creative_config.get('lofi', {}).get('pitch_wobble', 0.1))
+            ttk.Scale(frame, from_=0, to=0.5, variable=self.pitch_wobble, orient='horizontal').pack(fill='x', pady=2)
+
+        ttk.Button(frame, text="Save Configuration", command=self.save).pack(side='bottom', pady=10)
+
+    def save(self):
+        if self.mode == 'synth':
+            self.config = {'resonance': self.resonance.get(), 'release': self.release.get()}
+        elif self.mode == 'lofi':
+            self.config = {'cutoff': self.cutoff.get(), 'pitch_wobble': self.pitch_wobble.get()}
+
+        self.master.creative_config[self.mode] = self.config
+        logging.info(f"Updated creative config for '{self.mode}': {self.config}")
+        self.destroy()
+
+class SCWToolWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root)
+        self.title("Single-Cycle Waveform (SCW) Tool")
+        self.geometry("600x400")
+        self.master = master
+        self.scw_files = []
+        self.create_widgets()
+        self.scan_for_scw()
+
+    def create_widgets(self):
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text=f"Found potential SCWs (WAV files < {SCW_FRAME_THRESHOLD} frames):").pack(anchor='w')
+
+        list_frame = ttk.Frame(frame)
+        list_frame.pack(fill='both', expand=True, pady=5)
+        self.listbox = tk.Listbox(list_frame, selectmode='extended')
+        self.listbox.pack(side='left', fill='both', expand=True)
+        vsb = ttk.Scrollbar(list_frame, orient='vertical', command=self.listbox.yview)
+        vsb.pack(side='right', fill='y')
+        self.listbox.config(yscrollcommand=vsb.set)
+
+        ttk.Button(frame, text="Create Looped Instruments from Selected", command=self.create_instruments).pack(pady=5)
+
+    def scan_for_scw(self):
+        folder = self.master.folder_path.get()
+        wav_files = glob.glob(os.path.join(folder, '**', '*.wav'), recursive=True)
+        for wav_path in wav_files:
+            if get_wav_frames(wav_path) < SCW_FRAME_THRESHOLD:
+                self.scw_files.append(wav_path)
+                self.listbox.insert(tk.END, os.path.relpath(wav_path, folder))
+
+    def create_instruments(self):
+        selected_indices = self.listbox.curselection()
+        if not selected_indices:
+            messagebox.showwarning("No Selection", "Please select one or more files from the list.", parent=self)
+            return
+
+        selected_files = [self.scw_files[i] for i in selected_indices]
+
+        options = InstrumentOptions(
+            loop_one_shots=True,
+            polyphony=1,
+            firmware_version=self.master.firmware_version.get()
+        )
+
+        builder = InstrumentBuilder(self.master.folder_path.get(), self.master, options)
+
+        for file_path in selected_files:
+            rel_path = os.path.relpath(file_path, self.master.folder_path.get())
+            program_name = os.path.splitext(os.path.basename(file_path))[0]
+            output_folder = os.path.dirname(file_path)
+            builder._create_xpm(program_name, [rel_path], output_folder, mode='one-shot')
+
+        messagebox.showinfo("Success", f"Created {len(selected_files)} looped instruments.", parent=self)
+        self.destroy()
+
+class BatchProgramEditorWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root)
+        self.master = master
+        self.title("Batch Program Editor")
+        self.geometry("450x550") # Increased height for tabs
+        self.resizable(True, True)
+        self.params = {}
+        self.create_widgets()
+
+    def create_widgets(self):
+        main_frame = ttk.Frame(self, padding="10")
+        main_frame.pack(fill="both", expand=True)
+
+        # --- Top-level options ---
+        top_frame = ttk.Frame(main_frame)
+        top_frame.pack(fill="x", pady=(0, 10))
+        top_frame.columnconfigure(1, weight=1)
+
+        self.params['rename'] = tk.BooleanVar(value=True)
+        ttk.Checkbutton(top_frame, text="Rename ProgramName to file name", variable=self.params['rename']).grid(row=0, column=0, columnspan=2, sticky="w")
+
+        ttk.Label(top_frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(5,0))
+        self.params['version'] = tk.StringVar(value=self.master.firmware_version.get())
+        versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
+        ttk.Combobox(top_frame, textvariable=self.params['version'], values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(5,0))
+
+        ttk.Label(top_frame, text="Format:").grid(row=2, column=0, sticky="w", pady=(5,0))
+        self.params['format_version'] = tk.StringVar(value="advanced")
+        ttk.Combobox(top_frame, textvariable=self.params['format_version'], values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(5,0))
+
+        # --- Notebook for Basic and Advanced tabs ---
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill="both", expand=True, pady=5)
+
+        basic_tab = ttk.Frame(notebook, padding="10")
+        advanced_tab = ttk.Frame(notebook, padding="10")
+        notebook.add(basic_tab, text='Basic')
+        notebook.add(advanced_tab, text='Advanced')
+
+        self.create_basic_tab(basic_tab)
+        self.create_advanced_tab(advanced_tab)
+
+        # --- Bottom buttons ---
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.pack(fill="x", pady=(10,0))
+        ttk.Button(btn_frame, text="Apply Edits", command=self.apply_edits, style="Accent.TButton").pack(side="right")
+        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(0,5))
+
+    def create_basic_tab(self, parent):
+        """Populates the Basic settings tab."""
+        parent.columnconfigure(1, weight=1)
+
+        # Creative Mode
+        ttk.Label(parent, text="Creative Mode:").grid(row=0, column=0, sticky="w", pady=2)
+        creative_frame = ttk.Frame(parent)
+        creative_frame.grid(row=0, column=1, sticky="ew", pady=2)
+        creative_frame.columnconfigure(0, weight=1)
+        self.params['creative_mode'] = tk.StringVar(value="off")
+        modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
+        creative_combo = ttk.Combobox(creative_frame, textvariable=self.params['creative_mode'], values=modes, state="readonly")
+        creative_combo.grid(row=0, column=0, sticky="ew")
+        creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
+        self.config_btn = ttk.Button(creative_frame, text="Cfg", command=self.open_config, state='disabled', width=4)
+        self.config_btn.grid(row=0, column=1, padx=(5,0))
+
+        # Volume ADSR
+        ttk.Label(parent, text="Volume ADSR:").grid(row=1, column=0, sticky="w", pady=2)
+        adsr_frame = ttk.Frame(parent)
+        adsr_frame.grid(row=1, column=1, sticky="ew", pady=2)
+        self.params['attack'] = self.create_param_entry(adsr_frame, "A", 4)
+        self.params['decay'] = self.create_param_entry(adsr_frame, "D", 4)
+        self.params['sustain'] = self.create_param_entry(adsr_frame, "S", 4)
+        self.params['release'] = self.create_param_entry(adsr_frame, "R", 4)
+
+        # Mod Matrix
+        ttk.Label(parent, text="Mod Matrix File:").grid(row=2, column=0, sticky="w", pady=2)
+        mm_frame = ttk.Frame(parent)
+        mm_frame.grid(row=2, column=1, sticky="ew", pady=2)
+        mm_frame.columnconfigure(0, weight=1)
+        self.params['mod_matrix_file'] = tk.StringVar()
+        ttk.Entry(mm_frame, textvariable=self.params['mod_matrix_file']).grid(row=0, column=0, sticky="ew")
+        ttk.Button(mm_frame, text="Browse...", command=self.browse_mod_matrix).grid(row=0, column=1, padx=(5,0))
+
+        # Checkboxes
+        self.params['fix_notes'] = tk.BooleanVar()
+        ttk.Checkbutton(parent, text="Fix sample notes from WAV metadata", variable=self.params['fix_notes']).grid(row=3, column=0, columnspan=2, sticky="w", pady=(5,0))
+
+        self.params['keytrack'] = tk.BooleanVar(value=True)
+        ttk.Checkbutton(parent, text="Keytrack (Layer Transpose)", variable=self.params['keytrack']).grid(row=4, column=0, columnspan=2, sticky="w")
+
+
+    def create_advanced_tab(self, parent):
+        """Populates the Advanced settings tab."""
+        parent.columnconfigure(1, weight=1)
+        parent.columnconfigure(3, weight=1)
+
+        # Filter Env
+        ttk.Label(parent, text="Filter ADSR:", font='-weight bold').grid(row=0, column=0, columnspan=4, sticky="w", pady=(0,5))
+
+        ttk.Label(parent, text="ADSR:").grid(row=1, column=0, sticky="w", pady=2)
+        f_adsr_frame = ttk.Frame(parent)
+        f_adsr_frame.grid(row=1, column=1, sticky="ew", pady=2)
+        self.params['filter_attack'] = self.create_param_entry(f_adsr_frame, "A", 4)
+        self.params['filter_decay'] = self.create_param_entry(f_adsr_frame, "D", 4)
+        self.params['filter_sustain'] = self.create_param_entry(f_adsr_frame, "S", 4)
+        self.params['filter_release'] = self.create_param_entry(f_adsr_frame, "R", 4)
+
+        ttk.Label(parent, text="Env Amt:").grid(row=1, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['filter_env_amount'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['filter_env_amount'], width=6).grid(row=1, column=3, sticky="ew", pady=2)
+
+        # Velocity Mods
+        ttk.Label(parent, text="Velocity Mod:", font='-weight bold').grid(row=2, column=0, columnspan=4, sticky="w", pady=(10,5))
+
+        ttk.Label(parent, text="-> Level:").grid(row=3, column=0, sticky="w", pady=2)
+        self.params['velocity_to_level'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_level'], width=6).grid(row=3, column=1, sticky="ew", pady=2)
+
+        ttk.Label(parent, text="-> Attack:").grid(row=3, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['velocity_to_attack'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_attack'], width=6).grid(row=3, column=3, sticky="ew", pady=2)
+
+        ttk.Label(parent, text="-> Start:").grid(row=4, column=0, sticky="w", pady=2)
+        self.params['velocity_to_start'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_start'], width=6).grid(row=4, column=1, sticky="ew", pady=2)
+
+        # LFOs
+        ttk.Label(parent, text="LFO 1:", font='-weight bold').grid(row=5, column=0, columnspan=4, sticky="w", pady=(10,5))
+
+        ttk.Label(parent, text="Rate:").grid(row=6, column=0, sticky="w", pady=2)
+        self.params['lfo1_rate'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['lfo1_rate'], width=6).grid(row=6, column=1, sticky="ew", pady=2)
+
+        ttk.Label(parent, text="Shape:").grid(row=6, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['lfo1_shape'] = tk.StringVar()
+        ttk.Combobox(parent, textvariable=self.params['lfo1_shape'], values=['Sine', 'Triangle', 'Saw', 'Square', 'S&H'], state='readonly').grid(row=6, column=3, sticky="ew", pady=2)
+
+    def create_param_entry(self, parent, label, width):
+        """Helper to create a small labeled entry for ADSR-style widgets."""
+        ttk.Label(parent, text=label).pack(side="left")
+        var = tk.StringVar()
+        ttk.Entry(parent, width=width, textvariable=var).pack(side="left", padx=(0,5))
+        return var
+
+    def toggle_config_btn(self, event=None):
+        if self.params['creative_mode'].get() in ['synth', 'lofi']:
+            self.config_btn.config(state='normal')
+        else:
+            self.config_btn.config(state='disabled')
+
+    def open_config(self):
+        self.master.open_window(CreativeModeConfigWindow, self.params['creative_mode'].get())
+
+    def browse_mod_matrix(self):
+        path = filedialog.askopenfilename(
+            parent=self,
+            title="Select Mod Matrix JSON",
+            filetypes=[("JSON Files", "*.json"), ("All Files", "*")],
+            initialdir=self.master.last_browse_path
+        )
+        if path:
+            self.params['mod_matrix_file'].set(path)
+            self.master.last_browse_path = os.path.dirname(path)
+
+
+    def apply_edits(self):
+        # Collect all parameters from the StringVars
+        args_dict = {}
+        for key, var in self.params.items():
+            value = var.get()
+            # Only include non-empty strings, and handle booleans
+            if isinstance(value, bool):
+                args_dict[key] = value
+            elif value:
+                args_dict[key] = value
+
+        self.master.run_batch_process(batch_edit_programs, args_dict)
+        self.destroy()
+
+class SmartSplitWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root)
+        self.title("Smart Split Files")
+        self.geometry("400x200")
+        self.master = master
+        self.split_mode = tk.StringVar(value="word")
+        self.create_widgets()
+
+    def create_widgets(self):
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill="both", expand=True)
+        ttk.Label(frame, text="Choose a method to split files into folders:").pack(anchor="w", pady=5)
+        ttk.Radiobutton(frame, text="By First Word (e.g., 'Kick Drum.wav' -> 'Kick' folder)", variable=self.split_mode, value="word").pack(anchor="w")
+        ttk.Radiobutton(frame, text="By Repeating Prefix (e.g., 'AAA_Snare.wav' -> 'AAA' folder)", variable=self.split_mode, value="prefix").pack(anchor="w")
+        ttk.Radiobutton(frame, text="By Instrument Category (e.g., 'Bass', 'Piano', etc.)", variable=self.split_mode, value="category").pack(anchor="w")
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill="x", pady=(20, 0))
+        ttk.Button(btn_frame, text="Apply Split", command=self.apply_split).pack(side="right")
+        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=5)
+
+    def apply_split(self):
+        mode = self.split_mode.get()
+        self.destroy()
+        self.master.run_batch_process(split_files_smartly, {'mode': mode})
+
+class MergeSubfoldersWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root)
+        self.title("Merge Subfolders")
+        self.geometry("400x220")
+        self.master = master
+        self.target_depth = tk.IntVar(value=0)
+        # IntVar used to control how deep subfolders are scanned when merging
+        # files. Renamed variable to avoid confusion with the `max_depth`
+        # argument in the merge functions below.
+        self.max_depth_var = tk.IntVar(value=2)
+        self.create_widgets()
+
+    def create_widgets(self):
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill="both", expand=True)
+
+        ttk.Label(frame, text="Move files up to level:").pack(anchor="w")
+        ttk.Radiobutton(frame, text="Root", variable=self.target_depth, value=0).pack(anchor="w")
+        ttk.Radiobutton(frame, text="1st Level", variable=self.target_depth, value=1).pack(anchor="w")
+        ttk.Radiobutton(frame, text="2nd Level", variable=self.target_depth, value=2).pack(anchor="w")
+
+        opt_frame = ttk.Frame(frame)
+        opt_frame.pack(anchor="w", pady=(10,0))
+        ttk.Label(opt_frame, text="Max depth to scan:").pack(side="left")
+        ttk.Spinbox(opt_frame, from_=1, to=10, textvariable=self.max_depth_var, width=4).pack(side="left")
+
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill="x", pady=(20,0))
+        ttk.Button(btn_frame, text="Merge", command=self.apply_merge).pack(side="right")
+        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=5)
+
+    def apply_merge(self):
+        depth = self.target_depth.get()
+        max_depth = self.max_depth_var.get()
+        self.destroy()
+        # wrap merge_subfolders so run_batch_process can call it with two args
+        merge_func = lambda folder, _=None: merge_subfolders(folder, {'target_depth': depth, 'max_depth': max_depth})
+        self.master.run_batch_process(
+            merge_func,
+            {},
+            confirm=True,
+            confirm_message="This will move all files up and remove empty folders. This can't be undone. Continue?",
+        )
 #</editor-fold>
 
 #<editor-fold desc="NEW & IMPROVED: SampleSelectorWindow">
@@ -952,9 +1550,10 @@ class BatchProgramFixerWindow(tk.Toplevel):
         result = threading.Event()
         path = tk.StringVar()
         def ask():
-            res = filedialog.askdirectory(parent=self, title=title)
+            res = filedialog.askdirectory(parent=self, title=title, initialdir=self.master.last_browse_path)
             if res:
                 path.set(res)
+                self.master.last_browse_path = res
             result.set()
         self.master.root.after(0, ask)
         result.wait()
@@ -977,9 +1576,10 @@ class BatchProgramFixerWindow(tk.Toplevel):
 
 
     def browse_folder(self):
-        path = filedialog.askdirectory(parent=self, title="Select Folder Containing XPM Programs")
+        path = filedialog.askdirectory(parent=self, title="Select Folder Containing XPM Programs", initialdir=self.master.last_browse_path)
         if path:
             self.folder_path.set(path)
+            self.master.last_browse_path = path
             self.scan_folder()
 
     def scan_folder(self):
@@ -1249,6 +1849,37 @@ class InstrumentBuilder:
             return False
         return True
 
+    # NEW: Dedicated function to create a playable keymap
+    def _calculate_key_ranges(self, sample_infos):
+        """
+        Takes a list of sample_infos, sorts them by root note, and calculates
+        the low and high key ranges to create a playable instrument map.
+        """
+        if not sample_infos:
+            return []
+
+        # Sort samples by their root note
+        sorted_samples = sorted(sample_infos, key=lambda s: s.get('root_note', 60))
+
+        for i, current_sample in enumerate(sorted_samples):
+            # Set the low note
+            if i == 0:
+                current_sample['low_note'] = 0
+            else:
+                prev_sample = sorted_samples[i - 1]
+                midpoint = (prev_sample['root_note'] + current_sample['root_note']) // 2
+                current_sample['low_note'] = midpoint + 1
+
+            # Set the high note
+            if i == len(sorted_samples) - 1:
+                current_sample['high_note'] = 127
+            else:
+                next_sample = sorted_samples[i + 1]
+                midpoint = (current_sample['root_note'] + next_sample['root_note']) // 2
+                current_sample['high_note'] = midpoint
+        
+        return sorted_samples
+
     def create_instruments(self, mode='multi-sample'):
         logging.info("create_instruments starting with mode %s", mode)
         if not self.validate_options():
@@ -1326,56 +1957,64 @@ class InstrumentBuilder:
             sample_infos = []
             start_note = 60
             if mappings:
+                # This path is for rebuilding from existing mappings
                 for m in mappings:
                     abs_path = m['sample_path']
                     info = self.validate_sample_info(abs_path)
                     if not info.get('is_valid'):
                         continue
-                    info['midi_note'] = m.get('root_note', info.get('root_note', start_note))
-                    info['low_note'] = m.get('low_note', info['midi_note'])
-                    info['high_note'] = m.get('high_note', info['midi_note'])
+                    info['root_note'] = m.get('root_note', info.get('root_note', start_note))
+                    info['low_note'] = m.get('low_note', info['root_note'])
+                    info['high_note'] = m.get('high_note', info['root_note'])
                     info['velocity_low'] = m.get('velocity_low', 0)
                     info['velocity_high'] = m.get('velocity_high', 127)
                     rel_path = os.path.relpath(abs_path, output_folder)
                     info['sample_path'] = rel_path.replace(os.sep, '/')
                     sample_infos.append(info)
             else:
+                # This path is for building a NEW instrument from files
                 for idx, file_path in enumerate(sample_files):
                     abs_path = os.path.join(self.folder_path, file_path) if not os.path.isabs(file_path) else file_path
                     info = self.validate_sample_info(abs_path)
                     if info.get('is_valid'):
                         if midi_notes and idx < len(midi_notes):
                             midi_note = midi_notes[idx]
-                        elif mode == 'drum-kit':
-                            midi_note = min(start_note + idx, 127)
-                        elif mode == 'one-shot':
-                            midi_note = start_note
                         else:
+                            # Use found root note, or filename note, or default to 60
                             midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
-                        info['midi_note'] = midi_note
-                        info['low_note'] = midi_note
-                        info['high_note'] = midi_note
+                            logging.info(f"Sample {os.path.basename(file_path)} assigned root note: {midi_note}")
+
+                        info['root_note'] = midi_note
                         info['velocity_low'] = 0
                         info['velocity_high'] = 127
                         rel_path = os.path.relpath(abs_path, output_folder)
                         info['sample_path'] = rel_path.replace(os.sep, '/')
                         sample_infos.append(info)
 
+                # REVISED: Apply correct key range logic based on build mode
+                if mode == 'multi-sample':
+                    sample_infos = self._calculate_key_ranges(sample_infos)
+                elif mode == 'one-shot':
+                    for info in sample_infos:
+                        info['low_note'] = 0
+                        info['high_note'] = 127
+                else: # drum-kit
+                    for idx, info in enumerate(sample_infos):
+                         note = min(start_note + idx, 127)
+                         info['low_note'] = note
+                         info['high_note'] = note
+
+
             if not sample_infos:
                 logging.warning(f"No valid samples for program: {program_name}")
                 return False
 
-            if mappings:
-                note_layers = defaultdict(list)
-                for info in sample_infos:
-                    key = (info['low_note'], info['high_note'])
-                    note_layers[key].append(info)
-                keygroup_count = len(note_layers)
-            else:
-                note_layers = defaultdict(list)
-                for info in sample_infos:
-                    note_layers[(info['midi_note'], info['midi_note'])].append(info)
-                keygroup_count = len(note_layers)
+            # Group samples by their key range to create keygroups
+            note_layers = defaultdict(list)
+            for info in sample_infos:
+                key = (info['low_note'], info['high_note'])
+                note_layers[key].append(info)
+            keygroup_count = len(note_layers)
 
             root = ET.Element('MPCVObject')
             version = ET.SubElement(root, 'Version')
@@ -1387,23 +2026,10 @@ class InstrumentBuilder:
             program = ET.SubElement(root, 'Program', {'type': 'Keygroup'})
             ET.SubElement(program, 'ProgramName').text = xml_escape(program_name)
 
-            pad_mappings = []
-            for info in sample_infos:
-                pad_mappings.append({
-                    'pad': info['midi_note'],
-                    'sample_path': info['sample_path'],
-                    'midi_note': info['midi_note'],
-                    'low_note': info.get('low_note', info['midi_note']),
-                    'high_note': info.get('high_note', info['midi_note']),
-                    'velocity_low': info.get('velocity_low', 0),
-                    'velocity_high': info.get('velocity_high', 127),
-                })
-
-            fw = self.options.firmware_version
-            pads_tag = 'ProgramPads-v2.10' if fw in ['3.4.0', '3.5.0'] else 'ProgramPads'
-
+            # Build the JSON section (less critical for keygroups, but good to be accurate)
             pads_json_str = build_program_pads_json(
-                fw, pad_mappings, engine_override=self.options.format_version)
+                self.options.firmware_version, sample_infos, engine_override=self.options.format_version)
+            pads_tag = 'ProgramPads-v2.10' if self.options.firmware_version in ['3.4.0', '3.5.0'] else 'ProgramPads'
             ET.SubElement(program, pads_tag).text = pads_json_str
 
             program_params = self.get_program_parameters(keygroup_count)
@@ -1413,28 +2039,11 @@ class InstrumentBuilder:
             for key, val in program_params.items():
                 ET.SubElement(program, key).text = val
 
+            # Build the critical <Instruments> section
             instruments = ET.SubElement(program, 'Instruments')
             sorted_keys = sorted(note_layers.keys())
             for i, key in enumerate(sorted_keys, start=1):
                 low_key, high_key = key
-                if not mappings:
-                    # Derive instrument ranges automatically
-                    if mode == 'drum-kit':
-                        low_key = high_key = low_key
-                    elif mode == 'one-shot' and keygroup_count == 1:
-                        low_key, high_key = 0, 127
-                    else:
-                        if i < len(sorted_keys):
-                            next_low, _ = sorted_keys[i]
-                            high_key = (low_key + next_low) // 2
-                        else:
-                            high_key = 127
-                        if i > 1:
-                            prev_low, _ = sorted_keys[i-2]
-                            low_key = ((prev_low + low_key) // 2) + 1
-                        else:
-                            low_key = 0
-
                 inst = self.build_instrument_element(instruments, i, low_key, high_key)
                 if instrument_template:
                     for k, v in instrument_template.items():
@@ -1447,29 +2056,21 @@ class InstrumentBuilder:
 
                 layers_for_note = sorted(note_layers[key], key=lambda x: x.get('velocity_low', 0))
                 num_layers = min(len(layers_for_note), 8)
+                vel_split = 128 // num_layers
 
-                if mappings:
-                    for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
-                        layer = ET.SubElement(layers_elem, 'Layer', {'number': str(lidx + 1)})
-                        vel_start = sample_info.get('velocity_low', 0)
-                        vel_end = sample_info.get('velocity_high', 127)
-                        self.add_layer_parameters(layer, sample_info, vel_start, vel_end)
-                        self.apply_creative_mode(inst, layer, lidx, num_layers)
-                else:
-                    vel_split = 128 // num_layers
-                    for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
-                        layer = ET.SubElement(layers_elem, 'Layer', {'number': str(lidx + 1)})
-                        vel_start = lidx * vel_split
-                        vel_end = (lidx + 1) * vel_split - 1 if lidx < num_layers - 1 else 127
-                        self.add_layer_parameters(layer, sample_info, vel_start, vel_end)
-                        self.apply_creative_mode(inst, layer, lidx, num_layers)
+                for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
+                    layer = ET.SubElement(layers_elem, 'Layer', {'number': str(lidx + 1)})
+                    vel_start = sample_info.get('velocity_low', lidx * vel_split)
+                    vel_end = sample_info.get('velocity_high', (lidx + 1) * vel_split - 1 if lidx < num_layers - 1 else 127)
+                    self.add_layer_parameters(layer, sample_info, vel_start, vel_end)
+                    self.apply_creative_mode(inst, layer, lidx, num_layers)
 
             output_path = os.path.join(output_folder, f"{program_name}.xpm")
             tree = ET.ElementTree(root)
             indent_tree(tree)
             tree.write(output_path, encoding='utf-8', xml_declaration=True)
 
-            if not validate_xpm_file(output_path, len(pad_mappings)):
+            if not validate_xpm_file(output_path, len(sample_infos)):
                 logging.warning(f"Post-creation validation failed for {os.path.basename(output_path)}")
 
             return True
@@ -1537,7 +2138,7 @@ class InstrumentBuilder:
             'VelStart': str(vel_start),
             'VelEnd': str(vel_end),
             'SampleEnd': str(frames),
-            'RootNote': str(sample_info['midi_note']),
+            'RootNote': str(sample_info['root_note']),
             'SampleStart': '0',
             'Loop': 'On' if loop_enabled else 'Off',
             'Direction': '0', 'Offset': '0', 'Volume': '1.0',
@@ -1714,6 +2315,7 @@ class App(tk.Tk):
         self.minsize(700, 600)
 
         self.creative_config = {}
+        self.last_browse_path = os.path.expanduser("~") # NEW: Remember last path
 
         self.setup_retro_theme()
 
@@ -1887,10 +2489,10 @@ class App(tk.Tk):
 
     #<editor-fold desc="GUI Event Handlers & Window Openers">
     def browse_folder(self):
-        initial_dir = self.folder_path.get() or os.path.expanduser("~")
-        folder = filedialog.askdirectory(parent=self.root, title="Select Sample Folder", initialdir=initial_dir)
+        folder = filedialog.askdirectory(parent=self.root, title="Select Sample Folder", initialdir=self.last_browse_path)
         if folder:
             self.folder_path.set(folder)
+            self.last_browse_path = folder
             logging.info(f"Selected folder: {folder}")
 
     def on_creative_mode_change(self, event=None):
@@ -1901,12 +2503,13 @@ class App(tk.Tk):
         else:
             self.creative_config_btn.config(state='disabled')
 
+    # REVISED: Corrected window opening logic
     def open_window(self, window_class, *args):
-        # List of windows that don't require a pre-selected folder
         folder_independent_windows = [
             ExpansionBuilderWindow,
             BatchProgramFixerWindow,
             SampleMappingEditorWindow,
+            CreativeModeConfigWindow, # Added missing class here
         ]
         if window_class not in folder_independent_windows and (
             not self.folder_path.get() or not os.path.isdir(self.folder_path.get())
@@ -1918,13 +2521,10 @@ class App(tk.Tk):
                 if isinstance(win, tk.Toplevel) and isinstance(win, window_class):
                     win.focus()
                     return
-            # Special handling for CreativeModeConfigWindow to avoid folder check
-            if window_class == CreativeModeConfigWindow:
-                 CreativeModeConfigWindow(self, *args)
-            else:
-                 window_class(self, *args)
+            # Simplified logic - no special cases needed now
+            window_class(self, *args)
         except Exception as e:
-            logging.error(f"Error opening {window_class.__name__}: {e}")
+            logging.error(f"Error opening {window_class.__name__}: {e}\n{traceback.format_exc()}")
             messagebox.showerror("Error", f"Failed to open window.\n{e}", parent=self.root)
 
     def open_expansion_doctor(self): self.open_window(ExpansionDoctorWindow)
@@ -1952,17 +2552,10 @@ class App(tk.Tk):
         threading.Thread(target=builder.create_instruments, args=(mode,), daemon=True).start()
 
     def build_multi_sample_instruments(self):
-        if IMPORTS_SUCCESSFUL:
-            self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions)
-        else:
-            self.build_instruments('multi-sample')
-
+        self.build_instruments('multi-sample')
 
     def build_one_shot_instruments(self):
-        if IMPORTS_SUCCESSFUL:
-            self.open_window(MultiSampleBuilderWindow, InstrumentBuilder, InstrumentOptions, 'one-shot')
-        else:
-            self.build_instruments('one-shot')
+        self.build_instruments('one-shot')
 
     def build_drum_kit_instruments(self):
         self.build_instruments('drum-kit')
@@ -2097,7 +2690,8 @@ class App(tk.Tk):
             parent=self.root,
             title="Save Expansion As ZIP",
             defaultextension=".zip",
-            filetypes=[("ZIP Archive", "*.zip")]
+            filetypes=[("ZIP Archive", "*.zip")],
+            initialdir=self.last_browse_path
         )
         if not save_path:
             return
