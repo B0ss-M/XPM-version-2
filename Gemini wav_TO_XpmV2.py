@@ -553,7 +553,7 @@ class ExpansionBuilderWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root if hasattr(master, 'root') else master)
         self.title("Expansion Builder")
-        self.geometry("600x330")
+        self.geometry("600x250")
         self.resizable(True, True)
         self.master = master
         self.create_widgets()
@@ -563,41 +563,24 @@ class ExpansionBuilderWindow(tk.Toplevel):
         frame.pack(fill="both", expand=True)
         frame.grid_columnconfigure(1, weight=1)
 
-        ttk.Label(frame, text="Identifier:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
-        self.identifier_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.identifier_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=2)
+        ttk.Label(frame, text="Expansion Name:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
+        self.name_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.name_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Title:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
-        self.title_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.title_var).grid(row=1, column=1, columnspan=2, sticky="ew", pady=2)
+        ttk.Label(frame, text="Author:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
+        self.author_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.author_var).grid(row=1, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Manufacturer:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
-        self.manufacturer_var = tk.StringVar(value="Akai Professional / MSX")
-        ttk.Entry(frame, textvariable=self.manufacturer_var).grid(row=2, column=1, columnspan=2, sticky="ew", pady=2)
+        ttk.Label(frame, text="Description:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
+        self.desc_var = tk.StringVar()
+        ttk.Entry(frame, textvariable=self.desc_var).grid(row=2, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Version:").grid(row=3, column=0, sticky="e", padx=5, pady=2)
-        self.version_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.version_var).grid(row=3, column=1, columnspan=2, sticky="ew", pady=2)
-
-        ttk.Label(frame, text="Type:").grid(row=4, column=0, sticky="e", padx=5, pady=2)
-        self.type_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.type_var).grid(row=4, column=1, columnspan=2, sticky="ew", pady=2)
-
-        ttk.Label(frame, text="Image (JPG/PNG):").grid(row=5, column=0, sticky="e", padx=5, pady=2)
+        ttk.Label(frame, text="Image (JPG/PNG):").grid(row=3, column=0, sticky="e", padx=5, pady=2)
         self.image_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.image_var).grid(row=5, column=1, sticky="ew", pady=2)
-        ttk.Button(frame, text="Browse...", command=self.browse_image).grid(row=5, column=2, padx=5, pady=2)
+        ttk.Entry(frame, textvariable=self.image_var).grid(row=3, column=1, sticky="ew", pady=2)
+        ttk.Button(frame, text="Browse...", command=self.browse_image).grid(row=3, column=2, padx=5, pady=2)
 
-        ttk.Label(frame, text="Directory:").grid(row=6, column=0, sticky="e", padx=5, pady=2)
-        default_dir = os.path.basename(self.master.folder_path.get()) if hasattr(self.master, 'folder_path') else ''
-        self.directory_var = tk.StringVar(value=default_dir)
-        ttk.Entry(frame, textvariable=self.directory_var).grid(row=6, column=1, columnspan=2, sticky="ew", pady=2)
-
-        ttk.Label(frame, text="Separator:").grid(row=7, column=0, sticky="e", padx=5, pady=2)
-        self.separator_var = tk.StringVar(value="-")
-        ttk.Entry(frame, textvariable=self.separator_var).grid(row=7, column=1, columnspan=2, sticky="ew", pady=2)
-
-        ttk.Button(frame, text="Create Expansion.xml", command=self.create_file).grid(row=8, column=0, columnspan=3, pady=10)
+        ttk.Button(frame, text="Create Expansion.xml", command=self.create_file).grid(row=4, column=0, columnspan=3, pady=10)
 
     def browse_image(self):
         path = filedialog.askopenfilename(parent=self, title="Select Image", filetypes=[("Image Files", "*.jpg *.jpeg *.png")])
@@ -609,31 +592,24 @@ class ExpansionBuilderWindow(tk.Toplevel):
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "No valid folder selected.", parent=self)
             return
-
-        identifier = self.identifier_var.get().strip()
-        title = self.title_var.get().strip()
-        manufacturer = self.manufacturer_var.get().strip()
-        version = self.version_var.get().strip()
-        type_value = self.type_var.get().strip()
-        directory = self.directory_var.get().strip() or os.path.basename(folder)
-        separator = self.separator_var.get().strip()
-        image_path = self.image_var.get().strip()
-
-        if not identifier or not title:
-            messagebox.showerror("Error", "Identifier and Title are required.", parent=self)
+        name = self.name_var.get().strip()
+        if not name:
+            messagebox.showerror("Error", "Expansion name is required.", parent=self)
             return
 
+        author = self.author_var.get().strip()
+        desc = self.desc_var.get().strip()
+        image_path = self.image_var.get().strip()
+
         xml_path = os.path.join(folder, "Expansion.xml")
-        root = ET.Element('expansion', version="1.0")
-        ET.SubElement(root, 'identifier').text = identifier
-        ET.SubElement(root, 'title').text = title
-        ET.SubElement(root, 'manufacturer').text = manufacturer
-        ET.SubElement(root, 'version').text = version
-        ET.SubElement(root, 'type').text = type_value
+        root = ET.Element('Expansion')
+        ET.SubElement(root, 'Name').text = name
+        ET.SubElement(root, 'Author').text = author
+        ET.SubElement(root, 'Description').text = desc
 
         if image_path and os.path.exists(image_path):
             image_basename = os.path.basename(image_path)
-            ET.SubElement(root, 'img').text = image_basename
+            ET.SubElement(root, 'Image').text = image_basename
             dest_path = os.path.join(folder, image_basename)
             try:
                 if PIL_AVAILABLE:
@@ -646,9 +622,6 @@ class ExpansionBuilderWindow(tk.Toplevel):
             except Exception as e:
                 logging.error(f"Failed to copy image: {e}")
                 messagebox.showerror("Image Error", f"Failed to copy image to expansion folder:\n{e}", parent=self)
-
-        ET.SubElement(root, 'directory').text = directory
-        ET.SubElement(root, 'separator').text = separator
 
         tree = ET.ElementTree(root)
         indent_tree(tree)
@@ -1243,40 +1216,12 @@ class MergeSubfoldersWindow(tk.Toplevel):
         max_depth = self.max_depth_var.get()
         self.destroy()
         self.master.run_batch_process(
-            lambda folder, _: merge_subfolders(folder, depth, max_depth),
-            None,
+            merge_subfolders,
+            depth,
+            max_depth,
             confirm=True,
             confirm_message="This will move all files up and remove empty folders. This can't be undone. Continue?",
         )
-
-#<editor-fold desc="NormalizeLevelsWindow">
-class NormalizeLevelsWindow(tk.Toplevel):
-    def __init__(self, master):
-        super().__init__(master.root)
-        self.title("Normalize Program Levels")
-        self.geometry("300x180")
-        self.resizable(False, False)
-        self.master = master
-        self.level_var = tk.DoubleVar(value=0.9)
-        self.create_widgets()
-
-    def create_widgets(self):
-        frame = ttk.Frame(self, padding="10")
-        frame.pack(fill="both", expand=True)
-
-        ttk.Label(frame, text="Select target volume:").pack(anchor="w")
-        for val in (0.25, 0.5, 0.9):
-            ttk.Radiobutton(frame, text=f"{val:.2f}", variable=self.level_var, value=val).pack(anchor="w")
-
-        btn_frame = ttk.Frame(frame)
-        btn_frame.pack(fill="x", pady=(15, 0))
-        ttk.Button(btn_frame, text="Apply", command=self.apply).pack(side="right")
-        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=5)
-
-    def apply(self):
-        volume = self.level_var.get()
-        self.destroy()
-        self.master.run_normalize_levels(volume)
 
 #</editor-fold>
 
@@ -2269,9 +2214,9 @@ class App(tk.Tk):
         frame = ttk.LabelFrame(parent, text="Quick Edits", padding="10")
         frame.grid(row=4, column=0, sticky="ew", pady=5)
         frame.grid_columnconfigure(0, weight=1)
-        frame.grid_columnconfigure(1, weight=1) # Added for second button
+        frame.grid_columnconfigure(1, weight=1)
         ttk.Button(frame, text="Set All Programs to MONO", command=self.run_set_all_to_mono).grid(row=0, column=0, sticky="ew", padx=2, pady=2)
-        ttk.Button(frame, text="Normalize Program Levels...", command=self.open_normalize_levels).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
+        ttk.Button(frame, text="Normalize Program Levels", command=self.run_normalize_levels).grid(row=0, column=1, sticky="ew", padx=2, pady=2)
 
     def create_batch_tools(self, parent):
         frame = ttk.LabelFrame(parent, text="Utilities & Batch Tools", padding="10")
@@ -2283,7 +2228,7 @@ class App(tk.Tk):
         ttk.Button(frame, text="Smart Split...", command=self.open_smart_split_window).grid(row=1, column=1, sticky="ew", padx=2, pady=2)
 
         ttk.Button(frame, text="Generate All Previews", command=self.generate_previews).grid(row=0, column=2, sticky="ew", padx=2)
-        ttk.Button(frame, text="Expansion Builder", command=self.open_expansion_builder).grid(row=0, column=3, sticky="ew", padx=2)
+        ttk.Button(frame, text="Clean All Previews", command=self.run_clean_all_previews).grid(row=0, column=3, sticky="ew", padx=2)
         ttk.Button(frame, text="Package Expansion (.zip)", command=self.package_expansion, style="Accent.TButton").grid(row=1, column=2, columnspan=2, sticky="ew", padx=2, pady=2)
 
     def create_log_viewer(self, parent):
@@ -2443,18 +2388,14 @@ class App(tk.Tk):
         
         threading.Thread(target=run, daemon=True).start()
         
-    def run_normalize_levels(self, volume):
-        """Normalize program levels to the specified volume."""
+    def run_normalize_levels(self):
+        """Wrapper to run the normalize levels function in a thread."""
         folder = self.folder_path.get()
         if not folder or not os.path.isdir(folder):
             messagebox.showerror("Error", "Please select a valid folder first.", parent=self.root)
             return
-
-        if not messagebox.askyesno(
-            "Confirm Action",
-            f"This will set the Volume parameter to {volume:.2f} for all instruments in all .xpm files in the selected folder. This action cannot be easily undone. Continue?",
-            parent=self.root,
-        ):
+            
+        if not messagebox.askyesno("Confirm Action", "This will set the Volume parameter to 0.95 for all instruments in all .xpm files in the selected folder. This action cannot be easily undone. Continue?", parent=self.root):
             return
 
         def run():
@@ -2462,7 +2403,7 @@ class App(tk.Tk):
             self.progress.config(mode='indeterminate')
             self.progress.start()
             try:
-                count = quick_edit_normalize_levels(folder, volume)
+                count = quick_edit_normalize_levels(folder)
                 self.root.after(0, lambda: messagebox.showinfo("Success", f"Normalized volume for {count} program(s).", parent=self.root))
             except Exception as e:
                 logging.error(f"Failed to normalize program levels: {e}\n{traceback.format_exc()}")
@@ -2474,11 +2415,35 @@ class App(tk.Tk):
         
         threading.Thread(target=run, daemon=True).start()
 
+    def run_clean_all_previews(self):
+        """Wrapper to run the clean previews function in a thread."""
+        folder = self.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "Please select a valid folder first.", parent=self.root)
+            return
+            
+        if not messagebox.askyesno("Confirm Deletion", "WARNING: This will permanently delete all folders named '[Previews]' in the selected directory and all its subdirectories.\n\nThis action cannot be undone. Are you sure you want to continue?", parent=self.root, icon='warning'):
+            return
+
+        def run():
+            self.status_text.set("Cleaning all preview files...")
+            self.progress.config(mode='indeterminate')
+            self.progress.start()
+            try:
+                count = clean_all_previews(folder)
+                self.root.after(0, lambda: messagebox.showinfo("Success", f"Deleted {count} preview folder(s).", parent=self.root))
+            except Exception as e:
+                logging.error(f"Failed to clean previews: {e}\n{traceback.format_exc()}")
+                self.root.after(0, lambda: messagebox.showerror("Error", f"An error occurred while cleaning previews: {e}", parent=self.root))
+            finally:
+                self.progress.stop()
+                self.progress.config(mode='determinate')
+                self.status_text.set("Ready.")
+        
+        threading.Thread(target=run, daemon=True).start()
+
     def open_merge_subfolders(self):
         self.open_window(MergeSubfoldersWindow)
-
-    def open_normalize_levels(self):
-        self.open_window(NormalizeLevelsWindow)
 
     def generate_previews(self):
         builder = InstrumentBuilder(self.folder_path.get(), self, InstrumentOptions())
@@ -2673,10 +2638,12 @@ def quick_edit_set_mono(folder_path):
             logging.error(f"Failed to process {path} for mono edit: {e}")
     return count
 
-def quick_edit_normalize_levels(folder_path, volume):
-    """Set the Volume parameter for all instruments in all XPM files."""
+def quick_edit_normalize_levels(folder_path):
+    """
+    Iterates through all XPM files and sets their instrument Volume to 0.95.
+    This is a direct XML edit for speed.
+    """
     count = 0
-    target = f"{volume:.2f}"
     xpm_files = glob.glob(os.path.join(folder_path, '**', '*.xpm'), recursive=True)
     for path in xpm_files:
         try:
@@ -2685,8 +2652,8 @@ def quick_edit_normalize_levels(folder_path, volume):
             changed = False
             # Find all Volume tags within any Instrument
             for vol_element in root.findall('.//Instrument/Volume'):
-                if vol_element.text != target:
-                    vol_element.text = target
+                if vol_element.text != '0.95':
+                    vol_element.text = '0.95'
                     changed = True
             
             if changed:
@@ -2699,6 +2666,23 @@ def quick_edit_normalize_levels(folder_path, volume):
         except Exception as e:
             logging.error(f"Failed to process {path} for normalize edit: {e}")
     return count
+
+def clean_all_previews(folder_path):
+    """
+    Recursively finds and deletes all folders named '[Previews]'.
+    """
+    deleted_count = 0
+    for root, dirs, files in os.walk(folder_path):
+        for d in dirs:
+            if d.lower() == '[previews]':
+                dir_to_delete = os.path.join(root, d)
+                try:
+                    shutil.rmtree(dir_to_delete)
+                    logging.info(f"Deleted preview folder: {dir_to_delete}")
+                    deleted_count += 1
+                except OSError as e:
+                    logging.error(f"Error deleting folder {dir_to_delete}: {e}")
+    return deleted_count
 
 def _parse_xpm_for_rebuild(xpm_path):
     """
