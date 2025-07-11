@@ -94,6 +94,10 @@ def parse_any_xpm(xpm_path: str):
 
     root = tree.getroot()
 
+    kg_elem = root.find('.//KeygroupNumKeygroups')
+    if kg_elem is not None and kg_elem.text:
+        inst_params['KeygroupNumKeygroups'] = kg_elem.text
+
     inst = root.find('.//Instrument')
     if inst is not None:
         for child in inst:
@@ -182,6 +186,9 @@ def create_simple_xpm(program_name: str, mappings: list[dict], output_folder: st
     pads_json = build_program_pads_json(firmware, mappings, engine_override=format_version)
     ET.SubElement(program, pads_tag).text = pads_json
 
+    if inst_params and 'KeygroupNumKeygroups' in inst_params:
+        ET.SubElement(program, 'KeygroupNumKeygroups').text = str(inst_params['KeygroupNumKeygroups'])
+
     instruments = ET.SubElement(program, 'Instruments')
     for idx, (low, high) in enumerate(sorted(note_layers.keys()), start=1):
         inst_elem = ET.SubElement(instruments, 'Instrument', {'number': str(idx)})
@@ -189,6 +196,8 @@ def create_simple_xpm(program_name: str, mappings: list[dict], output_folder: st
         ET.SubElement(inst_elem, 'HighNote').text = str(high)
         if inst_params:
             for k, v in inst_params.items():
+                if k == 'KeygroupNumKeygroups':
+                    continue
                 ET.SubElement(inst_elem, k).text = v
         layers = ET.SubElement(inst_elem, 'Layers')
         for l_idx, m in enumerate(sorted(note_layers[(low, high)], key=lambda x: x.get('velocity_low', 0)), start=1):
@@ -317,7 +326,9 @@ def verify_mappings(folder: str, firmware: str, fmt: str | None) -> None:
             if not mappings:
                 continue
             extras = find_unreferenced_audio_files(path, mappings)
-            if not extras:
+            keygroup_count = len({(m['low_note'], m['high_note']) for m in mappings})
+            declared = int(params.get('KeygroupNumKeygroups', keygroup_count))
+            if not extras and declared == keygroup_count:
                 continue
             for wav_path in extras:
                 midi = extract_root_note_from_wav(wav_path) or infer_note_from_filename(wav_path) or 60
@@ -329,6 +340,8 @@ def verify_mappings(folder: str, firmware: str, fmt: str | None) -> None:
                     'velocity_low': 0,
                     'velocity_high': 127,
                 })
+            new_count = len({(m['low_note'], m['high_note']) for m in mappings})
+            params['KeygroupNumKeygroups'] = str(new_count)
             create_simple_xpm(
                 os.path.splitext(os.path.basename(path))[0],
                 mappings,
