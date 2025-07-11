@@ -5,6 +5,7 @@ Utility functions for audio analysis using an improved pitch detection algorithm
 from __future__ import annotations
 
 import logging
+import os
 from math import log2
 from typing import Optional
 
@@ -45,21 +46,21 @@ def detect_fundamental_pitch(path: str, harmonics_to_check: int = 5) -> Optional
         spectrum = np.fft.rfft(segment * window)
         mags = np.abs(spectrum)
 
-        # --- Harmonic Product Spectrum (HPS) ---
-        hps = mags.copy()
-        
+        # --- CORRECTED Harmonic Product Spectrum (HPS) ---
+        # The original array is not modified. We work with slices.
+        hps_len = len(mags) // harmonics_to_check
+        hps = mags[:hps_len].copy()
+
         # Downsample the spectrum and multiply
         for i in range(2, harmonics_to_check + 1):
-            downsampled_mags = mags[::i]
-            hps.resize(downsampled_mags.shape, refcheck=False)
-            hps *= downsampled_mags
+            hps *= mags[::i][:hps_len]
 
         # Find the peak in the HPS
-        # We search from a low frequency (e.g., 50Hz) to avoid DC offset and low-freq noise
-        min_freq = 50
+        # We search from a low frequency (e.g., 40Hz) to avoid DC offset and low-freq noise
+        min_freq = 40
         min_index = int(min_freq * len(segment) / sr)
         
-        if len(hps) <= min_index:
+        if hps_len <= min_index:
             logging.warning("Not enough spectral data for HPS analysis in: %s", path)
             return None
             
