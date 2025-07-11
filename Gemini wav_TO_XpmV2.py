@@ -41,7 +41,7 @@ try:
         extract_root_note_from_wav,
     )
     from drumkit_grouping import group_similar_files
-    from multi_sample_builder import MultiSampleBuilderWindow
+    from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
     from firmware_profiles import (
         get_pad_settings,
         get_program_parameters as fw_program_parameters,
@@ -288,6 +288,17 @@ def is_valid_xpm(xpm_path):
     """Basic validity check using validate_xpm_file."""
     sample_count = len(parse_xpm_samples(xpm_path))
     return validate_xpm_file(xpm_path, sample_count)
+
+def find_unreferenced_audio_files(xpm_path, mappings):
+    """Return a list of audio files in the same folder not referenced in mappings."""
+    xpm_dir = os.path.dirname(xpm_path)
+    try:
+        audio_files = [f for f in os.listdir(xpm_dir) if os.path.splitext(f)[1].lower() in AUDIO_EXTS]
+    except Exception:
+        return []
+
+    used = {os.path.basename(m.get('sample_path', '')).lower() for m in mappings}
+    return [os.path.join(xpm_dir, f) for f in audio_files if f.lower() not in used]
 
 #</editor-fold>
 
@@ -1477,6 +1488,20 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 if not sample_mappings:
                     self.tree.set(item_id, "Status", "Parse Error")
                     continue
+
+                extra_files = find_unreferenced_audio_files(xpm_path, sample_mappings)
+                for path in extra_files:
+                    midi = extract_root_note_from_wav(path) or infer_note_from_filename(path)
+                    if midi is None:
+                        midi = 60
+                    sample_mappings.append({
+                        'sample_path': path,
+                        'root_note': midi,
+                        'low_note': midi,
+                        'high_note': midi,
+                        'velocity_low': 0,
+                        'velocity_high': 127,
+                    })
 
                 program_name = os.path.splitext(os.path.basename(xpm_path))[0]
                 output_folder = os.path.dirname(xpm_path)
