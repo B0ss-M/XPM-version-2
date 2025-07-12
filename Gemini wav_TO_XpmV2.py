@@ -138,8 +138,14 @@ class TextHandler(logging.Handler):
             self.text_widget.yview(tk.END)
         self.text_widget.after(0, append)
 
-def build_program_pads_json(firmware, mappings=None, engine_override=None):
-    """Return ProgramPads JSON escaped for XML embedding."""
+def build_program_pads_json(
+    firmware, mappings=None, engine_override=None, num_instruments=None
+):
+    """Return ProgramPads JSON escaped for XML embedding.
+
+    ``num_instruments`` is used to populate the ``padToInstrument``
+    mapping so the MPC knows exactly how many keygroups are defined.
+    """
     if not IMPORTS_SUCCESSFUL:
         return "{}"
     pad_cfg = get_pad_settings(firmware, engine_override)
@@ -178,6 +184,8 @@ def build_program_pads_json(firmware, mappings=None, engine_override=None):
     }
     if engine:
         pads_obj["engine"] = engine
+    if isinstance(num_instruments, int) and num_instruments > 0:
+        pads_obj["padToInstrument"] = {str(i): i for i in range(num_instruments)}
     json_str = json.dumps(pads_obj, indent=4)
     return xml_escape(json_str)
 
@@ -2091,7 +2099,11 @@ class InstrumentBuilder:
 
             # Build the JSON section (less critical for keygroups, but good to be accurate)
             pads_json_str = build_program_pads_json(
-                self.options.firmware_version, sample_infos, engine_override=self.options.format_version)
+                self.options.firmware_version,
+                sample_infos,
+                engine_override=self.options.format_version,
+                num_instruments=keygroup_count,
+            )
             pads_tag = 'ProgramPads-v2.10' if self.options.firmware_version in ['3.4.0', '3.5.0'] else 'ProgramPads'
             ET.SubElement(program, pads_tag).text = pads_json_str
 
@@ -2105,7 +2117,7 @@ class InstrumentBuilder:
             # Build the critical <Instruments> section
             instruments = ET.SubElement(program, 'Instruments')
             sorted_keys = sorted(note_layers.keys())
-            for i, key in enumerate(sorted_keys, start=1):
+            for i, key in enumerate(sorted_keys):
                 low_key, high_key = key
                 inst = self.build_instrument_element(instruments, i, low_key, high_key)
                 if instrument_template:
@@ -3062,11 +3074,18 @@ def _parse_xpm_for_rebuild(xpm_path):
 
             for layer in inst_elem.findall('.//Layer'):
                 sample_file_elem = layer.find('SampleFile')
+                sample_name_elem = layer.find('SampleName')
                 root_note_elem = layer.find('RootNote')
-                if sample_file_elem is None or not sample_file_elem.text:
+
+                sample_rel = None
+                if sample_file_elem is not None and sample_file_elem.text:
+                    sample_rel = sample_file_elem.text
+                elif sample_name_elem is not None and sample_name_elem.text:
+                    sample_rel = sample_name_elem.text + '.wav'
+                if not sample_rel:
                     continue
 
-                abs_path = os.path.normpath(os.path.join(xpm_dir, sample_file_elem.text))
+                abs_path = os.path.normpath(os.path.join(xpm_dir, sample_rel))
 
                 # NEW: Extract all desired layer parameters
                 layer_params = {}

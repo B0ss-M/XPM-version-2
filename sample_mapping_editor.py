@@ -243,16 +243,21 @@ class SampleMappingEditorWindow(tk.Toplevel):
         ET.SubElement(version, 'Platform').text = 'Linux'
         program = ET.SubElement(root, 'Program', {'type': 'Keygroup'})
         ET.SubElement(program, 'ProgramName').text = xml_escape(program_name)
-        pads_json = build_program_pads_json(firmware, self.mappings, engine_override=fmt)
+        note_layers = defaultdict(list)
+        for m in self.mappings:
+            note_layers[(m['low_note'], m['high_note'])].append(m)
+        pads_json = build_program_pads_json(
+            firmware,
+            self.mappings,
+            engine_override=fmt,
+            num_instruments=len(note_layers),
+        )
         pads_tag = 'ProgramPads-v2.10' if firmware in {'3.4.0', '3.5.0'} else 'ProgramPads'
         ET.SubElement(program, pads_tag).text = pads_json
         for k, v in options.items():
             ET.SubElement(program, k).text = str(v)
         instruments = ET.SubElement(program, 'Instruments')
-        note_layers = defaultdict(list)
-        for m in self.mappings:
-            note_layers[(m['low_note'], m['high_note'])].append(m)
-        for idx, (low, high) in enumerate(sorted(note_layers.keys()), start=1):
+        for idx, (low, high) in enumerate(sorted(note_layers.keys())):
             inst = ET.SubElement(instruments, 'Instrument', {'number': str(idx)})
             ET.SubElement(inst, 'LowNote').text = str(low)
             ET.SubElement(inst, 'HighNote').text = str(high)
