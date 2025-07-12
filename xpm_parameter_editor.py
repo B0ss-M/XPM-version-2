@@ -12,6 +12,7 @@ from typing import Dict, Optional
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 from audio_pitch import detect_fundamental_pitch
+from xpm_utils import calculate_key_ranges
 
 
 def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
@@ -318,6 +319,7 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
     changed = False
 
     pads_elem = find_program_pads(root)
+    pad_entries = []
     if pads_elem is not None and pads_elem.text:
         try:
             data = json.loads(xml_unescape(pads_elem.text))
@@ -344,18 +346,43 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
                 if pad.get("rootNote") != midi:
                     pad["rootNote"] = midi
                     changed = True
-                # Preserve existing note ranges when present
-                if pad.get("lowNote") in (None, pad.get("rootNote")):
+                low = pad.get("lowNote")
+                high = pad.get("highNote")
+                pad_entries.append(
+                    {
+                        "dict": pad,
+                        "root": midi,
+                        "low": low,
+                        "high": high,
+                    }
+                )
+                if low in (None, pad.get("rootNote")):
                     if pad.get("lowNote") != midi:
                         pad["lowNote"] = midi
                         changed = True
-                if pad.get("highNote") in (None, pad.get("rootNote")):
+                if high in (None, pad.get("rootNote")):
                     if pad.get("highNote") != midi:
                         pad["highNote"] = midi
                         changed = True
+        if len(pad_entries) > 1 and all(
+            (e["low"] in (None, e["dict"].get("rootNote")) and e["high"] in (None, e["dict"].get("rootNote")))
+            for e in pad_entries
+        ):
+            sorted_entries = sorted(pad_entries, key=lambda x: x["root"])
+            ranges = calculate_key_ranges(
+                [{"root_note": e["root"]} for e in sorted_entries]
+            )
+            for entry, rng in zip(sorted_entries, ranges):
+                if entry["dict"].get("lowNote") != rng["low_note"]:
+                    entry["dict"]["lowNote"] = rng["low_note"]
+                    changed = True
+                if entry["dict"].get("highNote") != rng["high_note"]:
+                    entry["dict"]["highNote"] = rng["high_note"]
+                    changed = True
         if changed:
             pads_elem.text = xml_escape(json.dumps(data, indent=4))
 
+    inst_entries = []
     for inst in root.findall(".//Instrument"):
         low_elem = inst.find("LowNote")
         high_elem = inst.find("HighNote")
@@ -385,7 +412,16 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
                 changed = True
         if inst_midi is None:
             continue
-        # Only adjust range if missing or equal
+        inst_entries.append(
+            {
+                "inst": inst,
+                "root": inst_midi,
+                "low_elem": low_elem,
+                "high_elem": high_elem,
+                "low": low_elem.text if low_elem is not None else None,
+                "high": high_elem.text if high_elem is not None else None,
+            }
+        )
         if (
             low_elem is not None
             and high_elem is not None
@@ -396,6 +432,24 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
                 changed = True
             if high_elem.text != str(inst_midi):
                 high_elem.text = str(inst_midi)
+                changed = True
+
+    if len(inst_entries) > 1 and all(
+        (e["low"] in (None, str(e["root"])) and e["high"] in (None, str(e["root"])))
+        for e in inst_entries
+    ):
+        sorted_entries = sorted(inst_entries, key=lambda x: x["root"])
+        ranges = calculate_key_ranges(
+            [{"root_note": e["root"]} for e in sorted_entries]
+        )
+        for entry, rng in zip(sorted_entries, ranges):
+            low_val = str(rng["low_note"])
+            high_val = str(rng["high_note"])
+            if entry["low_elem"] is not None and entry["low_elem"].text != low_val:
+                entry["low_elem"].text = low_val
+                changed = True
+            if entry["high_elem"] is not None and entry["high_elem"].text != high_val:
+                entry["high_elem"].text = high_val
                 changed = True
 
     # Ensure KeygroupNumKeygroups matches the number of instruments
