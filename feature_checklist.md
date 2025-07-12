@@ -2,18 +2,18 @@
 
 This checklist tracks the major functions of **Gemini wav_TO_XpmV2.py**. Each item will be marked as confirmed working once tested.
 
-- [ ] Build Multi-Sampled Instruments
-- [ ] Build One-Shot Instruments
-- [ ] Build Drum Kit Instruments
-- [ ] Single-Cycle Waveform (SCW) Tool
-- [ ] Batch Program Editor
-- [ ] Batch Program Fixer
-- [ ] Set All Programs to MONO
-- [ ] Normalize Program Levels
-- [ ] Expansion Doctor
-- [ ] File Renamer
+- [x] Build Multi-Sampled Instruments
+- [x] Build One-Shot Instruments
+- [x] Build Drum Kit Instruments
+- [x] Single-Cycle Waveform (SCW) Tool
+- [x] Batch Program Editor
+- [x] Batch Program Fixer
+- [x] Set All Programs to MONO
+- [x] Normalize Program Levels
+- [x] Expansion Doctor
+- [x] File Renamer
 - [x] Merge Subfolders
-- [ ] Smart Split
-- [ ] Generate All Previews
-- [ ] Clean All Previews
-- [ ] Package Expansion (.zip)
+- [x] Smart Split
+- [x] Generate All Previews
+- [x] Clean All Previews
+- [x] Package Expansion (.zip)
