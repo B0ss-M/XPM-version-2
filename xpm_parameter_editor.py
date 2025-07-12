@@ -242,6 +242,76 @@ def extract_root_note_from_wav(filepath: str) -> Optional[int]:
     return None
 
 
+def write_root_note_to_wav(path: str, midi_note: int) -> bool:
+    """Write ``midi_note`` to the WAV file's ``smpl`` chunk.
+
+    If the chunk does not exist, it will be created. The RIFF size
+    field is updated when appending a new chunk.
+    Returns ``True`` if the file was modified.
+    """
+
+    try:
+        with open(path, "r+b") as f:
+            data = f.read()
+            idx = data.find(b"smpl")
+            if idx != -1 and idx + 24 <= len(data):
+                f.seek(idx + 20)
+                f.write(struct.pack("<I", midi_note))
+                return True
+
+            # create new chunk at end
+            if len(data) >= 8 and data[:4] == b"RIFF" and data[8:12] == b"WAVE":
+                riff_size = struct.unpack("<I", data[4:8])[0]
+                new_chunk = b"smpl" + struct.pack("<I", 36) + struct.pack(
+                    "<9I", 0, 0, 0, midi_note, 0, 0, 0, 0, 0
+                )
+                f.seek(4)
+                f.write(struct.pack("<I", riff_size + len(new_chunk)))
+                f.seek(0, os.SEEK_END)
+                f.write(new_chunk)
+                return True
+    except Exception as exc:  # pragma: no cover - best effort
+        logging.error("Could not write root note to %s: %s", path, exc)
+    return False
+
+
+def update_wav_root_notes(root: ET.Element, folder: str) -> bool:
+    """Write root note metadata for each referenced WAV file."""
+
+    changed = False
+
+    pads_elem = find_program_pads(root)
+    if pads_elem is not None and pads_elem.text:
+        try:
+            data = json.loads(xml_unescape(pads_elem.text))
+        except json.JSONDecodeError:
+            data = {}
+        pads = data.get("pads", {}) if isinstance(data, dict) else {}
+        for pad in pads.values():
+            if isinstance(pad, dict):
+                sample = pad.get("samplePath")
+                root_note = pad.get("rootNote")
+                if sample and root_note is not None:
+                    abs_path = sample if os.path.isabs(sample) else os.path.join(folder, sample)
+                    if write_root_note_to_wav(abs_path, int(root_note)):
+                        changed = True
+
+    for layer in root.findall(".//Layer"):
+        sample_elem = layer.find("SampleFile")
+        root_elem = layer.find("RootNote")
+        if sample_elem is None or root_elem is None:
+            continue
+        sample = sample_elem.text
+        midi = root_elem.text
+        if not sample or not midi:
+            continue
+        abs_path = sample if os.path.isabs(sample) else os.path.join(folder, sample)
+        if write_root_note_to_wav(abs_path, int(midi)):
+            changed = True
+
+    return changed
+
+
 def fix_sample_notes(root: ET.Element, folder: str) -> bool:
     """Update root/low/high notes using metadata, filenames, or pitch detection."""
 
