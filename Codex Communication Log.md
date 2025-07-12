@@ -210,3 +210,20 @@ Outcome: Bad programs that previously skipped during rebuild are now parsed succ
 II. Codex Review
 
 [x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
+
+Entry Date: 2025-07-14
+
+I. Gemini\x27s Report & Findings
+
+Objective: Consolidate duplicate parsing logic.
+
+Analysis & Changes:
+- Moved `LAYER_PARAMS_TO_PRESERVE`, `calculate_key_ranges`, and `_parse_xpm_for_rebuild` into new module `xpm_utils.py`.
+- Updated `Gemini wav_TO_XpmV2.py`, `batch_program_editor.py`, and `sample_mapping_editor.py` to import these utilities.
+- Removed outdated `parse_any_xpm` function and other duplicate code.
+
+Outcome: Parsing code is centralized, reducing maintenance overhead.
+
+II. Codex Review
+
+[x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
