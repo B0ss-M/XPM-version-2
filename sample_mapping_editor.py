@@ -23,6 +23,30 @@ def midi_to_name(num: int) -> str:
 AUDIO_EXTS = ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')
 
 
+def calculate_key_ranges(mappings):
+    """Calculate low/high note ranges based on root notes."""
+    if not mappings:
+        return []
+
+    sorted_maps = sorted(mappings, key=lambda m: m.get('root_note', 60))
+    for i, current in enumerate(sorted_maps):
+        if i == 0:
+            current['low_note'] = 0
+        else:
+            prev = sorted_maps[i - 1]
+            midpoint = (prev['root_note'] + current['root_note']) // 2
+            current['low_note'] = midpoint + 1
+
+        if i == len(sorted_maps) - 1:
+            current['high_note'] = 127
+        else:
+            nxt = sorted_maps[i + 1]
+            midpoint = (current['root_note'] + nxt['root_note']) // 2
+            current['high_note'] = midpoint
+
+    return sorted_maps
+
+
 def _parse_xpm_for_rebuild(xpm_path):
     mappings = []
     instrument_params = {}
@@ -66,29 +90,38 @@ def _parse_xpm_for_rebuild(xpm_path):
         except json.JSONDecodeError:
             pass
 
+    auto_range_maps = []
     for inst_elem in root.findall('.//Instrument'):
         low_note_elem = inst_elem.find('LowNote')
         high_note_elem = inst_elem.find('HighNote')
-        if low_note_elem is None or high_note_elem is None or not low_note_elem.text or not high_note_elem.text:
-            continue
+        inst_low = int(low_note_elem.text) if low_note_elem is not None and low_note_elem.text else None
+        inst_high = int(high_note_elem.text) if high_note_elem is not None and high_note_elem.text else None
+        range_missing = inst_low is None or inst_high is None
         for layer in inst_elem.findall('.//Layer'):
             sample_file_elem = layer.find('SampleFile')
             root_note_elem = layer.find('RootNote')
-            if sample_file_elem is None or root_note_elem is None or not sample_file_elem.text or not root_note_elem.text:
+            if sample_file_elem is None or not sample_file_elem.text:
                 continue
             sample_file = sample_file_elem.text
             if sample_file and sample_file.strip():
                 vel_start_elem = layer.find('VelStart')
                 vel_end_elem = layer.find('VelEnd')
                 abs_path = os.path.normpath(os.path.join(xpm_dir, sample_file))
-                mappings.append({
+                root_val = int(root_note_elem.text) if root_note_elem is not None and root_note_elem.text else 60
+                mapping = {
                     'sample_path': abs_path,
-                    'root_note': int(root_note_elem.text),
-                    'low_note': int(low_note_elem.text),
-                    'high_note': int(high_note_elem.text),
+                    'root_note': root_val,
+                    'low_note': inst_low if inst_low is not None else root_val,
+                    'high_note': inst_high if inst_high is not None else root_val,
                     'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
                     'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127
-                })
+                }
+                mappings.append(mapping)
+                if range_missing:
+                    auto_range_maps.append(mapping)
+
+    if auto_range_maps:
+        calculate_key_ranges(auto_range_maps)
     return mappings, instrument_params
 
 
