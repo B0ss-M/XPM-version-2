@@ -1654,8 +1654,65 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 parent=self,
             )
             return
-        xpm_path = self.xpm_map[selected_ids[0]]
-        self.master.open_window(SampleMappingEditorWindow, xpm_path)
+        item_id = selected_ids[0]
+        xpm_path = self.xpm_map[item_id]
+
+        # Parse the existing mappings and parameters
+        mappings, params = _parse_xpm_for_rebuild(xpm_path)
+        if mappings is None:
+            messagebox.showerror(
+                "Parse Error",
+                "Failed to read the selected program.",
+                parent=self,
+            )
+            return
+
+        # Find extra audio files that live next to the program
+        extras = find_unreferenced_audio_files(xpm_path, mappings)
+
+        # Launch the selector dialog so the user can add/remove samples
+        final_mappings = self._open_sample_selector_safe(xpm_path, mappings, extras)
+        if final_mappings is None:
+            return  # user cancelled
+        if not final_mappings:
+            messagebox.showwarning(
+                "No Samples",
+                "Rebuild cancelled because no samples were selected.",
+                parent=self,
+            )
+            return
+
+        # Rebuild the program with the chosen mappings
+        program_name = os.path.splitext(os.path.basename(xpm_path))[0]
+        output_folder = os.path.dirname(xpm_path)
+        options = InstrumentOptions(
+            firmware_version=self.firmware_var.get(),
+            polyphony=self.master.polyphony_var.get(),
+            format_version=self.format_var.get(),
+        )
+        builder = InstrumentBuilder(output_folder, self.master, options)
+
+        shutil.copy2(xpm_path, xpm_path + ".edit.bak")
+        success = builder._create_xpm(
+            program_name,
+            [],
+            output_folder,
+            mode="multi-sample",
+            mappings=final_mappings,
+            instrument_template=params,
+        )
+
+        if success:
+            self.tree.set(item_id, "Status", "Rebuilt")
+            self.tree.set(item_id, "Version", self.firmware_var.get())
+            self._show_info_safe("Rebuild Complete", f"Updated {program_name}.xpm")
+        else:
+            self.tree.set(item_id, "Status", "Rebuild Failed")
+            messagebox.showerror(
+                "Error",
+                f"Failed to rebuild {program_name}.xpm",
+                parent=self,
+            )
 
     def analyze_and_relink_batch(self, item_ids):
         all_missing_samples = set()
