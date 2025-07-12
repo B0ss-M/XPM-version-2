@@ -44,8 +44,17 @@ from xpm_parameter_editor import (
 from firmware_profiles import get_pad_settings
 
 
-def build_program_pads_json(firmware: str, mappings=None, engine_override: str | None = None) -> str:
-    """Return ProgramPads JSON escaped for XML embedding."""
+def build_program_pads_json(
+    firmware: str,
+    mappings=None,
+    engine_override: str | None = None,
+    num_instruments: int | None = None,
+) -> str:
+    """Return ProgramPads JSON escaped for XML embedding.
+
+    When ``num_instruments`` is provided, a ``padToInstrument`` mapping is
+    included so the MPC recognizes all keygroups.
+    """
     pad_cfg = get_pad_settings(firmware, engine_override)
     pads_type = pad_cfg['type']
     universal_pad = pad_cfg['universal_pad']
@@ -78,6 +87,8 @@ def build_program_pads_json(firmware: str, mappings=None, engine_override: str |
     }
     if engine:
         pads_obj['engine'] = engine
+    if isinstance(num_instruments, int) and num_instruments > 0:
+        pads_obj['padToInstrument'] = {str(i): i for i in range(num_instruments)}
     return xml_escape(json.dumps(pads_obj, indent=4))
 
 
@@ -183,14 +194,19 @@ def create_simple_xpm(program_name: str, mappings: list[dict], output_folder: st
     ET.SubElement(program, 'ProgramName').text = xml_escape(program_name)
 
     pads_tag = 'ProgramPads-v2.10' if firmware in {'3.4.0', '3.5.0'} else 'ProgramPads'
-    pads_json = build_program_pads_json(firmware, mappings, engine_override=format_version)
+    pads_json = build_program_pads_json(
+        firmware,
+        mappings,
+        engine_override=format_version,
+        num_instruments=len(note_layers),
+    )
     ET.SubElement(program, pads_tag).text = pads_json
 
     if inst_params and 'KeygroupNumKeygroups' in inst_params:
         ET.SubElement(program, 'KeygroupNumKeygroups').text = str(inst_params['KeygroupNumKeygroups'])
 
     instruments = ET.SubElement(program, 'Instruments')
-    for idx, (low, high) in enumerate(sorted(note_layers.keys()), start=1):
+    for idx, (low, high) in enumerate(sorted(note_layers.keys())):
         inst_elem = ET.SubElement(instruments, 'Instrument', {'number': str(idx)})
         ET.SubElement(inst_elem, 'LowNote').text = str(low)
         ET.SubElement(inst_elem, 'HighNote').text = str(high)
