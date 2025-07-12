@@ -362,6 +362,24 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
                     if pad.get("highNote") != midi:
                         pad["highNote"] = midi
                         changed = True
+        # Build padToInstrument mapping so the MPC reports the correct number
+        # of keygroups. This is required for older programs that may be
+        # missing this section.
+        pad_to_inst = {}
+        inst_idx = 0
+        for idx in range(128):
+            pad = pads.get(f"value{idx}")
+            if isinstance(pad, dict) and pad.get("samplePath"):
+                pad_to_inst[str(idx)] = inst_idx
+                inst_idx += 1
+        if inst_idx > 0:
+            if data.get("padToInstrument") != pad_to_inst:
+                data["padToInstrument"] = pad_to_inst
+                changed = True
+        elif "padToInstrument" in data:
+            data.pop("padToInstrument")
+            changed = True
+
         if changed:
             pads_elem.text = xml_escape(json.dumps(data, indent=4))
 

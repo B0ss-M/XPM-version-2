@@ -153,3 +153,12 @@ If no metadata is found, the tools now analyze the sample itself to detect its f
 
 *Use this guide to ensure the AI agent outputs valid, standards-compliant drum keygroups for MPC expansions.*
 
+## 7. Keygroup Count and Pad Mapping
+
+According to the MPC Standalone User Guide, each sample in an instrument program
+must reside in its own **keygroup**. The value of `KeygroupNumKeygroups` should
+equal the number of `<Instrument>` elements, and the ProgramPads JSON requires a
+`padToInstrument` table so the MPC OS recognizes every keygroup. The repository
+tools rebuild this information automatically when repairing or creating XPM
+files.
+
