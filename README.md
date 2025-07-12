@@ -16,6 +16,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
   parameters for that modulation slot.
   parameters for that modulation slot. The command-line version exposes the same options via
   `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments. The `--verify-map` option can also rebuild programs when extra WAV files are found, assigning them to new keygroups based on their filenames.
+- `fix_xpm_notes.py` – standalone utility to repair root note mappings in existing programs. Point it at a single file or a folder of programs to rewrite each `.xpm` with corrected notes.
 - `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename, firmware, and format changes.
   This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
   The editor now provides drop-down selectors for **Application Version** and **Format**
@@ -41,6 +42,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - Expansion Builder resizes uploaded artwork to 600x600 if Pillow is installed.
 - Expansion Doctor can rewrite programs to any firmware version and legacy or advanced format.
 - Unknown samples without note metadata are now analyzed to detect their pitch automatically.
+- `fix_xpm_notes.py` uses the same detection logic to correct older programs that were mapped incorrectly.
 
 ## Installation
 
