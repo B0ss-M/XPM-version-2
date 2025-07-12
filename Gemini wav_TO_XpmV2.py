@@ -40,6 +40,7 @@ try:
         set_application_version,
         fix_sample_notes,
         find_program_pads,
+        infer_note_from_filename,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
