@@ -51,6 +51,7 @@ def _parse_xpm_for_rebuild(xpm_path):
     """Return sample mappings and base parameters parsed from ``xpm_path``."""
     mappings = []
     instrument_params = {}
+    xpm_path = os.path.abspath(xpm_path)
     xpm_dir = os.path.dirname(xpm_path)
 
     try:
@@ -93,7 +94,7 @@ def _parse_xpm_for_rebuild(xpm_path):
                 if isinstance(pad_data, dict) and pad_data.get("samplePath"):
                     sample_path = pad_data["samplePath"]
                     if sample_path and sample_path.strip():
-                        abs_path = os.path.normpath(os.path.join(xpm_dir, sample_path))
+                        abs_path = os.path.abspath(os.path.join(xpm_dir, sample_path))
                         mappings.append(
                             {
                                 "sample_path": abs_path,
@@ -150,7 +151,7 @@ def _parse_xpm_for_rebuild(xpm_path):
                 if not sample_rel:
                     continue
 
-                abs_path = os.path.normpath(os.path.join(xpm_dir, sample_rel))
+                abs_path = os.path.abspath(os.path.join(xpm_dir, sample_rel))
 
                 layer_params = {}
                 for param_name in LAYER_PARAMS_TO_PRESERVE:
