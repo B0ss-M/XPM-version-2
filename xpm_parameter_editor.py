@@ -200,19 +200,28 @@ def name_to_midi(note_name: str) -> Optional[int]:
 
 
 def infer_note_from_filename(filename: str) -> Optional[int]:
-    """Try to infer a MIDI note number from ``filename``."""
+    """Try to infer a MIDI note number from ``filename``.
+
+    The function now scans the entire basename for multiple note tokens like
+    ``A3`` or ``C#4`` and returns the **last** valid note found. This allows
+    patterns such as ``Piano_A3-64.wav`` or ``VNLGF41C2.wav`` to resolve
+    correctly. If no note name is detected, it falls back to the last numeric
+    sequence that looks like a MIDI value (e.g. ``64``).
+    """
 
     base = os.path.splitext(os.path.basename(filename))[0]
 
-    match = re.search(r"[ _-]?([A-G][#b]?\-?\d+)", base, re.IGNORECASE)
-    if match:
-        midi = name_to_midi(match.group(1))
+    note_matches = re.findall(
+        r"(?<![A-Za-z])([A-G][#b]?-?\d{1,2})(?![A-Za-z0-9])", base, re.IGNORECASE
+    )
+    for note in reversed(note_matches):
+        midi = name_to_midi(note)
         if midi is not None:
             return midi
 
-    match = re.search(r"\b(\d{2,3})\b", base)
-    if match:
-        num = int(match.group(1))
+    num_matches = re.findall(r"\b(\d{2,3})\b", base)
+    if num_matches:
+        num = int(num_matches[-1])
         if 0 <= num <= 127:
             return num
     return None

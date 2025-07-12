@@ -34,6 +34,8 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - Expansion Builder resizes uploaded artwork to 600x600 if Pillow is installed.
 - Expansion Doctor can rewrite programs to any firmware version and legacy or advanced format.
 - Unknown samples without note metadata are now analyzed to detect their pitch automatically.
+- Filenames are scanned for multiple note patterns, using the last valid match
+  to determine the MIDI value (e.g. `Piano_A3-64.wav`, `VNLGF41C2.wav`).
 - `fix_xpm_notes.py` uses the same detection logic to correct older programs and can embed root notes into WAV files with `--update-wav`.
 
 ## Installation
