@@ -19,6 +19,7 @@ import struct
 import re
 import json
 import zipfile
+from typing import Optional
 
 try:
     from PIL import Image
@@ -28,6 +29,7 @@ except Exception:
 
 # Attempt to import optional dependencies, handle if they are not present
 try:
+    from audio_pitch import detect_fundamental_pitch
     from xpm_parameter_editor import (
         set_layer_keytrack,
         set_volume_adsr,
@@ -37,9 +39,6 @@ try:
         set_application_version,
         fix_sample_notes,
         find_program_pads,
-        name_to_midi,
-        infer_note_from_filename,
-        extract_root_note_from_wav,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
@@ -57,7 +56,7 @@ from xpm_utils import LAYER_PARAMS_TO_PRESERVE, calculate_key_ranges, _parse_xpm
 
 
 # --- Application Configuration ---
-APP_VERSION = "23.7" # Final Stable Release
+APP_VERSION = "23.9" # Final Stable Release with Pitch Fix
 
 # --- Global Constants ---
 MPC_BEIGE = '#EAE6DA'
@@ -68,7 +67,6 @@ MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
-
 
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
@@ -499,7 +497,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 for wav_path in extras:
                     # Logic to only add extras that match the program name
                     if os.path.basename(wav_path).lower().startswith(program_name.lower()):
-                        midi = extract_root_note_from_wav(wav_path) or infer_note_from_filename(wav_path) or 60
+                        midi = infer_note_from_filename(wav_path) or 60
                         mappings.append({
                             'sample_path': wav_path,
                             'root_note': midi,
@@ -516,7 +514,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
                 new_maps = []
                 for m in mappings:
-                    note = extract_root_note_from_wav(m['sample_path']) or infer_note_from_filename(m['sample_path'])
+                    note = infer_note_from_filename(m['sample_path'])
                     if note is None:
                         note = m.get('root_note', 60)
                     new_maps.append({
@@ -1434,7 +1432,7 @@ class SampleSelectorWindow(tk.Toplevel):
             if not full_path: continue
 
             # Create a new mapping for the added sample
-            midi = extract_root_note_from_wav(full_path) or infer_note_from_filename(basename) or 60
+            midi = infer_note_from_filename(basename) or 60
             new_mapping = {
                 'sample_path': full_path,
                 'root_note': midi, 'low_note': midi, 'high_note': midi,
@@ -1917,8 +1915,28 @@ class InstrumentBuilder:
 
     # NEW: Dedicated function to create a playable keymap
     def _calculate_key_ranges(self, sample_infos):
-        """Wrapper around :func:`calculate_key_ranges`."""
-        return calculate_key_ranges(sample_infos)
+        """Assigns key ranges for multi-sample instruments based on root notes."""
+        # Sort samples by root_note
+        sorted_samples = sorted(sample_infos, key=lambda x: x.get('root_note', 60))
+        n = len(sorted_samples)
+        if n == 0:
+            return []
+        # Assign key ranges so each sample covers halfway to the next
+        for i, sample in enumerate(sorted_samples):
+            root = sample.get('root_note', 60)
+            if i == 0:
+                low = 0
+            else:
+                prev_root = sorted_samples[i-1].get('root_note', 60)
+                low = (prev_root + root) // 2 + 1
+            if i == n - 1:
+                high = 127
+            else:
+                next_root = sorted_samples[i+1].get('root_note', 60)
+                high = (root + next_root) // 2
+            sample['low_note'] = low
+            sample['high_note'] = high
+        return sorted_samples
 
     def create_instruments(self, mode='multi-sample', files=None):
         logging.info("create_instruments starting with mode %s", mode)
@@ -2024,7 +2042,7 @@ class InstrumentBuilder:
                             midi_note = midi_notes[idx]
                         else:
                             # Use found root note, or filename note, or default to 60
-                            midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
+                            midi_note = info.get('root_note') or 60
                             logging.info(f"Sample {os.path.basename(file_path)} assigned root note: {midi_note}")
 
                         info['root_note'] = midi_note
@@ -2340,11 +2358,16 @@ class InstrumentBuilder:
             if self.options.analyze_scw and 0 < frames < SCW_FRAME_THRESHOLD:
                 is_scw = True
 
+            # REVISED: Prioritize filename, then pitch detection
+            root_note = infer_note_from_filename(sample_path)
+            if root_note is None:
+                root_note = detect_fundamental_pitch(sample_path)
+
             return {
                 'is_valid': True,
                 'path': sample_path,
                 'frames': frames,
-                'root_note': extract_root_note_from_wav(sample_path) or infer_note_from_filename(sample_path),
+                'root_note': root_note,
                 'is_scw': is_scw
             }
         except Exception as e:
@@ -2967,8 +2990,6 @@ def clean_all_previews(folder_path):
                 except OSError as e:
                     logging.error(f"Error deleting folder {dir_to_delete}: {e}")
     return deleted_count
-
-
 
 def batch_edit_programs(folder_path, params):
     """
