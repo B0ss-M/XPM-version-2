@@ -74,6 +74,30 @@ LAYER_PARAMS_TO_PRESERVE = [
     'LoopEnd', 'Direction', 'Offset', 'Volume', 'Pan', 'Tune', 'MuteGroup'
 ]
 
+
+def calculate_key_ranges(mappings):
+    """Calculate low/high note ranges based on root notes."""
+    if not mappings:
+        return []
+
+    sorted_maps = sorted(mappings, key=lambda m: m.get('root_note', 60))
+    for i, current in enumerate(sorted_maps):
+        if i == 0:
+            current['low_note'] = 0
+        else:
+            prev = sorted_maps[i - 1]
+            midpoint = (prev['root_note'] + current['root_note']) // 2
+            current['low_note'] = midpoint + 1
+
+        if i == len(sorted_maps) - 1:
+            current['high_note'] = 127
+        else:
+            nxt = sorted_maps[i + 1]
+            midpoint = (current['root_note'] + nxt['root_note']) // 2
+            current['high_note'] = midpoint
+
+    return sorted_maps
+
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
     if hasattr(ET, "indent"):
@@ -1913,34 +1937,8 @@ class InstrumentBuilder:
 
     # NEW: Dedicated function to create a playable keymap
     def _calculate_key_ranges(self, sample_infos):
-        """
-        Takes a list of sample_infos, sorts them by root note, and calculates
-        the low and high key ranges to create a playable instrument map.
-        """
-        if not sample_infos:
-            return []
-
-        # Sort samples by their root note
-        sorted_samples = sorted(sample_infos, key=lambda s: s.get('root_note', 60))
-
-        for i, current_sample in enumerate(sorted_samples):
-            # Set the low note
-            if i == 0:
-                current_sample['low_note'] = 0
-            else:
-                prev_sample = sorted_samples[i - 1]
-                midpoint = (prev_sample['root_note'] + current_sample['root_note']) // 2
-                current_sample['low_note'] = midpoint + 1
-
-            # Set the high note
-            if i == len(sorted_samples) - 1:
-                current_sample['high_note'] = 127
-            else:
-                next_sample = sorted_samples[i + 1]
-                midpoint = (current_sample['root_note'] + next_sample['root_note']) // 2
-                current_sample['high_note'] = midpoint
-        
-        return sorted_samples
+        """Wrapper around :func:`calculate_key_ranges`."""
+        return calculate_key_ranges(sample_infos)
 
     def create_instruments(self, mode='multi-sample', files=None):
         logging.info("create_instruments starting with mode %s", mode)
@@ -3018,18 +3016,15 @@ def _parse_xpm_for_rebuild(xpm_path):
 
     # Fallback to legacy XML format as it contains the most detailed layer info
     logging.info(f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}.")
+    auto_range_maps = []
     for inst_elem in root.findall('.//Instrument'):
         try:
             low_note_elem = inst_elem.find('LowNote')
             high_note_elem = inst_elem.find('HighNote')
-            
-            # FIX: Check if essential elements exist before proceeding
-            if low_note_elem is None or high_note_elem is None:
-                logging.warning(f"Skipping Instrument element in {os.path.basename(xpm_path)} due to missing LowNote/HighNote tags.")
-                continue
 
-            low_note = int(low_note_elem.text)
-            high_note = int(high_note_elem.text)
+            inst_low = int(low_note_elem.text) if low_note_elem is not None and low_note_elem.text else None
+            inst_high = int(high_note_elem.text) if high_note_elem is not None and high_note_elem.text else None
+            range_missing = inst_low is None or inst_high is None
 
             for layer in inst_elem.findall('.//Layer'):
                 sample_file_elem = layer.find('SampleFile')
@@ -3038,7 +3033,7 @@ def _parse_xpm_for_rebuild(xpm_path):
                     continue
 
                 abs_path = os.path.normpath(os.path.join(xpm_dir, sample_file_elem.text))
-                
+
                 # NEW: Extract all desired layer parameters
                 layer_params = {}
                 for param_name in LAYER_PARAMS_TO_PRESERVE:
@@ -3046,18 +3041,25 @@ def _parse_xpm_for_rebuild(xpm_path):
                     if elem is not None and elem.text is not None:
                         layer_params[param_name] = elem.text
 
-                mappings.append({
+                root_val = int(root_note_elem.text) if root_note_elem is not None and root_note_elem.text else 60
+                mapping = {
                     'sample_path': abs_path,
-                    'root_note': int(root_note_elem.text) if root_note_elem is not None and root_note_elem.text else 60,
-                    'low_note': low_note,
-                    'high_note': high_note,
+                    'root_note': root_val,
+                    'low_note': inst_low if inst_low is not None else root_val,
+                    'high_note': inst_high if inst_high is not None else root_val,
                     'velocity_low': int(layer_params.get('VelStart', 0)),
                     'velocity_high': int(layer_params.get('VelEnd', 127)),
-                    'layer_params': layer_params # Store all preserved params
-                })
+                    'layer_params': layer_params
+                }
+                mappings.append(mapping)
+                if range_missing:
+                    auto_range_maps.append(mapping)
         except (AttributeError, ValueError, TypeError) as e:
             logging.warning(f"Skipping malformed Instrument element in {os.path.basename(xpm_path)}: {e}")
             continue
+
+    if auto_range_maps:
+        calculate_key_ranges(auto_range_maps)
 
     if not mappings:
         logging.warning(f"No valid sample mappings could be parsed from {os.path.basename(xpm_path)}")
