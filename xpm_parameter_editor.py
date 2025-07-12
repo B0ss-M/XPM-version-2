@@ -344,18 +344,22 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
                 if pad.get("rootNote") != midi:
                     pad["rootNote"] = midi
                     changed = True
-                if pad.get("lowNote") != midi:
-                    pad["lowNote"] = midi
-                    changed = True
-                if pad.get("highNote") != midi:
-                    pad["highNote"] = midi
-                    changed = True
+                # Preserve existing note ranges when present
+                if pad.get("lowNote") in (None, pad.get("rootNote")):
+                    if pad.get("lowNote") != midi:
+                        pad["lowNote"] = midi
+                        changed = True
+                if pad.get("highNote") in (None, pad.get("rootNote")):
+                    if pad.get("highNote") != midi:
+                        pad["highNote"] = midi
+                        changed = True
         if changed:
             pads_elem.text = xml_escape(json.dumps(data, indent=4))
 
     for inst in root.findall(".//Instrument"):
         low_elem = inst.find("LowNote")
         high_elem = inst.find("HighNote")
+        inst_midi = None
         for layer in inst.findall(".//Layer"):
             sample_elem = layer.find("SampleFile")
             root_elem = layer.find("RootNote")
@@ -374,15 +378,32 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
             )
             if midi is None:
                 continue
+            if inst_midi is None:
+                inst_midi = midi
             if root_elem is not None and root_elem.text != str(midi):
                 root_elem.text = str(midi)
                 changed = True
-            if low_elem is not None and low_elem.text != str(midi):
-                low_elem.text = str(midi)
+        if inst_midi is None:
+            continue
+        # Only adjust range if missing or equal
+        if (
+            low_elem is not None
+            and high_elem is not None
+            and (low_elem.text == high_elem.text or not low_elem.text or not high_elem.text)
+        ):
+            if low_elem.text != str(inst_midi):
+                low_elem.text = str(inst_midi)
                 changed = True
-            if high_elem is not None and high_elem.text != str(midi):
-                high_elem.text = str(midi)
+            if high_elem.text != str(inst_midi):
+                high_elem.text = str(inst_midi)
                 changed = True
+
+    # Ensure KeygroupNumKeygroups matches the number of instruments
+    keygroup_elem = root.find(".//KeygroupNumKeygroups")
+    num_kgs = len(root.findall(".//Instrument"))
+    if keygroup_elem is not None and keygroup_elem.text != str(num_kgs):
+        keygroup_elem.text = str(num_kgs)
+        changed = True
 
     return changed
 
