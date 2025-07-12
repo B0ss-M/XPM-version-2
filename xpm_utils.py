@@ -58,7 +58,7 @@ def _parse_xpm_for_rebuild(xpm_path):
                 instrument_params[child.tag] = child.text
 
     # --- Modern format -----------------------------------------------------
-    pads_elem = root.find('.//ProgramPads-v2.10') or root.find('.//ProgramPads')
+
     if pads_elem is not None and pads_elem.text:
         try:
             data = json.loads(xml_unescape(pads_elem.text))
@@ -105,9 +105,17 @@ def _parse_xpm_for_rebuild(xpm_path):
 
                 sample_rel = None
                 if sample_file_elem is not None and sample_file_elem.text:
+                    val = sample_file_elem.text.strip()
+                        sample_rel = val
+                elif sample_name_elem is not None and sample_name_elem.text:
+                    val = sample_name_elem.text.strip()
+                    if val:
+                        sample_rel = val + '.wav'
+
                     sample_rel = sample_file_elem.text
                 elif sample_name_elem is not None and sample_name_elem.text:
                     sample_rel = sample_name_elem.text + '.wav'
+
                 if not sample_rel:
                     continue
 
@@ -119,6 +127,13 @@ def _parse_xpm_for_rebuild(xpm_path):
                     if elem is not None and elem.text is not None:
                         layer_params[param_name] = elem.text
 
+                if root_note_elem is not None and root_note_elem.text:
+                    try:
+                        root_val = int(root_note_elem.text.strip())
+                    except ValueError:
+                        root_val = 60
+                else:
+                    root_val = 60
                 root_val = int(root_note_elem.text) if root_note_elem is not None and root_note_elem.text else 60
                 mapping = {
                     'sample_path': abs_path,

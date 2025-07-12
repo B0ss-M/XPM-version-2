@@ -2990,7 +2990,7 @@ def clean_all_previews(folder_path):
                 except OSError as e:
                     logging.error(f"Error deleting folder {dir_to_delete}: {e}")
     return deleted_count
-
+  
 def batch_edit_programs(folder_path, params):
     """
     Batch rebuilds XPM files, converting legacy to advanced if specified,
