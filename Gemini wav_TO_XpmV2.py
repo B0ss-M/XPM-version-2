@@ -3047,6 +3047,9 @@ def _parse_xpm_for_rebuild(xpm_path):
     logging.info(
         f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}."
     )
+
+    # Fallback to legacy XML format as it contains the most detailed layer info
+    logging.info(f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}.")
     auto_range_maps = []
     for inst_elem in root.findall('.//Instrument'):
         try:
