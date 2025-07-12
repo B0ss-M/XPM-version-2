@@ -19,6 +19,7 @@ import struct
 import re
 import json
 import zipfile
+from typing import Optional
 
 try:
     from PIL import Image
@@ -38,9 +39,6 @@ try:
         set_application_version,
         fix_sample_notes,
         find_program_pads,
-        name_to_midi,
-        infer_note_from_filename,
-        extract_root_note_from_wav,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
@@ -69,11 +67,46 @@ SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
-# NEW: Define which layer parameters should be preserved during a rebuild
 LAYER_PARAMS_TO_PRESERVE = [
     'VelStart', 'VelEnd', 'SampleStart', 'SampleEnd', 'Loop', 'LoopStart',
     'LoopEnd', 'Direction', 'Offset', 'Volume', 'Pan', 'Tune', 'MuteGroup'
 ]
+
+#<editor-fold desc="NEW: Internal Note Parsing Logic">
+NOTE_MAP = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
+
+def name_to_midi(name: str) -> Optional[int]:
+    """Converts a note name (e.g., 'C#4') to a MIDI number."""
+    # Normalize note name for matching
+    name = name.upper().replace('B', '#')
+    match = re.match(r'([A-G][#]?)(\-?\d+)', name)
+    if not match:
+        return None
+    
+    note, octave = match.groups()
+    
+    if note not in NOTE_MAP:
+        return None
+        
+    midi_note = NOTE_MAP[note]
+    midi_octave = int(octave)
+    
+    # MIDI note 60 is C4. C0 is MIDI note 12.
+    return midi_note + (midi_octave + 1) * 12
+
+def infer_note_from_filename(filename: str) -> Optional[int]:
+    """Tries to find a musical note name in a filename and convert it to MIDI."""
+    # This regex looks for a note name (A-G, optional #/b, and an octave number)
+    # It handles cases like "Piano C#4.wav", "MySample_A3.wav", "F#2.wav"
+    match = re.search(r'\b([A-G][#bB]?\d)\b', os.path.splitext(filename)[0], re.IGNORECASE)
+    if match:
+        note_name = match.group(1)
+        midi_val = name_to_midi(note_name)
+        if midi_val is not None:
+            logging.info(f"Inferred note '{note_name}' (MIDI: {midi_val}) from filename '{filename}'")
+            return midi_val
+    return None
+#</editor-fold>
 
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
@@ -496,7 +529,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 for wav_path in extras:
                     # Logic to only add extras that match the program name
                     if os.path.basename(wav_path).lower().startswith(program_name.lower()):
-                        midi = extract_root_note_from_wav(wav_path) or infer_note_from_filename(wav_path) or 60
+                        midi = infer_note_from_filename(wav_path) or 60
                         mappings.append({
                             'sample_path': wav_path,
                             'root_note': midi,
@@ -513,7 +546,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
                 new_maps = []
                 for m in mappings:
-                    note = extract_root_note_from_wav(m['sample_path']) or infer_note_from_filename(m['sample_path'])
+                    note = infer_note_from_filename(m['sample_path'])
                     if note is None:
                         note = m.get('root_note', 60)
                     new_maps.append({
@@ -1431,7 +1464,7 @@ class SampleSelectorWindow(tk.Toplevel):
             if not full_path: continue
 
             # Create a new mapping for the added sample
-            midi = extract_root_note_from_wav(full_path) or infer_note_from_filename(basename) or 60
+            midi = infer_note_from_filename(basename) or 60
             new_mapping = {
                 'sample_path': full_path,
                 'root_note': midi, 'low_note': midi, 'high_note': midi,
@@ -2041,7 +2074,7 @@ class InstrumentBuilder:
                             midi_note = midi_notes[idx]
                         else:
                             # Use found root note, or filename note, or default to 60
-                            midi_note = info.get('root_note') or infer_note_from_filename(file_path) or start_note
+                            midi_note = info.get('root_note') or 60
                             logging.info(f"Sample {os.path.basename(file_path)} assigned root note: {midi_note}")
 
                         info['root_note'] = midi_note
