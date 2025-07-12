@@ -28,6 +28,7 @@ except Exception:
 
 # Attempt to import optional dependencies, handle if they are not present
 try:
+    from audio_pitch import detect_fundamental_pitch
     from xpm_parameter_editor import (
         set_layer_keytrack,
         set_volume_adsr,
@@ -56,7 +57,7 @@ except ImportError as e:
 
 
 # --- Application Configuration ---
-APP_VERSION = "23.7" # Final Stable Release
+APP_VERSION = "23.9" # Final Stable Release with Pitch Fix
 
 # --- Global Constants ---
 MPC_BEIGE = '#EAE6DA'
@@ -73,30 +74,6 @@ LAYER_PARAMS_TO_PRESERVE = [
     'VelStart', 'VelEnd', 'SampleStart', 'SampleEnd', 'Loop', 'LoopStart',
     'LoopEnd', 'Direction', 'Offset', 'Volume', 'Pan', 'Tune', 'MuteGroup'
 ]
-
-
-def calculate_key_ranges(mappings):
-    """Calculate low/high note ranges based on root notes."""
-    if not mappings:
-        return []
-
-    sorted_maps = sorted(mappings, key=lambda m: m.get('root_note', 60))
-    for i, current in enumerate(sorted_maps):
-        if i == 0:
-            current['low_note'] = 0
-        else:
-            prev = sorted_maps[i - 1]
-            midpoint = (prev['root_note'] + current['root_note']) // 2
-            current['low_note'] = midpoint + 1
-
-        if i == len(sorted_maps) - 1:
-            current['high_note'] = 127
-        else:
-            nxt = sorted_maps[i + 1]
-            midpoint = (current['root_note'] + nxt['root_note']) // 2
-            current['high_note'] = midpoint
-
-    return sorted_maps
 
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
@@ -138,14 +115,8 @@ class TextHandler(logging.Handler):
             self.text_widget.yview(tk.END)
         self.text_widget.after(0, append)
 
-def build_program_pads_json(
-    firmware, mappings=None, engine_override=None, num_instruments=None
-):
-    """Return ProgramPads JSON escaped for XML embedding.
-
-    ``num_instruments`` is used to populate the ``padToInstrument``
-    mapping so the MPC knows exactly how many keygroups are defined.
-    """
+def build_program_pads_json(firmware, mappings=None, engine_override=None):
+    """Return ProgramPads JSON escaped for XML embedding."""
     if not IMPORTS_SUCCESSFUL:
         return "{}"
     pad_cfg = get_pad_settings(firmware, engine_override)
@@ -184,8 +155,6 @@ def build_program_pads_json(
     }
     if engine:
         pads_obj["engine"] = engine
-    if isinstance(num_instruments, int) and num_instruments > 0:
-        pads_obj["padToInstrument"] = {str(i): i for i in range(num_instruments)}
     json_str = json.dumps(pads_obj, indent=4)
     return xml_escape(json_str)
 
@@ -1945,8 +1914,28 @@ class InstrumentBuilder:
 
     # NEW: Dedicated function to create a playable keymap
     def _calculate_key_ranges(self, sample_infos):
-        """Wrapper around :func:`calculate_key_ranges`."""
-        return calculate_key_ranges(sample_infos)
+        """Assigns key ranges for multi-sample instruments based on root notes."""
+        # Sort samples by root_note
+        sorted_samples = sorted(sample_infos, key=lambda x: x.get('root_note', 60))
+        n = len(sorted_samples)
+        if n == 0:
+            return []
+        # Assign key ranges so each sample covers halfway to the next
+        for i, sample in enumerate(sorted_samples):
+            root = sample.get('root_note', 60)
+            if i == 0:
+                low = 0
+            else:
+                prev_root = sorted_samples[i-1].get('root_note', 60)
+                low = (prev_root + root) // 2 + 1
+            if i == n - 1:
+                high = 127
+            else:
+                next_root = sorted_samples[i+1].get('root_note', 60)
+                high = (root + next_root) // 2
+            sample['low_note'] = low
+            sample['high_note'] = high
+        return sorted_samples
 
     def create_instruments(self, mode='multi-sample', files=None):
         logging.info("create_instruments starting with mode %s", mode)
@@ -2368,11 +2357,16 @@ class InstrumentBuilder:
             if self.options.analyze_scw and 0 < frames < SCW_FRAME_THRESHOLD:
                 is_scw = True
 
+            # REVISED: Prioritize filename, then pitch detection
+            root_note = infer_note_from_filename(sample_path)
+            if root_note is None:
+                root_note = detect_fundamental_pitch(sample_path)
+
             return {
                 'is_valid': True,
                 'path': sample_path,
                 'frames': frames,
-                'root_note': extract_root_note_from_wav(sample_path) or infer_note_from_filename(sample_path),
+                'root_note': root_note,
                 'is_scw': is_scw
             }
         except Exception as e:
@@ -2998,14 +2992,11 @@ def clean_all_previews(folder_path):
 
 # REVISED: Greatly improved parsing function for robust rebuilding.
 def _parse_xpm_for_rebuild(xpm_path):
-    """Return sample mappings and base parameters parsed from ``xpm_path``.
-
-    The function first attempts to read a modern ``ProgramPads`` JSON block. If
-    that fails, it falls back to parsing legacy ``Instrument``/``Layer``
-    elements. When low/high note tags are missing, ranges are derived from each
-    layer's root note so the rebuilt program will still be playable.
     """
-
+    Parses an XPM file (legacy or modern) to extract all necessary info
+    for a complete rebuild, including detailed sample mappings and all
+    instrument and layer parameters.
+    """
     mappings = []
     instrument_params = {}
     xpm_dir = os.path.dirname(xpm_path)
@@ -3017,60 +3008,32 @@ def _parse_xpm_for_rebuild(xpm_path):
         logging.error(f"Could not parse XPM for rebuild: {xpm_path}. Error: {e}")
         return None, None
 
+    # Get program name
     program_name_elem = root.find('.//ProgramName')
     if program_name_elem is not None:
         instrument_params['ProgramName'] = program_name_elem.text
 
+    # Capture all parameters from the first Instrument element to use as a base
     inst = root.find('.//Instrument')
     if inst is not None:
         for child in inst:
             if len(list(child)) == 0 and child.text is not None:
                 instrument_params[child.tag] = child.text
 
-    # --- Modern format -----------------------------------------------------
-    pads_elem = find_program_pads(root)
-    if pads_elem is not None and pads_elem.text:
-        try:
-            data = json.loads(xml_unescape(pads_elem.text))
-            pads = data.get('pads', {})
-            for pad_data in pads.values():
-                if isinstance(pad_data, dict) and pad_data.get('samplePath'):
-                    sample_path = pad_data['samplePath']
-                    if sample_path and sample_path.strip():
-                        abs_path = os.path.normpath(os.path.join(xpm_dir, sample_path))
-                        mappings.append({
-                            'sample_path': abs_path,
-                            'root_note': pad_data.get('rootNote', 60),
-                            'low_note': pad_data.get('lowNote', 0),
-                            'high_note': pad_data.get('highNote', 127),
-                            'velocity_low': pad_data.get('velocityLow', 0),
-                            'velocity_high': pad_data.get('velocityHigh', 127),
-                            'layer_params': {}
-                        })
-            if mappings:
-                logging.info(
-                    f"Parsed {len(mappings)} sample mappings from ProgramPads in {os.path.basename(xpm_path)}"
-                )
-                return mappings, instrument_params
-        except json.JSONDecodeError:
-            pass
-
-    # --- Legacy format ----------------------------------------------------
-    logging.info(
-        f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}."
-    )
-
     # Fallback to legacy XML format as it contains the most detailed layer info
     logging.info(f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}.")
-    auto_range_maps = []
     for inst_elem in root.findall('.//Instrument'):
         try:
             low_note_elem = inst_elem.find('LowNote')
             high_note_elem = inst_elem.find('HighNote')
+            
+            # FIX: Check if essential elements exist before proceeding
+            if low_note_elem is None or high_note_elem is None:
+                logging.warning(f"Skipping Instrument element in {os.path.basename(xpm_path)} due to missing LowNote/HighNote tags.")
+                continue
 
-            inst_low = int(low_note_elem.text) if low_note_elem is not None and low_note_elem.text else None
-            inst_high = int(high_note_elem.text) if high_note_elem is not None and high_note_elem.text else None
-            range_missing = inst_low is None or inst_high is None
+            low_note = int(low_note_elem.text)
+            high_note = int(high_note_elem.text)
 
             for layer in inst_elem.findall('.//Layer'):
                 sample_file_elem = layer.find('SampleFile')
@@ -3079,7 +3042,7 @@ def _parse_xpm_for_rebuild(xpm_path):
                     continue
 
                 abs_path = os.path.normpath(os.path.join(xpm_dir, sample_file_elem.text))
-
+                
                 # NEW: Extract all desired layer parameters
                 layer_params = {}
                 for param_name in LAYER_PARAMS_TO_PRESERVE:
@@ -3087,25 +3050,18 @@ def _parse_xpm_for_rebuild(xpm_path):
                     if elem is not None and elem.text is not None:
                         layer_params[param_name] = elem.text
 
-                root_val = int(root_note_elem.text) if root_note_elem is not None and root_note_elem.text else 60
-                mapping = {
+                mappings.append({
                     'sample_path': abs_path,
-                    'root_note': root_val,
-                    'low_note': inst_low if inst_low is not None else root_val,
-                    'high_note': inst_high if inst_high is not None else root_val,
+                    'root_note': int(root_note_elem.text) if root_note_elem is not None and root_note_elem.text else 60,
+                    'low_note': low_note,
+                    'high_note': high_note,
                     'velocity_low': int(layer_params.get('VelStart', 0)),
                     'velocity_high': int(layer_params.get('VelEnd', 127)),
-                    'layer_params': layer_params
-                }
-                mappings.append(mapping)
-                if range_missing:
-                    auto_range_maps.append(mapping)
+                    'layer_params': layer_params # Store all preserved params
+                })
         except (AttributeError, ValueError, TypeError) as e:
             logging.warning(f"Skipping malformed Instrument element in {os.path.basename(xpm_path)}: {e}")
             continue
-
-    if auto_range_maps:
-        calculate_key_ranges(auto_range_maps)
 
     if not mappings:
         logging.warning(f"No valid sample mappings could be parsed from {os.path.basename(xpm_path)}")
