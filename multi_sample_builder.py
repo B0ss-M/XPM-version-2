@@ -4,6 +4,7 @@ import logging
 import re
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
+from tkinterdnd2 import DND_FILES, TkinterDnD
 from xpm_parameter_editor import name_to_midi, extract_root_note_from_wav
 
 NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -60,6 +61,10 @@ class MultiSampleBuilderWindow(tk.Toplevel):
 
     def __init__(self, master, builder_cls, options_cls, default_mode="multi-sample"):
         super().__init__(master.root)
+        try:
+            TkinterDnD._require(self)
+        except Exception as exc:
+            logging.error("Failed to load tkdnd: %s", exc)
         self.master = master
         self.builder_cls = builder_cls
         self.options_cls = options_cls
@@ -90,6 +95,11 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         left_list_frame = ttk.Frame(left)
         left_list_frame.pack(fill="both", expand=True)
         self.file_list = tk.Listbox(left_list_frame, selectmode="extended")
+        try:
+            self.file_list.drop_target_register(DND_FILES)
+            self.file_list.dnd_bind("<<Drop>>", self.drop_files)
+        except Exception as exc:
+            logging.warning("Drag-and-drop not available: %s", exc)
         vsb_left = ttk.Scrollbar(left_list_frame, orient="vertical", command=self.file_list.yview)
         self.file_list.configure(yscrollcommand=vsb_left.set)
         self.file_list.pack(side="left", fill="both", expand=True)
@@ -157,6 +167,22 @@ class MultiSampleBuilderWindow(tk.Toplevel):
         for f in sorted(self.unassigned):
             self.file_list.insert(tk.END, f)
         self.refresh_group_combo()
+
+    def drop_files(self, event):
+        """Handle files dropped onto the unassigned list."""
+        paths = self.tk.splitlist(event.data)
+        folder = self.master.folder_path.get()
+        for p in paths:
+            if os.path.isdir(p):
+                continue
+            if os.path.splitext(p)[1].lower() in AUDIO_EXTS:
+                try:
+                    rel = os.path.relpath(p, folder)
+                except ValueError:
+                    rel = os.path.basename(p)
+                if rel not in self.unassigned:
+                    self.unassigned.append(rel)
+        self.refresh_file_list()
 
     def refresh_group_combo(self):
         self.group_combo['values'] = list(self.groups.keys())

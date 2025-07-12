@@ -16,3 +16,4 @@ lxml>=4.9.0
 # Development tools (optional)
 pytest>=7.0.0  # For running tests
 black>=22.0.0  # For code formatting
+tkinterdnd2>=0.4.3  # For drag-and-drop support
