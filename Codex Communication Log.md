@@ -176,3 +176,54 @@ Please run a final verification pass:
 1. Run `python -m py_compile` on all `.py` files and launch `Gemini wav_TO_XpmV2.py` to confirm the GUI starts without errors.
 2. Document the `_parse_xpm_for_rebuild` function in `docs/README.md`.
 Report back once these checks are complete.
+
+Entry Date: 2025-07-12
+
+I. Gemini's Report & Findings
+
+Objective: Fix multi-sample programs showing only 1 keygroup on MPC hardware.
+
+Analysis & Changes:
+- Updated build_program_pads_json to include padToInstrument mapping and optional num_instruments parameter.
+- Adjusted instrument numbering to start at 0 across builders.
+- Updated batch_program_editor and sample_mapping_editor to pass num_instruments and generate correct ProgramPads JSON.
+- Added pad-to-instrument support when creating new keygroup programs.
+
+Outcome: Generated XPM files now correctly expose all keygroups on MPC hardware.
+
+II. Codex Review
+
+[x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
+
+Entry Date: 2025-07-13
+
+I. Gemini's Report & Findings
+
+Objective: Improve legacy XPM parsing so the Fix Keygroups tool can rebuild malformed files.
+
+Analysis & Changes:
+- Updated `_parse_xpm_for_rebuild` to accept `SampleName` when `SampleFile` tags are empty.
+- This allows batch tools to recover mappings from older exports where sample paths are omitted.
+
+Outcome: Bad programs that previously skipped during rebuild are now parsed successfully.
+
+II. Codex Review
+
+[x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
+
+Entry Date: 2025-07-14
+
+I. Gemini\x27s Report & Findings
+
+Objective: Consolidate duplicate parsing logic.
+
+Analysis & Changes:
+- Moved `LAYER_PARAMS_TO_PRESERVE`, `calculate_key_ranges`, and `_parse_xpm_for_rebuild` into new module `xpm_utils.py`.
+- Updated `Gemini wav_TO_XpmV2.py`, `batch_program_editor.py`, and `sample_mapping_editor.py` to import these utilities.
+- Removed outdated `parse_any_xpm` function and other duplicate code.
+
+Outcome: Parsing code is centralized, reducing maintenance overhead.
+
+II. Codex Review
+
+[x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.

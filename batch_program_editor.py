@@ -4,6 +4,7 @@ import logging
 import xml.etree.ElementTree as ET
 import json
 from collections import defaultdict
+from xpm_utils import _parse_xpm_for_rebuild
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 def indent_tree(tree: ET.ElementTree, space: str = "  ") -> None:
@@ -44,8 +45,17 @@ from xpm_parameter_editor import (
 from firmware_profiles import get_pad_settings
 
 
-def build_program_pads_json(firmware: str, mappings=None, engine_override: str | None = None) -> str:
-    """Return ProgramPads JSON escaped for XML embedding."""
+def build_program_pads_json(
+    firmware: str,
+    mappings=None,
+    engine_override: str | None = None,
+    num_instruments: int | None = None,
+) -> str:
+    """Return ProgramPads JSON escaped for XML embedding.
+
+    When ``num_instruments`` is provided, a ``padToInstrument`` mapping is
+    included so the MPC recognizes all keygroups.
+    """
     pad_cfg = get_pad_settings(firmware, engine_override)
     pads_type = pad_cfg['type']
     universal_pad = pad_cfg['universal_pad']
@@ -78,79 +88,11 @@ def build_program_pads_json(firmware: str, mappings=None, engine_override: str |
     }
     if engine:
         pads_obj['engine'] = engine
+    if isinstance(num_instruments, int) and num_instruments > 0:
+        pads_obj['padToInstrument'] = {str(i): i for i in range(num_instruments)}
     return xml_escape(json.dumps(pads_obj, indent=4))
 
 
-def parse_any_xpm(xpm_path: str):
-    """Return sample mappings and instrument params from any XPM format."""
-    mappings: list[dict] = []
-    inst_params: dict[str, str] = {}
-    xpm_dir = os.path.dirname(xpm_path)
-    try:
-        tree = ET.parse(xpm_path)
-    except ET.ParseError as exc:
-        logging.error("XML parse error for %s: %s", xpm_path, exc)
-        return mappings, inst_params
-
-    root = tree.getroot()
-
-    kg_elem = root.find('.//KeygroupNumKeygroups')
-    if kg_elem is not None and kg_elem.text:
-        inst_params['KeygroupNumKeygroups'] = kg_elem.text
-
-    inst = root.find('.//Instrument')
-    if inst is not None:
-        for child in inst:
-            if len(list(child)) == 0:
-                inst_params[child.tag] = child.text or ''
-
-    pads_elem = find_program_pads(root)
-    if pads_elem is not None and pads_elem.text:
-        try:
-            data = json.loads(xml_unescape(pads_elem.text))
-        except json.JSONDecodeError as e:
-            logging.error("JSON decode error in %s: %s", xpm_path, e)
-            data = {}
-        pads = data.get('pads', {})
-        for pad_data in pads.values():
-            if isinstance(pad_data, dict) and pad_data.get('samplePath'):
-                path_text = pad_data['samplePath']
-                if path_text and path_text.strip():
-                    mappings.append({
-                        'sample_path': os.path.join(xpm_dir, path_text),
-                        'root_note': pad_data.get('rootNote', 60),
-                        'low_note': pad_data.get('lowNote', 0),
-                        'high_note': pad_data.get('highNote', 127),
-                        'velocity_low': pad_data.get('velocityLow', 0),
-                        'velocity_high': pad_data.get('velocityHigh', 127),
-                    })
-        if mappings:
-            return mappings, inst_params
-
-    for inst in root.findall('.//Instrument'):
-        low_note_elem = inst.find('LowNote')
-        high_note_elem = inst.find('HighNote')
-        if low_note_elem is None or high_note_elem is None or not low_note_elem.text or not high_note_elem.text:
-            continue
-        for layer in inst.findall('.//Layer'):
-            sample_file_elem = layer.find('SampleFile')
-            root_note_elem = layer.find('RootNote')
-            vel_start_elem = layer.find('VelStart')
-            vel_end_elem = layer.find('VelEnd')
-            if sample_file_elem is None or root_note_elem is None or not sample_file_elem.text or not root_note_elem.text:
-                continue
-            sample_file = sample_file_elem.text
-            if sample_file and sample_file.strip():
-                mappings.append({
-                    'sample_path': os.path.join(xpm_dir, sample_file),
-                    'root_note': int(root_note_elem.text),
-                    'low_note': int(low_note_elem.text),
-                    'high_note': int(high_note_elem.text),
-                    'velocity_low': int(vel_start_elem.text) if vel_start_elem is not None and vel_start_elem.text else 0,
-                    'velocity_high': int(vel_end_elem.text) if vel_end_elem is not None and vel_end_elem.text else 127,
-                })
-
-    return mappings, inst_params
 
 
 def find_unreferenced_audio_files(xpm_path: str, mappings: list[dict]) -> list[str]:
@@ -183,14 +125,19 @@ def create_simple_xpm(program_name: str, mappings: list[dict], output_folder: st
     ET.SubElement(program, 'ProgramName').text = xml_escape(program_name)
 
     pads_tag = 'ProgramPads-v2.10' if firmware in {'3.4.0', '3.5.0'} else 'ProgramPads'
-    pads_json = build_program_pads_json(firmware, mappings, engine_override=format_version)
+    pads_json = build_program_pads_json(
+        firmware,
+        mappings,
+        engine_override=format_version,
+        num_instruments=len(note_layers),
+    )
     ET.SubElement(program, pads_tag).text = pads_json
 
     if inst_params and 'KeygroupNumKeygroups' in inst_params:
         ET.SubElement(program, 'KeygroupNumKeygroups').text = str(inst_params['KeygroupNumKeygroups'])
 
     instruments = ET.SubElement(program, 'Instruments')
-    for idx, (low, high) in enumerate(sorted(note_layers.keys()), start=1):
+    for idx, (low, high) in enumerate(sorted(note_layers.keys())):
         inst_elem = ET.SubElement(instruments, 'Instrument', {'number': str(idx)})
         ET.SubElement(inst_elem, 'LowNote').text = str(low)
         ET.SubElement(inst_elem, 'HighNote').text = str(high)
@@ -322,7 +269,7 @@ def verify_mappings(folder: str, firmware: str, fmt: str | None) -> None:
             if file.startswith('._') or not file.lower().endswith('.xpm'):
                 continue
             path = os.path.join(root_dir, file)
-            mappings, params = parse_any_xpm(path)
+            mappings, params = _parse_xpm_for_rebuild(path)
             if not mappings:
                 continue
             extras = find_unreferenced_audio_files(path, mappings)
