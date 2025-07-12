@@ -52,6 +52,7 @@ try:
 except ImportError as e:
     IMPORTS_SUCCESSFUL = False
     MISSING_MODULE = str(e)
+from xpm_utils import LAYER_PARAMS_TO_PRESERVE, calculate_key_ranges, _parse_xpm_for_rebuild
 
 
 # --- Application Configuration ---
@@ -66,47 +67,6 @@ MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
-
-LAYER_PARAMS_TO_PRESERVE = [
-    'VelStart', 'VelEnd', 'SampleStart', 'SampleEnd', 'Loop', 'LoopStart',
-    'LoopEnd', 'Direction', 'Offset', 'Volume', 'Pan', 'Tune', 'MuteGroup'
-]
-
-#<editor-fold desc="NEW: Internal Note Parsing Logic">
-NOTE_MAP = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
-
-def name_to_midi(name: str) -> Optional[int]:
-    """Converts a note name (e.g., 'C#4') to a MIDI number."""
-    # Normalize note name for matching
-    name = name.upper().replace('B', '#')
-    match = re.match(r'([A-G][#]?)(\-?\d+)', name)
-    if not match:
-        return None
-    
-    note, octave = match.groups()
-    
-    if note not in NOTE_MAP:
-        return None
-        
-    midi_note = NOTE_MAP[note]
-    midi_octave = int(octave)
-    
-    # MIDI note 60 is C4. C0 is MIDI note 12.
-    return midi_note + (midi_octave + 1) * 12
-
-def infer_note_from_filename(filename: str) -> Optional[int]:
-    """Tries to find a musical note name in a filename and convert it to MIDI."""
-    # This regex looks for a note name (A-G, optional #/b, and an octave number)
-    # It handles cases like "Piano C#4.wav", "MySample_A3.wav", "F#2.wav"
-    match = re.search(r'\b([A-G][#bB]?\d)\b', os.path.splitext(filename)[0], re.IGNORECASE)
-    if match:
-        note_name = match.group(1)
-        midi_val = name_to_midi(note_name)
-        if midi_val is not None:
-            logging.info(f"Inferred note '{note_name}' (MIDI: {midi_val}) from filename '{filename}'")
-            return midi_val
-    return None
-#</editor-fold>
 
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
@@ -148,8 +108,14 @@ class TextHandler(logging.Handler):
             self.text_widget.yview(tk.END)
         self.text_widget.after(0, append)
 
-def build_program_pads_json(firmware, mappings=None, engine_override=None):
-    """Return ProgramPads JSON escaped for XML embedding."""
+def build_program_pads_json(
+    firmware, mappings=None, engine_override=None, num_instruments=None
+):
+    """Return ProgramPads JSON escaped for XML embedding.
+
+    ``num_instruments`` is used to populate the ``padToInstrument``
+    mapping so the MPC knows exactly how many keygroups are defined.
+    """
     if not IMPORTS_SUCCESSFUL:
         return "{}"
     pad_cfg = get_pad_settings(firmware, engine_override)
@@ -188,6 +154,8 @@ def build_program_pads_json(firmware, mappings=None, engine_override=None):
     }
     if engine:
         pads_obj["engine"] = engine
+    if isinstance(num_instruments, int) and num_instruments > 0:
+        pads_obj["padToInstrument"] = {str(i): i for i in range(num_instruments)}
     json_str = json.dumps(pads_obj, indent=4)
     return xml_escape(json_str)
 
@@ -3022,87 +2990,6 @@ def clean_all_previews(folder_path):
                 except OSError as e:
                     logging.error(f"Error deleting folder {dir_to_delete}: {e}")
     return deleted_count
-
-# REVISED: Greatly improved parsing function for robust rebuilding.
-def _parse_xpm_for_rebuild(xpm_path):
-    """
-    Parses an XPM file (legacy or modern) to extract all necessary info
-    for a complete rebuild, including detailed sample mappings and all
-    instrument and layer parameters.
-    """
-    mappings = []
-    instrument_params = {}
-    xpm_dir = os.path.dirname(xpm_path)
-
-    try:
-        tree = ET.parse(xpm_path)
-        root = tree.getroot()
-    except ET.ParseError as e:
-        logging.error(f"Could not parse XPM for rebuild: {xpm_path}. Error: {e}")
-        return None, None
-
-    # Get program name
-    program_name_elem = root.find('.//ProgramName')
-    if program_name_elem is not None:
-        instrument_params['ProgramName'] = program_name_elem.text
-
-    # Capture all parameters from the first Instrument element to use as a base
-    inst = root.find('.//Instrument')
-    if inst is not None:
-        for child in inst:
-            if len(list(child)) == 0 and child.text is not None:
-                instrument_params[child.tag] = child.text
-
-    # Fallback to legacy XML format as it contains the most detailed layer info
-    logging.info(f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}.")
-    for inst_elem in root.findall('.//Instrument'):
-        try:
-            low_note_elem = inst_elem.find('LowNote')
-            high_note_elem = inst_elem.find('HighNote')
-            
-            # FIX: Check if essential elements exist before proceeding
-            if low_note_elem is None or high_note_elem is None:
-                logging.warning(f"Skipping Instrument element in {os.path.basename(xpm_path)} due to missing LowNote/HighNote tags.")
-                continue
-
-            low_note = int(low_note_elem.text)
-            high_note = int(high_note_elem.text)
-
-            for layer in inst_elem.findall('.//Layer'):
-                sample_file_elem = layer.find('SampleFile')
-                root_note_elem = layer.find('RootNote')
-                if sample_file_elem is None or not sample_file_elem.text:
-                    continue
-
-                abs_path = os.path.normpath(os.path.join(xpm_dir, sample_file_elem.text))
-                
-                # NEW: Extract all desired layer parameters
-                layer_params = {}
-                for param_name in LAYER_PARAMS_TO_PRESERVE:
-                    elem = layer.find(param_name)
-                    if elem is not None and elem.text is not None:
-                        layer_params[param_name] = elem.text
-
-                mappings.append({
-                    'sample_path': abs_path,
-                    'root_note': int(root_note_elem.text) if root_note_elem is not None and root_note_elem.text else 60,
-                    'low_note': low_note,
-                    'high_note': high_note,
-                    'velocity_low': int(layer_params.get('VelStart', 0)),
-                    'velocity_high': int(layer_params.get('VelEnd', 127)),
-                    'layer_params': layer_params # Store all preserved params
-                })
-        except (AttributeError, ValueError, TypeError) as e:
-            logging.warning(f"Skipping malformed Instrument element in {os.path.basename(xpm_path)}: {e}")
-            continue
-
-    if not mappings:
-        logging.warning(f"No valid sample mappings could be parsed from {os.path.basename(xpm_path)}")
-        return None, None # Explicitly return None on failure
-
-    logging.info(f"Successfully parsed {len(mappings)} samples from {os.path.basename(xpm_path)}")
-    return mappings, instrument_params
-
 
 def batch_edit_programs(folder_path, params):
     """
