@@ -41,6 +41,7 @@ try:
         fix_sample_notes,
         find_program_pads,
         infer_note_from_filename,
+        extract_root_note_from_wav,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
@@ -370,6 +371,16 @@ def is_valid_xpm(xpm_path):
     return validate_xpm_file(xpm_path, sample_count)
 
 
+def detect_sample_note(path: str) -> int:
+    """Return the MIDI note for a sample using metadata or pitch analysis."""
+    midi = extract_root_note_from_wav(path)
+    if midi is None:
+        midi = infer_note_from_filename(path)
+    if midi is None:
+        midi = detect_fundamental_pitch(path)
+    return midi if midi is not None else 60
+
+
 # REVISED: Stricter unreferenced file finder
 def find_unreferenced_audio_files(xpm_path, mappings):
     """
@@ -604,13 +615,12 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 program_name = os.path.splitext(os.path.basename(path))[0]
                 extras = find_unreferenced_audio_files(path, mappings)
                 for wav_path in extras:
-                    # Logic to only add extras that match the program name
                     if (
                         os.path.basename(wav_path)
                         .lower()
                         .startswith(program_name.lower())
                     ):
-                        midi = infer_note_from_filename(wav_path) or 60
+                        midi = detect_sample_note(wav_path)
                         mappings.append(
                             {
                                 "sample_path": wav_path,
@@ -623,13 +633,19 @@ class ExpansionDoctorWindow(tk.Toplevel):
                         )
 
                 ranges = {(m["low_note"], m["high_note"]) for m in mappings}
-                needs_rebuild = (len(ranges) == 1 and len(mappings) > 1) or extras
+                keygroup_count = len(ranges)
+                declared = int(inst_params.get("KeygroupNumKeygroups", keygroup_count))
+                needs_rebuild = (
+                    declared != keygroup_count
+                    or (len(ranges) == 1 and len(mappings) > 1)
+                    or extras
+                )
                 if not needs_rebuild:
                     continue
 
                 new_maps = []
                 for m in mappings:
-                    note = infer_note_from_filename(m["sample_path"])
+                    note = detect_sample_note(m["sample_path"])
                     if note is None:
                         note = m.get("root_note", 60)
                     new_maps.append(

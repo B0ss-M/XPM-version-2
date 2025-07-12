@@ -64,6 +64,15 @@ def _parse_xpm_for_rebuild(xpm_path):
     if program_name_elem is not None:
         instrument_params["ProgramName"] = program_name_elem.text
 
+    num_elem = root.find(".//KeygroupNumKeygroups")
+    if num_elem is not None and num_elem.text:
+        try:
+            instrument_params["KeygroupNumKeygroups"] = int(num_elem.text)
+        except ValueError:
+            logging.warning(
+                f"Invalid KeygroupNumKeygroups value in {os.path.basename(xpm_path)}: {num_elem.text}"
+            )
+
     inst = root.find(".//Instrument")
     if inst is not None:
         for child in inst:
