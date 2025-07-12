@@ -2,7 +2,7 @@
 
 This repository contains tools for working with Akai MPC Keygroup programs.
 
-Additional documentation can be found in the [docs/](docs/) directory, including a summary of the differences between drum and instrument keygroups.
+Additional documentation can be found in the [docs/](docs/) directory, including a summary of the differences between drum and instrument keygroups. A technical overview of shared helper functions is available in [docs_README.md](docs_README.md).
 
 ## Scripts
 
@@ -17,14 +17,6 @@ Additional documentation can be found in the [docs/](docs/) directory, including
   parameters for that modulation slot. The command-line version exposes the same options via
   `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments. The `--verify-map` option can also rebuild programs when extra WAV files are found, assigning them to new keygroups based on their filenames.
 - `fix_xpm_notes.py` – standalone utility to repair root note mappings in existing programs. Use `--update-wav` to also write the detected notes back into each WAV file.
-- `batch_program_editor.py` – batch editor for `.xpm` program files allowing rename, firmware, and format changes.
-  This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
-  The editor now provides drop-down selectors for **Application Version** and **Format**
-  (legacy or advanced) plus a **Browse...** button for selecting a Mod Matrix JSON file.
-  The matrix file should be a `.json` list where each entry contains a `Num` value
-  and the desired parameters for that modulation slot.
-  When using the command-line tool you can pass `--format legacy` or `--format advanced`
-  to produce programs in either layout.
 
 
 ### New in this update
