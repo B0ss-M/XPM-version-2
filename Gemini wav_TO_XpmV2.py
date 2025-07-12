@@ -2986,11 +2986,14 @@ def clean_all_previews(folder_path):
 
 # REVISED: Greatly improved parsing function for robust rebuilding.
 def _parse_xpm_for_rebuild(xpm_path):
+    """Return sample mappings and base parameters parsed from ``xpm_path``.
+
+    The function first attempts to read a modern ``ProgramPads`` JSON block. If
+    that fails, it falls back to parsing legacy ``Instrument``/``Layer``
+    elements. When low/high note tags are missing, ranges are derived from each
+    layer's root note so the rebuilt program will still be playable.
     """
-    Parses an XPM file (legacy or modern) to extract all necessary info
-    for a complete rebuild, including detailed sample mappings and all
-    instrument and layer parameters.
-    """
+
     mappings = []
     instrument_params = {}
     xpm_dir = os.path.dirname(xpm_path)
@@ -3002,17 +3005,48 @@ def _parse_xpm_for_rebuild(xpm_path):
         logging.error(f"Could not parse XPM for rebuild: {xpm_path}. Error: {e}")
         return None, None
 
-    # Get program name
     program_name_elem = root.find('.//ProgramName')
     if program_name_elem is not None:
         instrument_params['ProgramName'] = program_name_elem.text
 
-    # Capture all parameters from the first Instrument element to use as a base
     inst = root.find('.//Instrument')
     if inst is not None:
         for child in inst:
             if len(list(child)) == 0 and child.text is not None:
                 instrument_params[child.tag] = child.text
+
+    # --- Modern format -----------------------------------------------------
+    pads_elem = find_program_pads(root)
+    if pads_elem is not None and pads_elem.text:
+        try:
+            data = json.loads(xml_unescape(pads_elem.text))
+            pads = data.get('pads', {})
+            for pad_data in pads.values():
+                if isinstance(pad_data, dict) and pad_data.get('samplePath'):
+                    sample_path = pad_data['samplePath']
+                    if sample_path and sample_path.strip():
+                        abs_path = os.path.normpath(os.path.join(xpm_dir, sample_path))
+                        mappings.append({
+                            'sample_path': abs_path,
+                            'root_note': pad_data.get('rootNote', 60),
+                            'low_note': pad_data.get('lowNote', 0),
+                            'high_note': pad_data.get('highNote', 127),
+                            'velocity_low': pad_data.get('velocityLow', 0),
+                            'velocity_high': pad_data.get('velocityHigh', 127),
+                            'layer_params': {}
+                        })
+            if mappings:
+                logging.info(
+                    f"Parsed {len(mappings)} sample mappings from ProgramPads in {os.path.basename(xpm_path)}"
+                )
+                return mappings, instrument_params
+        except json.JSONDecodeError:
+            pass
+
+    # --- Legacy format ----------------------------------------------------
+    logging.info(
+        f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}."
+    )
 
     # Fallback to legacy XML format as it contains the most detailed layer info
     logging.info(f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}.")
