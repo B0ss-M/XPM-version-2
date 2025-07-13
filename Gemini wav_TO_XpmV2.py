@@ -39,6 +39,7 @@ try:
         set_engine_mode,
         set_application_version,
         fix_sample_notes,
+        fix_master_transpose,
         find_program_pads,
         infer_note_from_filename,
         extract_root_note_from_wav,
@@ -4125,6 +4126,8 @@ def batch_edit_programs(folder_path, params):
                     if params.get("fix_notes") and fix_sample_notes(
                         root, os.path.dirname(path)
                     ):
+                        post_change = True
+                    if fix_master_transpose(root, os.path.dirname(path)):
                         post_change = True
                     if "keytrack" in params and set_layer_keytrack(
                         root, params["keytrack"]
