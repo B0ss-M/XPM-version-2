@@ -2,7 +2,11 @@ import os
 import argparse
 import xml.etree.ElementTree as ET
 
-from xpm_parameter_editor import fix_sample_notes, update_wav_root_notes
+from xpm_parameter_editor import (
+    fix_sample_notes,
+    update_wav_root_notes,
+    fix_master_transpose,
+)
 from batch_program_editor import indent_tree
 
 
@@ -16,7 +20,15 @@ def fix_file(path: str, write_wav: bool = False) -> bool:
         return False
 
     folder = os.path.dirname(path)
+    changed = False
+
     if fix_sample_notes(root, folder):
+        changed = True
+
+    if fix_master_transpose(root, folder):
+        changed = True
+
+    if changed:
         indent_tree(tree)
         tree.write(path, encoding="utf-8", xml_declaration=True)
         print(f"Fixed {path}")

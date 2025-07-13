@@ -12,6 +12,7 @@ from typing import Dict, Optional
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 from audio_pitch import detect_fundamental_pitch
+from collections import Counter
 
 
 def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
@@ -433,6 +434,80 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
         changed = True
 
     return changed
+
+
+def fix_master_transpose(root: ET.Element, folder: str) -> bool:
+    """Detect and correct a global note offset via ``KeygroupMasterTranspose``."""
+
+    diffs = []
+
+    pads_elem = find_program_pads(root)
+    if pads_elem is not None and pads_elem.text:
+        try:
+            data = json.loads(xml_unescape(pads_elem.text))
+        except json.JSONDecodeError:
+            data = {}
+        pads = data.get("pads", {}) if isinstance(data, dict) else {}
+        for pad in pads.values():
+            if not isinstance(pad, dict):
+                continue
+            sample_path = pad.get("samplePath")
+            root_note = pad.get("rootNote")
+            if sample_path and root_note is not None:
+                abs_path = (
+                    sample_path
+                    if os.path.isabs(sample_path)
+                    else os.path.join(folder, sample_path)
+                )
+                midi = (
+                    extract_root_note_from_wav(abs_path)
+                    or infer_note_from_filename(sample_path)
+                    or detect_fundamental_pitch(abs_path)
+                )
+                if midi is not None:
+                    try:
+                        diffs.append(int(midi) - int(root_note))
+                    except (ValueError, TypeError):
+                        pass
+    for layer in root.findall(".//Layer"):
+        sample_elem = layer.find("SampleFile")
+        root_elem = layer.find("RootNote")
+        if sample_elem is None or root_elem is None:
+            continue
+        sample_path = sample_elem.text
+        root_note = root_elem.text
+        if not sample_path or not root_note:
+            continue
+        abs_path = (
+            sample_path if os.path.isabs(sample_path) else os.path.join(folder, sample_path)
+        )
+        midi = (
+            extract_root_note_from_wav(abs_path)
+            or infer_note_from_filename(sample_path)
+            or detect_fundamental_pitch(abs_path)
+        )
+        if midi is not None:
+            try:
+                diffs.append(int(midi) - int(root_note))
+            except (ValueError, TypeError):
+                pass
+
+    if not diffs:
+        return False
+
+    common_diff, count = Counter(diffs).most_common(1)[0]
+    if count < len(diffs) * 0.6 or common_diff == 0:
+        return False
+
+    elem = root.find(".//KeygroupMasterTranspose")
+    if elem is None:
+        return False
+
+    new_val = f"{float(common_diff):.6f}"
+    if elem.text != new_val:
+        elem.text = new_val
+        return True
+    return False
 
 
 # Note: File ends after this line to avoid stray indentation.
