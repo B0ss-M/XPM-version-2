@@ -11,7 +11,8 @@ from xpm_parameter_editor import (
     fix_sample_notes,
     fix_master_transpose,
 )
-from batch_program_editor import build_program_pads_json, indent_tree
+from batch_program_editor import build_program_pads_json
+from xpm_utils import indent_tree
 from firmware_profiles import fw_program_parameters, get_pad_settings
 from xml.sax.saxutils import escape as xml_escape
 import json
