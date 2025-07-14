@@ -57,6 +57,9 @@ try:
 except ImportError as e:
     IMPORTS_SUCCESSFUL = False
     MISSING_MODULE = str(e)
+    # Ensure optional classes are defined to avoid NameError later
+    SampleMappingEditorWindow = None
+    MultiSampleBuilderWindow = None
 from xpm_utils import (
     LAYER_PARAMS_TO_PRESERVE,
     calculate_key_ranges,
@@ -3486,10 +3489,17 @@ class App(tk.Tk):
 
     # REVISED: Corrected window opening logic
     def open_window(self, window_class, *args):
+        if window_class is None:
+            messagebox.showerror(
+                "Missing Dependency",
+                f"This feature is unavailable. Missing module: {MISSING_MODULE}",
+                parent=self.root,
+            )
+            return
         folder_independent_windows = [
             ExpansionBuilderWindow,
             BatchProgramFixerWindow,
-            SampleMappingEditorWindow,
+            globals().get("SampleMappingEditorWindow"),
             CreativeModeConfigWindow,  # Added missing class here
         ]
         if window_class not in folder_independent_windows and (
@@ -3527,6 +3537,13 @@ class App(tk.Tk):
         self.open_window(SmartSplitWindow)
 
     def open_sample_mapping_editor(self):
+        if globals().get("SampleMappingEditorWindow") is None:
+            messagebox.showerror(
+                "Missing Dependency",
+                f"Sample Mapping Editor is unavailable. Missing module: {MISSING_MODULE}",
+                parent=self.root,
+            )
+            return
         path = filedialog.askopenfilename(
             parent=self.root,
             title="Select XPM Program",
@@ -3538,7 +3555,7 @@ class App(tk.Tk):
         )
         if path:
             self.last_browse_path = os.path.dirname(path)
-            self.open_window(SampleMappingEditorWindow, path)
+            self.open_window(globals().get("SampleMappingEditorWindow"), path)
 
     def open_creative_config(self):
         self.open_window(CreativeModeConfigWindow, self.creative_mode_var.get())
