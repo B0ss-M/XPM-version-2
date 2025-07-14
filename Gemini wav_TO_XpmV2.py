@@ -101,9 +101,11 @@ class TextHandler(logging.Handler):
         if not msg:
             return
 
+        msg = str(msg)
+
         def append():
             try:
-                if msg:
+                if msg and self.text_widget and self.text_widget.winfo_exists():
                     self.text_widget.configure(state="normal")
                     self.text_widget.insert(tk.END, msg + "\n")
                     self.text_widget.configure(state="disabled")
@@ -112,7 +114,10 @@ class TextHandler(logging.Handler):
                 # Fallback to stderr if the Tk widget is unavailable
                 print(f"Text widget error: {exc}", file=sys.stderr)
 
-        self.text_widget.after_idle(append)
+        if self.text_widget and self.text_widget.winfo_exists():
+            self.text_widget.after_idle(append)
+        else:
+            print(msg)
 
 
 def build_program_pads_json(
@@ -391,7 +396,9 @@ def detect_sample_note(path: str) -> int:
         return midi
 
     # 4. If all methods fail, use C4 as a default
-    logging.warning(f"All detection methods failed for '{filename}'. Defaulting to C4 (60).")
+    logging.warning(
+        f"All detection methods failed for '{filename}'. Defaulting to C4 (60)."
+    )
     return 60
 
 
@@ -442,6 +449,7 @@ def find_unreferenced_audio_files(xpm_path, mappings):
 
 
 # </editor-fold>
+
 
 # <editor-fold desc="GUI: Utility Windows">
 # RESTORED: All utility window classes are now included.
@@ -1784,6 +1792,7 @@ class MergeSubfoldersWindow(tk.Toplevel):
 
 # </editor-fold>
 
+
 # <editor-fold desc="NEW & IMPROVED: SampleSelectorWindow">
 class SampleSelectorWindow(tk.Toplevel):
     """A dialog to manually add/remove samples before rebuilding an XPM."""
@@ -1947,6 +1956,7 @@ class SampleSelectorWindow(tk.Toplevel):
 
 
 # </editor-fold>
+
 
 # <editor-fold desc="REVISED: BatchProgramFixerWindow">
 class BatchProgramFixerWindow(tk.Toplevel):
@@ -2720,9 +2730,9 @@ class InstrumentBuilder:
             version = ET.SubElement(root, "Version")
             ET.SubElement(version, "File_Version").text = "2.1"
             ET.SubElement(version, "Application").text = "MPC-V"
-            ET.SubElement(
-                version, "Application_Version"
-            ).text = self.options.firmware_version
+            ET.SubElement(version, "Application_Version").text = (
+                self.options.firmware_version
+            )
             ET.SubElement(version, "Platform").text = "Linux"
 
             program = ET.SubElement(root, "Program", {"type": "Keygroup"})
@@ -3668,8 +3678,7 @@ class App(tk.Tk):
             self.progress.start()
             try:
                 count = quick_edit_set_mono(folder)
-                self.root.after(
-                    0,
+                self.root.after_idle(
                     lambda: messagebox.showinfo(
                         "Success",
                         f"Updated {count} program(s) to mono.",
@@ -3680,8 +3689,7 @@ class App(tk.Tk):
                 logging.error(
                     f"Failed to set programs to mono: {e}\n{traceback.format_exc()}"
                 )
-                self.root.after(
-                    0,
+                self.root.after_idle(
                     lambda: messagebox.showerror(
                         "Error", f"An error occurred: {e}", parent=self.root
                     ),
@@ -3715,8 +3723,7 @@ class App(tk.Tk):
             self.progress.start()
             try:
                 count = quick_edit_normalize_levels(folder)
-                self.root.after(
-                    0,
+                self.root.after_idle(
                     lambda: messagebox.showinfo(
                         "Success",
                         f"Normalized volume for {count} program(s).",
@@ -3727,8 +3734,7 @@ class App(tk.Tk):
                 logging.error(
                     f"Failed to normalize program levels: {e}\n{traceback.format_exc()}"
                 )
-                self.root.after(
-                    0,
+                self.root.after_idle(
                     lambda: messagebox.showerror(
                         "Error", f"An error occurred: {e}", parent=self.root
                     ),
@@ -3763,8 +3769,7 @@ class App(tk.Tk):
             self.progress.start()
             try:
                 count = clean_all_previews(folder)
-                self.root.after(
-                    0,
+                self.root.after_idle(
                     lambda: messagebox.showinfo(
                         "Success",
                         f"Deleted {count} preview folder(s).",
@@ -3775,8 +3780,7 @@ class App(tk.Tk):
                 logging.error(
                     f"Failed to clean previews: {e}\n{traceback.format_exc()}"
                 )
-                self.root.after(
-                    0,
+                self.root.after_idle(
                     lambda: messagebox.showerror(
                         "Error",
                         f"An error occurred while cleaning previews: {e}",
@@ -3846,8 +3850,7 @@ class App(tk.Tk):
                             )
 
                 logging.info(f"Expansion successfully packaged to {save_path}")
-                self.root.after(
-                    0,
+                self.root.after_idle(
                     lambda: messagebox.showinfo(
                         "Success",
                         f"Expansion packaged successfully to:\n{save_path}",
@@ -3857,8 +3860,7 @@ class App(tk.Tk):
 
             except Exception as e:
                 logging.error(f"Error during packaging: {e}\n{traceback.format_exc()}")
-                self.root.after(
-                    0,
+                self.root.after_idle(
                     lambda: messagebox.showerror(
                         "Error", f"Packaging failed:\n{e}", parent=self.root
                     ),
