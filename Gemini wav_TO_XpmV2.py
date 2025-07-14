@@ -98,21 +98,27 @@ class TextHandler(logging.Handler):
             print(f"Logging format error: {exc}", file=sys.stderr)
             return
 
-        if not msg:
+        if msg is None:
             return
 
         def append():
             try:
-                if msg:
+                if self.text_widget and msg is not None:
                     self.text_widget.configure(state="normal")
                     self.text_widget.insert(tk.END, msg + "\n")
                     self.text_widget.configure(state="disabled")
                     self.text_widget.yview(tk.END)
+                else:
+                    print(msg, file=sys.stderr)
             except Exception as exc:
                 # Fallback to stderr if the Tk widget is unavailable
                 print(f"Text widget error: {exc}", file=sys.stderr)
+                print(msg, file=sys.stderr)
 
-        self.text_widget.after_idle(append)
+        if self.text_widget:
+            self.text_widget.after_idle(append)
+        else:
+            print(msg, file=sys.stderr)
 
 
 def build_program_pads_json(

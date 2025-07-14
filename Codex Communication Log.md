@@ -228,3 +228,18 @@ II. Codex Review
 
 [x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
 
+Entry Date: 2025-07-14 (Follow-up 1)
+
+I. Gemini's Report & Findings
+
+Objective: Ensure macOS log viewer stability.
+
+Analysis & Changes:
+- Added exception handling and null checks in TextHandler.emit.
+- Switched after(0) calls to after_idle for thread-safe GUI callbacks.
+
+Outcome: Prevents NSInvalidArgumentException when logging None.
+
+II. Codex Review
+
+[x] Codex Acknowledged: I have reviewed the report and the corresponding code changes.
