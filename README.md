@@ -53,8 +53,9 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 
    **macOS Python Version Warning:** Recent builds of Python 3.13 on macOS ship
    with an unstable Tkinter framework that can crash when running this
-   application. If you encounter a sudden "NSInvalidArgumentException" at
-   startup, install Python 3.12 or earlier and run the script again.
+   application. The script prints a warning if Python 3.13 is detected. If you
+   encounter a sudden "NSInvalidArgumentException" at startup, install Python
+   3.12 or earlier and run the script again.
 
 ## Development Notes
 

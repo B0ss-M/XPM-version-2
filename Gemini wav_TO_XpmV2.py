@@ -4204,24 +4204,12 @@ def batch_edit_programs(folder_path, params):
 
 def main():
     if sys.platform == "darwin" and sys.version_info[:2] >= (3, 13):
-        try:
-            root = tk.Tk()
-            root.withdraw()
-            messagebox.showwarning(
-                "Python 3.13 Warning",
-                (
-                    "Python 3.13 on macOS has known Tkinter issues that can "
-                    "cause crashes. It is recommended to run this script with "
-                    "Python 3.12 or earlier."
-                ),
-            )
-            root.destroy()
-        except Exception:
-            print(
-                "WARNING: Python 3.13 on macOS may be unstable with Tkinter. "
-                "Use Python 3.12 or earlier for best results.",
-                file=sys.stderr,
-            )
+        print(
+            "WARNING: Python 3.13 on macOS has known Tkinter issues that can "
+            "cause crashes. Run this script with Python 3.12 or earlier for "
+            "best results.",
+            file=sys.stderr,
+        )
 
     if sys.platform == "linux" and "DISPLAY" not in os.environ:
         try:
