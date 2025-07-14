@@ -23,6 +23,12 @@ NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 def midi_to_name(num: int) -> str:
     return NOTE_NAMES[num % 12] + str(num // 12 - 1)
 
+BLACK_KEYS = {1, 3, 6, 8, 10}
+
+def is_black(note: int) -> bool:
+    """Return True if ``note`` is a black key."""
+    return note % 12 in BLACK_KEYS
+
 AUDIO_EXTS = ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')
 
 
@@ -64,6 +70,7 @@ class SampleMappingEditorWindow(tk.Toplevel):
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
+        self.tree.bind('<<TreeviewSelect>>', lambda _e: self.draw_keyboard())
 
         self.canvas = tk.Canvas(frame, height=30)
         self.canvas.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(5, 0))
@@ -135,14 +142,21 @@ class SampleMappingEditorWindow(tk.Toplevel):
         self.refresh_tree()
 
     def rebuild(self):
+        """Write a corrected XPM and keep the original as ``.bak``."""
         program_name = os.path.splitext(os.path.basename(self.xpm_path))[0]
         output_folder = os.path.dirname(self.xpm_path)
-        firmware = self.master.firmware_version.get() if hasattr(self.master, 'firmware_version') else '3.5.0'
-        fmt = 'advanced'
+        firmware = (
+            self.master.firmware_version.get()
+            if hasattr(self.master, "firmware_version")
+            else "3.5.0"
+        )
+        fmt = "advanced"
         options = {
-            'Polyphony': str(get_pad_settings(firmware, fmt).get('polyphony', 16))
+            "Polyphony": str(get_pad_settings(firmware, fmt).get("polyphony", 16))
         }
-        params = fw_program_parameters(firmware, len(self.mappings), engine_override=fmt)
+        params = fw_program_parameters(
+            firmware, len(self.mappings), engine_override=fmt
+        )
         options.update(params)
         root = ET.Element('MPCVObject')
         version = ET.SubElement(root, 'Version')
@@ -188,9 +202,35 @@ class SampleMappingEditorWindow(tk.Toplevel):
                 ET.SubElement(layer, 'Tune').text = '0.0'
                 ET.SubElement(layer, 'MuteGroup').text = '0'
         tree = ET.ElementTree(root)
-        output_path = os.path.join(output_folder, f"{program_name}_rebuilt.xpm")
-        tree.write(output_path, encoding='utf-8', xml_declaration=True)
-        messagebox.showinfo('Rebuild Complete', f'Created {output_path}', parent=self)
+        indent_tree(tree)
+
+        output_path = os.path.join(output_folder, f"{program_name}.xpm")
+        backup_path = self.xpm_path + ".bak"
+
+        try:
+            if os.path.exists(backup_path):
+                os.remove(backup_path)
+            os.replace(self.xpm_path, backup_path)
+        except OSError as exc:
+            messagebox.showerror(
+                "Backup Error", f"Failed to create backup:\n{exc}", parent=self
+            )
+            return
+
+        try:
+            tree.write(output_path, encoding="utf-8", xml_declaration=True)
+        except OSError as exc:
+            os.replace(backup_path, self.xpm_path)
+            messagebox.showerror(
+                "Write Error", f"Failed to save program:\n{exc}", parent=self
+            )
+            return
+
+        messagebox.showinfo(
+            "Rebuild Complete",
+            f"Created {output_path}\nBackup saved as {os.path.basename(backup_path)}",
+            parent=self,
+        )
         self.destroy()
 
     def fix_notes(self):
@@ -223,11 +263,35 @@ class SampleMappingEditorWindow(tk.Toplevel):
         width = max(self.canvas.winfo_width(), 512)
         height = int(self.canvas.cget("height"))
         note_width = width / 128.0
+
+        white_h = height
+        black_h = int(height * 0.6)
+
         for i in range(128):
             x0 = i * note_width
             x1 = x0 + note_width
-            self.canvas.create_rectangle(x0, 0, x1, height, outline="gray", fill="white")
-        for m in self.mappings:
+            if is_black(i):
+                self.canvas.create_rectangle(
+                    x0,
+                    0,
+                    x1,
+                    black_h,
+                    outline="black",
+                    fill="black",
+                )
+            else:
+                self.canvas.create_rectangle(
+                    x0,
+                    0,
+                    x1,
+                    white_h,
+                    outline="black",
+                    fill="white",
+                )
+
+        selected = {self.tree.index(i) for i in self.tree.selection()}
+        for idx, m in enumerate(self.mappings):
             x0 = m.get("low_note", 0) * note_width
             x1 = (m.get("high_note", 0) + 1) * note_width
-            self.canvas.create_rectangle(x0, 0, x1, height, outline="", fill="#7ec8e3")
+            color = "#7ec8e3" if idx not in selected else "#ffa500"
+            self.canvas.create_rectangle(x0, 0, x1, white_h, outline="", fill=color, stipple="gray50")

@@ -3530,7 +3530,10 @@ class App(tk.Tk):
         path = filedialog.askopenfilename(
             parent=self.root,
             title="Select XPM Program",
-            filetypes=[("XPM Files", "*.xpm")],
+            filetypes=[
+                ("XPM Files", "*.xpm"),
+                ("Backup XPM", "*.bak *.bak.xpm *.xpm.bak"),
+            ],
             initialdir=self.last_browse_path,
         )
         if path:
