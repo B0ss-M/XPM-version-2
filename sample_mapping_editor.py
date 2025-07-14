@@ -54,6 +54,16 @@ class SampleMappingEditorWindow(tk.Toplevel):
         self.title(os.path.basename(xpm_path))
         self.geometry('600x400')
         self.mappings, self.params = _parse_xpm_for_rebuild(xpm_path)
+        if not self.mappings:
+            messagebox.showerror(
+                "Parse Error",
+                f"Failed to read sample mappings from {os.path.basename(xpm_path)}",
+                parent=self.master.root if hasattr(self.master, "root") else self.master,
+            )
+            self.mappings = []
+            self.params = {}
+            self.destroy()
+            return
         self.create_widgets()
         self.refresh_tree()
 
@@ -88,7 +98,11 @@ class SampleMappingEditorWindow(tk.Toplevel):
     def refresh_tree(self):
         self.tree.delete(*self.tree.get_children())
         for m in self.mappings:
-            self.tree.insert('', 'end', values=(os.path.basename(m['sample_path']), midi_to_name(m['root_note'])))
+            self.tree.insert(
+                '',
+                'end',
+                values=(os.path.basename(m.get('sample_path', '')), midi_to_name(m.get('root_note', 60))),
+            )
         self.draw_keyboard()
 
     def add_samples(self):
