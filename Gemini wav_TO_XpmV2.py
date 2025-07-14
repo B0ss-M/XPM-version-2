@@ -64,6 +64,7 @@ from xpm_utils import (
     LAYER_PARAMS_TO_PRESERVE,
     calculate_key_ranges,
     _parse_xpm_for_rebuild,
+    indent_tree,
 )
 
 
@@ -79,31 +80,6 @@ MPC_WHITE = "#FFFFFF"
 SCW_FRAME_THRESHOLD = 5000
 CREATIVE_FILTER_TYPE_MAP = {"LPF": "0", "HPF": "2", "BPF": "1"}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
-
-
-def indent_tree(tree, space="  "):
-    """Indent an ElementTree for pretty printing on all Python versions."""
-    if hasattr(ET, "indent"):
-        ET.indent(tree, space=space)
-    else:
-        # Fallback for older Python versions
-        def _indent(elem, level=0):
-            i = "\n" + level * space
-            if len(elem):
-                if not elem.text or not elem.text.strip():
-                    elem.text = i + space
-                if not elem.tail or not elem.tail.strip():
-                    elem.tail = i
-                for child in elem:
-                    _indent(child, level + 1)
-                    if not child.tail or not child.tail.strip():
-                        child.tail = i + space
-                if not elem[-1].tail or not elem[-1].tail.strip():
-                    elem.tail = i
-            elif level and (not elem.tail or not elem.tail.strip()):
-                elem.tail = i
-
-        _indent(tree.getroot())
 
 
 # <editor-fold desc="Logging and Core Helpers">

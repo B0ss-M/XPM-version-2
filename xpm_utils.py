@@ -5,6 +5,34 @@ import json
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
+
+def indent_tree(tree: ET.ElementTree, space: str = "  ") -> None:
+    """Indent an ElementTree for pretty printing on all Python versions."""
+    if hasattr(ET, "indent"):
+        ET.indent(tree, space=space)
+    else:
+        def _indent(elem: ET.Element, level: int = 0) -> None:
+            i = "\n" + level * space
+            if len(elem):
+                if not elem.text or not elem.text.strip():
+                    elem.text = i + space
+                if not elem.tail or not elem.tail.strip():
+                    elem.tail = i
+                for child in elem:
+                    _indent(child, level + 1)
+                    if not child.tail or not child.tail.strip():
+                        child.tail = i + space
+                if not elem[-1].tail or not elem[-1].tail.strip():
+                    elem.tail = i
+            elif level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
+
+        _indent(tree.getroot())
+
+    root = tree.getroot()
+    if not (root.tail and root.tail.endswith("\n")):
+        root.tail = "\n"
+
 # Preserve these layer parameters when rebuilding
 LAYER_PARAMS_TO_PRESERVE = [
     "VelStart",

@@ -7,7 +7,7 @@ from xpm_parameter_editor import (
     update_wav_root_notes,
     fix_master_transpose,
 )
-from batch_program_editor import indent_tree
+from xpm_utils import indent_tree
 
 
 def fix_file(path: str, write_wav: bool = False) -> bool:
