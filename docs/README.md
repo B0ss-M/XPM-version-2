@@ -15,6 +15,8 @@ When updating the code, confirm that any function signature changes are reflecte
 - The helper function `_parse_xpm_for_rebuild()` in `xpm_utils.py` is now the single entry point
   for parsing both modern and legacy `.xpm` files. Use it whenever sample
   mappings or instrument parameters are required for a rebuild.
+- `fix_master_transpose()` adjusts the global transpose when all samples share a consistent
+  pitch offset, ensuring programs play at the correct keyboard notes.
 
 ### Communication Logs
 
