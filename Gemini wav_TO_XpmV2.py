@@ -91,15 +91,28 @@ class TextHandler(logging.Handler):
         self.text_widget = text_widget
 
     def emit(self, record):
-        msg = self.format(record)
+        """Safely write log messages to the associated Text widget."""
+        try:
+            msg = self.format(record)
+        except Exception as exc:  # pragma: no cover - formatting errors are rare
+            print(f"Logging format error: {exc}", file=sys.stderr)
+            return
+
+        if not msg:
+            return
 
         def append():
-            self.text_widget.configure(state="normal")
-            self.text_widget.insert(tk.END, msg + "\n")
-            self.text_widget.configure(state="disabled")
-            self.text_widget.yview(tk.END)
+            try:
+                if msg:
+                    self.text_widget.configure(state="normal")
+                    self.text_widget.insert(tk.END, msg + "\n")
+                    self.text_widget.configure(state="disabled")
+                    self.text_widget.yview(tk.END)
+            except Exception as exc:
+                # Fallback to stderr if the Tk widget is unavailable
+                print(f"Text widget error: {exc}", file=sys.stderr)
 
-        self.text_widget.after(0, append)
+        self.text_widget.after_idle(append)
 
 
 def build_program_pads_json(
@@ -2042,8 +2055,8 @@ class BatchProgramFixerWindow(tk.Toplevel):
         ).pack(side="left", padx=5)
 
     def _show_info_safe(self, title, message):
-        self.master.root.after(
-            0, lambda: messagebox.showinfo(title, message, parent=self)
+        self.master.root.after_idle(
+            lambda: messagebox.showinfo(title, message, parent=self)
         )
 
     def _ask_yesno_safe(self, title, message):
@@ -2055,7 +2068,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
             answer.set(messagebox.askyesno(title, message, parent=self))
             result.set()
 
-        self.master.root.after(0, ask)
+        self.master.root.after_idle(ask)
         result.wait()
         return answer.get()
 
@@ -2073,7 +2086,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
                 self.master.last_browse_path = res
             result.set()
 
-        self.master.root.after(0, ask)
+        self.master.root.after_idle(ask)
         result.wait()
         return path.get()
 
@@ -2102,7 +2115,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
             result_container["result"] = dialog.result
             done_event.set()
 
-        self.master.root.after(0, open_dialog)
+        self.master.root.after_idle(open_dialog)
         done_event.wait()
         return result_container.get("result")
 
@@ -2461,18 +2474,18 @@ class InstrumentBuilder:
 
     # <editor-fold desc="GUI Safe Callbacks">
     def _show_info_safe(self, title, message):
-        self.app.root.after(
-            0, lambda: messagebox.showinfo(title, message, parent=self.app.root)
+        self.app.root.after_idle(
+            lambda: messagebox.showinfo(title, message, parent=self.app.root)
         )
 
     def _show_warning_safe(self, title, message):
-        self.app.root.after(
-            0, lambda: messagebox.showwarning(title, message, parent=self.app.root)
+        self.app.root.after_idle(
+            lambda: messagebox.showwarning(title, message, parent=self.app.root)
         )
 
     def _show_error_safe(self, title, message):
-        self.app.root.after(
-            0, lambda: messagebox.showerror(title, message, parent=self.app.root)
+        self.app.root.after_idle(
+            lambda: messagebox.showerror(title, message, parent=self.app.root)
         )
 
     def _ask_yesno_safe(self, title, message):
@@ -2483,7 +2496,7 @@ class InstrumentBuilder:
             answer.set(messagebox.askyesno(title, message, parent=self.app.root))
             result.set()
 
-        self.app.root.after(0, ask)
+        self.app.root.after_idle(ask)
         result.wait()
         return answer.get()
 
@@ -2597,7 +2610,7 @@ class InstrumentBuilder:
                     "Create Expansion File",
                     "No Expansion.xml found. Would you like to create one now?",
                 ):
-                    self.app.root.after(0, self.app.open_expansion_builder)
+                    self.app.root.after_idle(self.app.open_expansion_builder)
 
             self.app.status_text.set("Processing complete.")
             if error_count > 0:
@@ -3612,7 +3625,7 @@ class App(tk.Tk):
                         parent=self.root,
                     )
 
-                self.root.after(0, show_success)
+                self.root.after_idle(show_success)
             except Exception as e:
                 error_msg = str(e)
                 logging.error(
@@ -3624,7 +3637,7 @@ class App(tk.Tk):
                         "Error", f"Operation failed:\n{error_msg}", parent=self.root
                     )
 
-                self.root.after(0, show_error)
+                self.root.after_idle(show_error)
             finally:
                 self.progress.stop()
                 self.progress.config(mode="determinate")
