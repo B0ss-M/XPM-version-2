@@ -16,7 +16,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
   parameters for that modulation slot.
   parameters for that modulation slot. The command-line version exposes the same options via
   `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments. The `--verify-map` option can also rebuild programs when extra WAV files are found, assigning them to new keygroups based on their filenames.
-- `fix_xpm_notes.py` – standalone utility to repair root note mappings in existing programs. Use `--update-wav` to also write the detected notes back into each WAV file.
+- `fix_xpm_notes.py` – standalone utility to repair root note mappings and automatically adjust the global transpose when a consistent offset is detected. Use `--update-wav` to also write the detected notes back into each WAV file.
 
 
 ### New in this update
@@ -36,7 +36,7 @@ Additional documentation can be found in the [docs/](docs/) directory, including
 - Unknown samples without note metadata are now analyzed to detect their pitch automatically.
 - Filenames are scanned for multiple note patterns, using the last valid match
   to determine the MIDI value (e.g. `Piano_A3-64.wav`, `VNLGF41C2.wav`).
-- `fix_xpm_notes.py` uses the same detection logic to correct older programs and can embed root notes into WAV files with `--update-wav`.
+- `fix_xpm_notes.py` uses the same detection logic to correct older programs, update the master transpose, and can embed root notes into WAV files with `--update-wav`.
 
 ## Installation
 
