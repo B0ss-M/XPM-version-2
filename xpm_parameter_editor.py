@@ -511,6 +511,21 @@ def fix_master_transpose(root: ET.Element, folder: str) -> bool:
     desired = -float(common_diff)
     if abs(desired - current) > 1e-6:
         elem.text = f"{desired:.6f}"
+
+    if not diffs:
+        return False
+
+    common_diff, count = Counter(diffs).most_common(1)[0]
+    if count < len(diffs) * 0.6 or common_diff == 0:
+        return False
+
+    elem = root.find(".//KeygroupMasterTranspose")
+    if elem is None:
+        return False
+
+    new_val = f"{float(common_diff):.6f}"
+    if elem.text != new_val:
+        elem.text = new_val
         return True
     return False
 

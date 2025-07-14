@@ -23,7 +23,6 @@ from typing import Optional
 
 try:
     from PIL import Image
-
     PIL_AVAILABLE = True
 except Exception:
     PIL_AVAILABLE = False
@@ -39,10 +38,7 @@ try:
         set_engine_mode,
         set_application_version,
         fix_sample_notes,
-        fix_master_transpose,
         find_program_pads,
-        infer_note_from_filename,
-        extract_root_note_from_wav,
     )
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
@@ -52,31 +48,72 @@ try:
         get_program_parameters as fw_program_parameters,
         ADVANCED_INSTRUMENT_PARAMS,
     )
-
     IMPORTS_SUCCESSFUL = True
 except ImportError as e:
     IMPORTS_SUCCESSFUL = False
     MISSING_MODULE = str(e)
-from xpm_utils import (
-    LAYER_PARAMS_TO_PRESERVE,
-    calculate_key_ranges,
-    _parse_xpm_for_rebuild,
-)
 
 
 # --- Application Configuration ---
-APP_VERSION = "24.1"  # Final Stable Release with Pitch Fix
+APP_VERSION = "23.9" # Final Stable Release with Pitch Fix
 
 # --- Global Constants ---
-MPC_BEIGE = "#EAE6DA"
-MPC_DARK_GREY = "#414042"
-MPC_PAD_GREY = "#7B7C7D"
-MPC_RED = "#B91C1C"
-MPC_WHITE = "#FFFFFF"
+MPC_BEIGE = '#EAE6DA'
+MPC_DARK_GREY = '#414042'
+MPC_PAD_GREY = '#7B7C7D'
+MPC_RED = '#B91C1C'
+MPC_WHITE = '#FFFFFF'
 SCW_FRAME_THRESHOLD = 5000
-CREATIVE_FILTER_TYPE_MAP = {"LPF": "0", "HPF": "2", "BPF": "1"}
+CREATIVE_FILTER_TYPE_MAP = {'LPF': '0', 'HPF': '2', 'BPF': '1'}
 EXPANSION_IMAGE_SIZE = (600, 600)  # default icon size
 
+LAYER_PARAMS_TO_PRESERVE = [
+    'VelStart', 'VelEnd', 'SampleStart', 'SampleEnd', 'Loop', 'LoopStart',
+    'LoopEnd', 'Direction', 'Offset', 'Volume', 'Pan', 'Tune', 'MuteGroup'
+]
+
+#<editor-fold desc="NEW: Internal Note Parsing Logic">
+NOTE_MAP = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
+
+def name_to_midi(name: str) -> Optional[int]:
+    """Converts a note name (e.g., 'C#4', 'Ab3') to a MIDI number."""
+    name_upper = name.upper().replace('BB', 'A#') # Normalize double flat
+    name_upper = name_upper.replace('B#', 'C')
+    name_upper = name_upper.replace('E#', 'F')
+    name_upper = name_upper.replace('CB', 'B')
+    name_upper = name_upper.replace('FB', 'E')
+
+    match = re.match(r'([A-G])([#B]?)(\-?\d+)', name_upper)
+    if not match:
+        return None
+    
+    pitch, accidental, octave_str = match.groups()
+    
+    base_note = NOTE_MAP[pitch]
+    
+    if accidental == '#':
+        base_note += 1
+    elif accidental == 'B':
+        base_note -= 1
+        
+    octave = int(octave_str)
+    
+    # MIDI note 60 is C4. C0 is MIDI note 12.
+    return base_note + (octave + 1) * 12
+
+def infer_note_from_filename(filename: str) -> Optional[int]:
+    """Tries to find a musical note name in a filename and convert it to MIDI."""
+    # Regex to find note names like C#4, Ab-1, G2, etc.
+    # It now correctly handles flats written as 'b' or 'B'.
+    match = re.search(r'\b([A-G][#bB]?\-?\d+)\b', os.path.splitext(filename)[0], re.IGNORECASE)
+    if match:
+        note_name = match.group(1).replace('b', 'B') # Normalize lowercase 'b' to uppercase 'B' for matching
+        midi_val = name_to_midi(note_name)
+        if midi_val is not None:
+            logging.info(f"Inferred note '{note_name}' (MIDI: {midi_val}) from filename '{filename}'")
+            return midi_val
+    return None
+#</editor-fold>
 
 def indent_tree(tree, space="  "):
     """Indent an ElementTree for pretty printing on all Python versions."""
@@ -102,41 +139,30 @@ def indent_tree(tree, space="  "):
 
         _indent(tree.getroot())
 
-
-# <editor-fold desc="Logging and Core Helpers">
+#<editor-fold desc="Logging and Core Helpers">
 class TextHandler(logging.Handler):
     """This handler sends logging records to a Tkinter Text widget."""
-
     def __init__(self, text_widget):
         logging.Handler.__init__(self)
         self.text_widget = text_widget
 
     def emit(self, record):
         msg = self.format(record)
-
         def append():
-            self.text_widget.configure(state="normal")
-            self.text_widget.insert(tk.END, msg + "\n")
-            self.text_widget.configure(state="disabled")
+            self.text_widget.configure(state='normal')
+            self.text_widget.insert(tk.END, msg + '\n')
+            self.text_widget.configure(state='disabled')
             self.text_widget.yview(tk.END)
-
         self.text_widget.after(0, append)
 
-
-def build_program_pads_json(
-    firmware, mappings=None, engine_override=None, num_instruments=None
-):
-    """Return ProgramPads JSON escaped for XML embedding.
-
-    ``num_instruments`` is used to populate the ``padToInstrument``
-    mapping so the MPC knows exactly how many keygroups are defined.
-    """
+def build_program_pads_json(firmware, mappings=None, engine_override=None, num_instruments=None):
+    """Return ProgramPads JSON escaped for XML embedding."""
     if not IMPORTS_SUCCESSFUL:
         return "{}"
     pad_cfg = get_pad_settings(firmware, engine_override)
-    pads_type = pad_cfg["type"]
-    universal_pad = pad_cfg["universal_pad"]
-    engine = pad_cfg.get("engine")
+    pads_type = pad_cfg['type']
+    universal_pad = pad_cfg['universal_pad']
+    engine = pad_cfg.get('engine')
 
     pads = {f"value{i}": 0 for i in range(128)}
     if mappings:
@@ -144,17 +170,17 @@ def build_program_pads_json(
             try:
                 # For instruments, the pad index is less important than the key ranges.
                 # Using the rootNote is a reasonable default.
-                pad_index = int(m.get("root_note", 0))
+                pad_index = int(m.get('root_note', 0))
                 if 0 <= pad_index < 128:
                     if not isinstance(pads[f"value{pad_index}"], dict):
-                        pads[f"value{pad_index}"] = {}
+                         pads[f"value{pad_index}"] = {}
                     pads[f"value{pad_index}"] = {
-                        "samplePath": m.get("sample_path", ""),
-                        "rootNote": int(m.get("root_note", 60)),
-                        "lowNote": int(m.get("low_note", 0)),
-                        "highNote": int(m.get("high_note", 127)),
-                        "velocityLow": int(m.get("velocity_low", 0)),
-                        "velocityHigh": int(m.get("velocity_high", 127)),
+                        "samplePath": m.get('sample_path', ''),
+                        "rootNote": int(m.get('root_note', 60)),
+                        "lowNote": int(m.get('low_note', 0)),
+                        "highNote": int(m.get('high_note', 127)),
+                        "velocityLow": int(m.get('velocity_low', 0)),
+                        "velocityHigh": int(m.get('velocity_high', 127)),
                     }
             except (ValueError, TypeError):
                 logging.warning(f"Could not process mapping: {m}")
@@ -174,7 +200,6 @@ def build_program_pads_json(
     json_str = json.dumps(pads_obj, indent=4)
     return xml_escape(json_str)
 
-
 def validate_xpm_file(xpm_path, expected_samples):
     """
     Validate a generated XPM file. It checks for the modern ProgramPads section
@@ -193,48 +218,34 @@ def validate_xpm_file(xpm_path, expected_samples):
             # If it exists, validate its contents
             json_text = xml_unescape(pads_elem.text)
             data = json.loads(json_text)
-            pads = data.get("pads", {})
-            entries = [
-                v for v in pads.values() if isinstance(v, dict) and v.get("samplePath")
-            ]
+            pads = data.get('pads', {})
+            entries = [v for v in pads.values() if isinstance(v, dict) and v.get('samplePath')]
 
             if expected_samples > 0 and len(entries) == 0:
-                logging.warning(
-                    f"Validation failed for {os.path.basename(xpm_path)}: ProgramPads exists but has no sample entries."
-                )
+                logging.warning(f"Validation failed for {os.path.basename(xpm_path)}: ProgramPads exists but has no sample entries.")
                 return False
 
-            logging.info(
-                f"Modern validation successful for {os.path.basename(xpm_path)}."
-            )
+            logging.info(f"Modern validation successful for {os.path.basename(xpm_path)}.")
             return True
 
         # If ProgramPads is missing, search for legacy style sample references
-        inst_root = root.find(".//Instruments")
+        inst_root = root.find('.//Instruments')
         if inst_root is not None:
-            if (
-                inst_root.find(".//SampleFile") is not None
-                or inst_root.find(".//SampleName") is not None
-            ):
+            if inst_root.find('.//SampleFile') is not None or inst_root.find('.//SampleName') is not None:
                 logging.info(
                     f"Legacy validation successful for {os.path.basename(xpm_path)} (found Instruments section)."
                 )
                 return True
 
         # Final fallback: look for any SampleFile tags anywhere in the document
-        if (
-            root.find(".//SampleFile") is not None
-            or root.find(".//SampleName") is not None
-        ):
+        if root.find('.//SampleFile') is not None or root.find('.//SampleName') is not None:
             logging.info(
                 f"Legacy validation successful for {os.path.basename(xpm_path)} (found sample references)."
             )
             return True
 
         # If neither is found, then it's a real failure.
-        logging.warning(
-            f"Validation failed for {os.path.basename(xpm_path)}: Neither ProgramPads nor Instruments section found."
-        )
+        logging.warning(f"Validation failed for {os.path.basename(xpm_path)}: Neither ProgramPads nor Instruments section found.")
         return False
 
     except Exception as e:
@@ -248,30 +259,13 @@ def get_clean_sample_info(filepath):
     folder = os.path.basename(os.path.dirname(filepath))
     name, ext = os.path.splitext(base)
     note = infer_note_from_filename(base)
-    return {"base": name, "ext": ext, "note": note, "folder": folder}
-
+    return {'base': name, 'ext': ext, 'note': note, 'folder': folder}
 
 def get_instrument_category_from_text(text):
     """Returns a known instrument tag if it appears in the provided text."""
-    tags = [
-        "piano",
-        "bell",
-        "pad",
-        "keys",
-        "guitar",
-        "bass",
-        "lead",
-        "pluck",
-        "drum",
-        "fx",
-        "vocal",
-        "ambient",
-        "brass",
-        "strings",
-        "woodwind",
-        "world",
-        "horn",
-    ]
+    tags = ['piano', 'bell', 'pad', 'keys', 'guitar', 'bass', 'lead', 'pluck',
+            'drum', 'fx', 'vocal', 'ambient', 'brass', 'strings', 'woodwind',
+            'world', 'horn']
     lower = text.lower()
     for tag in tags:
         if tag in lower:
@@ -286,42 +280,25 @@ def get_base_instrument_name(filepath, xpm_content=None):
         if category:
             return category
 
-    tags = [
-        "piano",
-        "bell",
-        "pad",
-        "keys",
-        "guitar",
-        "bass",
-        "lead",
-        "pluck",
-        "drum",
-        "fx",
-        "vocal",
-        "ambient",
-        "brass",
-        "strings",
-        "woodwind",
-        "world",
-        "horn",
-    ]
+    tags = ['piano', 'bell', 'pad', 'keys', 'guitar', 'bass', 'lead', 'pluck',
+            'drum', 'fx', 'vocal', 'ambient', 'brass', 'strings', 'woodwind',
+            'world', 'horn']
     path = filepath.lower()
     for tag in tags:
         if tag in path:
             return tag
     parent_folder = os.path.basename(os.path.dirname(filepath))
-    cleaned_folder = re.sub(r"[_-]", " ", parent_folder).strip()
-    return cleaned_folder if cleaned_folder else "instrument"
+    cleaned_folder = re.sub(r'[_-]', ' ', parent_folder).strip()
+    return cleaned_folder if cleaned_folder else 'instrument'
 
 
 def get_wav_frames(filepath):
     """Returns the number of frames in a WAV file."""
     try:
-        with wave.open(filepath, "rb") as w:
+        with wave.open(filepath, 'rb') as w:
             return w.getnframes()
     except Exception:
         return 0
-
 
 def parse_xpm_samples(xpm_path):
     """Return a list of sample paths referenced by an XPM."""
@@ -337,71 +314,37 @@ def parse_xpm_samples(xpm_path):
             except json.JSONDecodeError as e:
                 logging.error(f"JSON decode error in {xpm_path}: {e}")
                 data = {}
-            pads = data.get("pads", {})
+            pads = data.get('pads', {})
             for pad in pads.values():
-                if isinstance(pad, dict) and pad.get("samplePath"):
-                    samples.append(pad["samplePath"])
+                if isinstance(pad, dict) and pad.get('samplePath'):
+                    samples.append(pad['samplePath'])
 
-        for elem in root.findall(".//SampleName"):
+        for elem in root.findall('.//SampleName'):
             if elem.text:
-                samples.append(elem.text + ".wav")
+                samples.append(elem.text + '.wav')
 
-        for elem in root.findall(".//SampleFile"):
+        for elem in root.findall('.//SampleFile'):
             if elem.text:
                 samples.append(elem.text)
     except Exception as e:
         logging.error(f"Could not parse samples from {xpm_path}: {e}")
     return samples
 
-
 def get_xpm_version(xpm_path):
     """Return Application_Version string from an XPM or 'Unknown'."""
     try:
         tree = ET.parse(xpm_path)
-        ver = tree.find(".//Application_Version")
+        ver = tree.find('.//Application_Version')
         if ver is not None and ver.text:
             return ver.text
     except Exception as e:
         logging.error(f"Version parse failed for {xpm_path}: {e}")
     return "Unknown"
 
-
 def is_valid_xpm(xpm_path):
     """Basic validity check using validate_xpm_file."""
     sample_count = len(parse_xpm_samples(xpm_path))
     return validate_xpm_file(xpm_path, sample_count)
-
-
-# --- REVISED: detect_sample_note with improved logging ---
-def detect_sample_note(path: str) -> int:
-    """
-    Return the MIDI note for a sample using metadata, filename, or pitch analysis.
-    Logs the successful detection method for better debugging.
-    """
-    filename = os.path.basename(path)
-
-    # 1. Try reading from WAV 'smpl' chunk metadata
-    midi = extract_root_note_from_wav(path)
-    if midi is not None:
-        logging.info(f"Note for '{filename}' found in WAV metadata: {midi}")
-        return midi
-
-    # 2. Try inferring from the filename
-    midi = infer_note_from_filename(path)
-    if midi is not None:
-        logging.info(f"Note for '{filename}' inferred from filename: {midi}")
-        return midi
-
-    # 3. Fallback to audio analysis (Librosa)
-    midi = detect_fundamental_pitch(path)
-    if midi is not None:
-        # The detect_fundamental_pitch function already logs its success
-        return midi
-
-    # 4. If all methods fail, use C4 as a default
-    logging.warning(f"All detection methods failed for '{filename}'. Defaulting to C4 (60).")
-    return 60
-
 
 # REVISED: Stricter unreferenced file finder
 def find_unreferenced_audio_files(xpm_path, mappings):
@@ -413,10 +356,8 @@ def find_unreferenced_audio_files(xpm_path, mappings):
     program_name = os.path.splitext(os.path.basename(xpm_path))[0]
 
     # Guard against invalid or hidden file names
-    if not program_name or program_name.startswith("."):
-        logging.warning(
-            f"Skipping unreferenced file search for invalid program name: '{program_name}'"
-        )
+    if not program_name or program_name.startswith('.'):
+        logging.warning(f"Skipping unreferenced file search for invalid program name: '{program_name}'")
         return []
 
     program_name_lower = program_name.lower()
@@ -428,34 +369,27 @@ def find_unreferenced_audio_files(xpm_path, mappings):
                 # More precise matching:
                 # 1. Exact match (e.g., 'Program.wav' for 'Program.xpm')
                 # 2. Match followed by a common separator
-                if (
-                    os.path.splitext(f_lower)[0] == program_name_lower
-                    or f_lower.startswith(program_name_lower + " ")
-                    or f_lower.startswith(program_name_lower + "_")
-                    or f_lower.startswith(program_name_lower + "-")
-                ):
+                if os.path.splitext(f_lower)[0] == program_name_lower or \
+                   f_lower.startswith(program_name_lower + ' ') or \
+                   f_lower.startswith(program_name_lower + '_') or \
+                   f_lower.startswith(program_name_lower + '-'):
                     potential_files.append(f)
     except Exception as e:
         logging.error(f"Error scanning for unreferenced files in {xpm_dir}: {e}")
         return []
 
-    used = {os.path.basename(m.get("sample_path", "")).lower() for m in mappings}
-    unreferenced = [
-        os.path.join(xpm_dir, f) for f in potential_files if f.lower() not in used
-    ]
-    logging.info(
-        f"Found {len(unreferenced)} potential unreferenced files for {program_name}"
-    )
+    used = {os.path.basename(m.get('sample_path', '')).lower() for m in mappings}
+    unreferenced = [os.path.join(xpm_dir, f) for f in potential_files if f.lower() not in used]
+    logging.info(f"Found {len(unreferenced)} potential unreferenced files for {program_name}")
     return unreferenced
 
+#</editor-fold>
 
-# </editor-fold>
-
-# <editor-fold desc="GUI: Utility Windows">
+#<editor-fold desc="GUI: Utility Windows">
 # RESTORED: All utility window classes are now included.
 class ExpansionDoctorWindow(tk.Toplevel):
     def __init__(self, master):
-        super().__init__(master.root if hasattr(master, "root") else master)
+        super().__init__(master.root if hasattr(master, 'root') else master)
         self.title("Expansion Doctor")
         self.geometry("700x450")
         self.resizable(True, True)
@@ -508,60 +442,33 @@ class ExpansionDoctorWindow(tk.Toplevel):
         option_frame = ttk.Frame(frame)
         option_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
         ttk.Label(option_frame, text="Firmware:").pack(side="left")
-        ttk.Combobox(
-            option_frame,
-            textvariable=self.version_var,
-            values=["2.3.0.0", "2.6.0.17", "3.4.0", "3.5.0"],
-            width=10,
-            state="readonly",
-        ).pack(side="left", padx=5)
+        ttk.Combobox(option_frame, textvariable=self.version_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'], width=10,
+                     state='readonly').pack(side="left", padx=5)
         ttk.Label(option_frame, text="Format:").pack(side="left")
-        ttk.Combobox(
-            option_frame,
-            textvariable=self.format_var,
-            values=["legacy", "advanced"],
-            width=8,
-            state="readonly",
-        ).pack(side="left", padx=5)
+        ttk.Combobox(option_frame, textvariable=self.format_var,
+                     values=['legacy','advanced'], width=8,
+                     state='readonly').pack(side="left", padx=5)
 
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=3, column=0, sticky="ew", pady=(5, 0))
-        ttk.Button(
-            btn_frame, text="Relink Samples...", command=self.relink_samples
-        ).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Relink Samples...", command=self.relink_samples).pack(side="left", padx=5)
         options = ttk.Frame(btn_frame)
         options.pack(side="left", padx=5)
         ttk.Label(options, text="Format:").pack(side="left")
-        ttk.Combobox(
-            options,
-            textvariable=self.format_var,
-            values=["legacy", "advanced"],
-            state="readonly",
-            width=9,
-        ).pack(side="left")
-        ttk.Button(btn_frame, text="Fix Keygroups", command=self.fix_keygroups).pack(
-            side="left", padx=5
-        )
-        ttk.Button(btn_frame, text="Rewrite Versions", command=self.fix_versions).pack(
-            side="left", padx=5
-        )
-        ttk.Button(btn_frame, text="Rescan", command=self.scan_broken_links).pack(
-            side="left", padx=5
-        )
-        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(
-            side="right", padx=5
-        )
+        ttk.Combobox(options, textvariable=self.format_var,
+                     values=['legacy','advanced'], state='readonly', width=9).pack(side="left")
+        ttk.Button(btn_frame, text="Fix Keygroups", command=self.fix_keygroups).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Rewrite Versions", command=self.fix_versions).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Rescan", command=self.scan_broken_links).pack(side="left", padx=5)
+        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=5)
 
     def relink_samples(self):
         if not self.broken_links:
-            messagebox.showinfo(
-                "No Broken Links", "There are no broken links to relink.", parent=self
-            )
+            messagebox.showinfo("No Broken Links", "There are no broken links to relink.", parent=self)
             return
 
-        folder = filedialog.askdirectory(
-            parent=self, title="Select Folder Containing Missing Samples"
-        )
+        folder = filedialog.askdirectory(parent=self, title="Select Folder Containing Missing Samples")
         if not folder:
             return
 
@@ -574,27 +481,21 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
                 samples_to_find = set(missing_list)
 
-                for elem in root.findall(".//SampleFile"):
+                for elem in root.findall('.//SampleFile'):
                     if elem is not None and elem.text:
-                        sample_basename = os.path.basename(
-                            elem.text.replace("/", os.sep)
-                        )
+                        sample_basename = os.path.basename(elem.text.replace('/', os.sep))
                         if sample_basename in samples_to_find:
                             for f in os.listdir(folder):
                                 if f.lower() == sample_basename.lower():
-                                    dest_path = os.path.join(
-                                        os.path.dirname(xpm_path), sample_basename
-                                    )
+                                    dest_path = os.path.join(os.path.dirname(xpm_path), sample_basename)
                                     shutil.copy2(os.path.join(folder, f), dest_path)
-                                    logging.info(
-                                        f"Relinked '{sample_basename}' to '{dest_path}' for {xpm_path}"
-                                    )
+                                    logging.info(f"Relinked '{sample_basename}' to '{dest_path}' for {xpm_path}")
                                     changed = True
                                     samples_to_find.remove(sample_basename)
                                     break
                 if changed:
                     indent_tree(tree)
-                    tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                    tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
                     fixed_count += 1
             except Exception as e:
                 logging.error(f"Error relinking samples for {xpm_path}: {e}")
@@ -610,12 +511,10 @@ class ExpansionDoctorWindow(tk.Toplevel):
         target_fw = self.version_var.get()
         target_fmt = self.format_var.get()
 
-        params = {"rename": False, "version": target_fw, "format_version": target_fmt}
+        params = {'rename': False, 'version': target_fw, 'format_version': target_fmt}
         updated = batch_edit_programs(folder, params)
 
-        self.status.set(
-            f"Updated {updated} XPM(s) to version {target_fw} ({target_fmt}). Rescanning..."
-        )
+        self.status.set(f"Updated {updated} XPM(s) to version {target_fw} ({target_fmt}). Rescanning...")
         self.scan_broken_links()
 
     def fix_keygroups(self):
@@ -628,7 +527,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         fmt = self.format_var.get()
         fixed = 0
 
-        for path in glob.glob(os.path.join(folder, "**", "*.xpm"), recursive=True):
+        for path in glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True):
             try:
                 mappings, inst_params = _parse_xpm_for_rebuild(path)
                 if not mappings:
@@ -637,49 +536,36 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 program_name = os.path.splitext(os.path.basename(path))[0]
                 extras = find_unreferenced_audio_files(path, mappings)
                 for wav_path in extras:
-                    if (
-                        os.path.basename(wav_path)
-                        .lower()
-                        .startswith(program_name.lower())
-                    ):
-                        midi = detect_sample_note(wav_path)
-                        mappings.append(
-                            {
-                                "sample_path": wav_path,
-                                "root_note": midi,
-                                "low_note": midi,
-                                "high_note": midi,
-                                "velocity_low": 0,
-                                "velocity_high": 127,
-                            }
-                        )
+                    # Logic to only add extras that match the program name
+                    if os.path.basename(wav_path).lower().startswith(program_name.lower()):
+                        midi = infer_note_from_filename(wav_path) or 60
+                        mappings.append({
+                            'sample_path': wav_path,
+                            'root_note': midi,
+                            'low_note': midi,
+                            'high_note': midi,
+                            'velocity_low': 0,
+                            'velocity_high': 127,
+                        })
 
-                ranges = {(m["low_note"], m["high_note"]) for m in mappings}
-                keygroup_count = len(ranges)
-                declared = int(inst_params.get("KeygroupNumKeygroups", keygroup_count))
-                needs_rebuild = (
-                    declared != keygroup_count
-                    or (len(ranges) == 1 and len(mappings) > 1)
-                    or extras
-                )
+                ranges = {(m['low_note'], m['high_note']) for m in mappings}
+                needs_rebuild = (len(ranges) == 1 and len(mappings) > 1) or extras
                 if not needs_rebuild:
                     continue
 
                 new_maps = []
                 for m in mappings:
-                    note = detect_sample_note(m["sample_path"])
+                    note = infer_note_from_filename(m['sample_path'])
                     if note is None:
-                        note = m.get("root_note", 60)
-                    new_maps.append(
-                        {
-                            "sample_path": m["sample_path"],
-                            "root_note": note,
-                            "low_note": note,
-                            "high_note": note,
-                            "velocity_low": m.get("velocity_low", 0),
-                            "velocity_high": m.get("velocity_high", 127),
-                        }
-                    )
+                        note = m.get('root_note', 60)
+                    new_maps.append({
+                        'sample_path': m['sample_path'],
+                        'root_note': note,
+                        'low_note': note,
+                        'high_note': note,
+                        'velocity_low': m.get('velocity_low', 0),
+                        'velocity_high': m.get('velocity_high', 127),
+                    })
 
                 options = InstrumentOptions(
                     firmware_version=firmware,
@@ -687,15 +573,8 @@ class ExpansionDoctorWindow(tk.Toplevel):
                     format_version=fmt,
                 )
                 builder = InstrumentBuilder(os.path.dirname(path), self.master, options)
-                shutil.copy2(path, path + ".kgfix.bak")
-                if builder._create_xpm(
-                    program_name,
-                    [],
-                    os.path.dirname(path),
-                    mode="multi-sample",
-                    mappings=new_maps,
-                    instrument_template=inst_params,
-                ):
+                shutil.copy2(path, path + '.kgfix.bak')
+                if builder._create_xpm(program_name, [], os.path.dirname(path), mode='multi-sample', mappings=new_maps, instrument_template=inst_params):
                     fixed += 1
             except Exception as exc:
                 logging.error(f"Keygroup fix failed for {path}: {exc}")
@@ -705,13 +584,13 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
     def _apply_format(self, root, fmt):
         changed = False
-        program = root.find("Program")
+        program = root.find('Program')
         if program is None:
             return changed
 
-        keygroup_mode = program.find("KeygroupLegacyMode")
+        keygroup_mode = program.find('KeygroupLegacyMode')
         if keygroup_mode is not None:
-            val = "True" if fmt == "legacy" else "False"
+            val = 'True' if fmt == 'legacy' else 'False'
             if keygroup_mode.text != val:
                 keygroup_mode.text = val
                 changed = True
@@ -720,9 +599,9 @@ class ExpansionDoctorWindow(tk.Toplevel):
         if pads_elem is not None and pads_elem.text:
             try:
                 data = json.loads(xml_unescape(pads_elem.text))
-                target_engine = "legacy" if fmt == "legacy" else "advanced"
-                if data.get("engine") != target_engine:
-                    data["engine"] = target_engine
+                target_engine = 'legacy' if fmt == 'legacy' else 'advanced'
+                if data.get('engine') != target_engine:
+                    data['engine'] = target_engine
                     pads_elem.text = xml_escape(json.dumps(data, indent=4))
                     changed = True
             except Exception as e:
@@ -740,7 +619,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
             self.status.set("No folder selected.")
             return
 
-        xpms = glob.glob(os.path.join(folder, "**", "*.xpm"), recursive=True)
+        xpms = glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True)
         total = len(xpms)
 
         for xpm_path in xpms:
@@ -751,24 +630,22 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 rel = os.path.relpath(xpm_path, folder)
                 logging.error(f"Error scanning {xpm_path}: {e}")
                 self.tree.insert(
-                    "",
-                    "end",
-                    values=(rel, "Unknown", "No", "Invalid XPM"),
+                    '',
+                    'end',
+                    values=(rel, 'Unknown', 'No', 'Invalid XPM'),
                 )
                 self.file_info[xpm_path] = {
-                    "version": "Unknown",
-                    "valid": False,
-                    "missing": [],
+                    'version': 'Unknown',
+                    'valid': False,
+                    'missing': [],
                 }
                 continue
 
             missing = set()
-            for elem in root.findall(".//SampleFile"):
+            for elem in root.findall('.//SampleFile'):
                 if elem is not None and elem.text:
-                    normalized_rel_path = elem.text.replace("/", os.sep)
-                    sample_abs_path = os.path.normpath(
-                        os.path.join(os.path.dirname(xpm_path), normalized_rel_path)
-                    )
+                    normalized_rel_path = elem.text.replace('/', os.sep)
+                    sample_abs_path = os.path.normpath(os.path.join(os.path.dirname(xpm_path), normalized_rel_path))
                     if not os.path.exists(sample_abs_path):
                         missing.add(os.path.basename(elem.text))
 
@@ -776,19 +653,19 @@ class ExpansionDoctorWindow(tk.Toplevel):
             version = get_xpm_version(xpm_path)
             valid = is_valid_xpm(xpm_path)
             self.tree.insert(
-                "",
-                "end",
+                '',
+                'end',
                 values=(
                     os.path.relpath(xpm_path, folder),
                     version,
-                    "Yes" if valid else "No",
-                    ", ".join(missing_list),
+                    'Yes' if valid else 'No',
+                    ', '.join(missing_list),
                 ),
             )
             self.file_info[xpm_path] = {
-                "version": version,
-                "valid": valid,
-                "missing": missing_list,
+                'version': version,
+                'valid': valid,
+                'missing': missing_list,
             }
             if missing_list:
                 self.broken_links[xpm_path] = missing_list
@@ -796,10 +673,9 @@ class ExpansionDoctorWindow(tk.Toplevel):
         broken = len(self.broken_links)
         self.status.set(f"Scanned {total} XPM(s). {broken} with missing samples.")
 
-
 class ExpansionBuilderWindow(tk.Toplevel):
     def __init__(self, master):
-        super().__init__(master.root if hasattr(master, "root") else master)
+        super().__init__(master.root if hasattr(master, 'root') else master)
         self.title("Expansion Builder")
         self.geometry("600x330")
         self.resizable(True, True)
@@ -811,86 +687,44 @@ class ExpansionBuilderWindow(tk.Toplevel):
         frame.pack(fill="both", expand=True)
         frame.grid_columnconfigure(1, weight=1)
 
-        ttk.Label(frame, text="Identifier:").grid(
-            row=0, column=0, sticky="e", padx=5, pady=2
-        )
+        ttk.Label(frame, text="Identifier:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
         self.identifier_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.identifier_var).grid(
-            row=0, column=1, columnspan=2, sticky="ew", pady=2
-        )
+        ttk.Entry(frame, textvariable=self.identifier_var).grid(row=0, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Title:").grid(
-            row=1, column=0, sticky="e", padx=5, pady=2
-        )
+        ttk.Label(frame, text="Title:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
         self.title_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.title_var).grid(
-            row=1, column=1, columnspan=2, sticky="ew", pady=2
-        )
+        ttk.Entry(frame, textvariable=self.title_var).grid(row=1, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Manufacturer:").grid(
-            row=2, column=0, sticky="e", padx=5, pady=2
-        )
+        ttk.Label(frame, text="Manufacturer:").grid(row=2, column=0, sticky="e", padx=5, pady=2)
         self.manufacturer_var = tk.StringVar(value="Akai Professional / MSX")
-        ttk.Entry(frame, textvariable=self.manufacturer_var).grid(
-            row=2, column=1, columnspan=2, sticky="ew", pady=2
-        )
+        ttk.Entry(frame, textvariable=self.manufacturer_var).grid(row=2, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Version:").grid(
-            row=3, column=0, sticky="e", padx=5, pady=2
-        )
+        ttk.Label(frame, text="Version:").grid(row=3, column=0, sticky="e", padx=5, pady=2)
         self.version_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.version_var).grid(
-            row=3, column=1, columnspan=2, sticky="ew", pady=2
-        )
+        ttk.Entry(frame, textvariable=self.version_var).grid(row=3, column=1, columnspan=2, sticky="ew", pady=2)
 
         ttk.Label(frame, text="Type:").grid(row=4, column=0, sticky="e", padx=5, pady=2)
         self.type_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.type_var).grid(
-            row=4, column=1, columnspan=2, sticky="ew", pady=2
-        )
+        ttk.Entry(frame, textvariable=self.type_var).grid(row=4, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Image (JPG/PNG):").grid(
-            row=5, column=0, sticky="e", padx=5, pady=2
-        )
+        ttk.Label(frame, text="Image (JPG/PNG):").grid(row=5, column=0, sticky="e", padx=5, pady=2)
         self.image_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.image_var).grid(
-            row=5, column=1, sticky="ew", pady=2
-        )
-        ttk.Button(frame, text="Browse...", command=self.browse_image).grid(
-            row=5, column=2, padx=5, pady=2
-        )
+        ttk.Entry(frame, textvariable=self.image_var).grid(row=5, column=1, sticky="ew", pady=2)
+        ttk.Button(frame, text="Browse...", command=self.browse_image).grid(row=5, column=2, padx=5, pady=2)
 
-        ttk.Label(frame, text="Directory:").grid(
-            row=6, column=0, sticky="e", padx=5, pady=2
-        )
-        default_dir = (
-            os.path.basename(self.master.folder_path.get())
-            if hasattr(self.master, "folder_path")
-            else ""
-        )
+        ttk.Label(frame, text="Directory:").grid(row=6, column=0, sticky="e", padx=5, pady=2)
+        default_dir = os.path.basename(self.master.folder_path.get()) if hasattr(self.master, 'folder_path') else ''
         self.directory_var = tk.StringVar(value=default_dir)
-        ttk.Entry(frame, textvariable=self.directory_var).grid(
-            row=6, column=1, columnspan=2, sticky="ew", pady=2
-        )
+        ttk.Entry(frame, textvariable=self.directory_var).grid(row=6, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Label(frame, text="Separator:").grid(
-            row=7, column=0, sticky="e", padx=5, pady=2
-        )
+        ttk.Label(frame, text="Separator:").grid(row=7, column=0, sticky="e", padx=5, pady=2)
         self.separator_var = tk.StringVar(value="-")
-        ttk.Entry(frame, textvariable=self.separator_var).grid(
-            row=7, column=1, columnspan=2, sticky="ew", pady=2
-        )
+        ttk.Entry(frame, textvariable=self.separator_var).grid(row=7, column=1, columnspan=2, sticky="ew", pady=2)
 
-        ttk.Button(frame, text="Create Expansion.xml", command=self.create_file).grid(
-            row=8, column=0, columnspan=3, pady=10
-        )
+        ttk.Button(frame, text="Create Expansion.xml", command=self.create_file).grid(row=8, column=0, columnspan=3, pady=10)
 
     def browse_image(self):
-        path = filedialog.askopenfilename(
-            parent=self,
-            title="Select Image",
-            filetypes=[("Image Files", "*.jpg *.jpeg *.png")],
-        )
+        path = filedialog.askopenfilename(parent=self, title="Select Image", filetypes=[("Image Files", "*.jpg *.jpeg *.png")])
         if path:
             self.image_var.set(path)
             self.master.last_browse_path = os.path.dirname(path)
@@ -911,54 +745,45 @@ class ExpansionBuilderWindow(tk.Toplevel):
         image_path = self.image_var.get().strip()
 
         if not identifier or not title:
-            messagebox.showerror(
-                "Error", "Identifier and Title are required.", parent=self
-            )
+            messagebox.showerror("Error", "Identifier and Title are required.", parent=self)
             return
 
         xml_path = os.path.join(folder, "Expansion.xml")
-        root = ET.Element("expansion", version="1.0")
-        ET.SubElement(root, "identifier").text = identifier
-        ET.SubElement(root, "title").text = title
-        ET.SubElement(root, "manufacturer").text = manufacturer
-        ET.SubElement(root, "version").text = version
-        ET.SubElement(root, "type").text = type_value
+        root = ET.Element('expansion', version="1.0")
+        ET.SubElement(root, 'identifier').text = identifier
+        ET.SubElement(root, 'title').text = title
+        ET.SubElement(root, 'manufacturer').text = manufacturer
+        ET.SubElement(root, 'version').text = version
+        ET.SubElement(root, 'type').text = type_value
 
         if image_path and os.path.exists(image_path):
             image_basename = os.path.basename(image_path)
-            ET.SubElement(root, "img").text = image_basename
+            ET.SubElement(root, 'img').text = image_basename
             dest_path = os.path.join(folder, image_basename)
             try:
                 if PIL_AVAILABLE:
                     img = Image.open(image_path)
-                    img = img.convert("RGB")
+                    img = img.convert('RGB')
                     img = img.resize(EXPANSION_IMAGE_SIZE, Image.LANCZOS)
                     img.save(dest_path)
                 else:
                     shutil.copy2(image_path, dest_path)
             except Exception as e:
                 logging.error(f"Failed to copy image: {e}")
-                messagebox.showerror(
-                    "Image Error",
-                    f"Failed to copy image to expansion folder:\n{e}",
-                    parent=self,
-                )
+                messagebox.showerror("Image Error", f"Failed to copy image to expansion folder:\n{e}", parent=self)
 
-        ET.SubElement(root, "directory").text = directory
-        ET.SubElement(root, "separator").text = separator
+        ET.SubElement(root, 'directory').text = directory
+        ET.SubElement(root, 'separator').text = separator
 
         tree = ET.ElementTree(root)
         indent_tree(tree)
-        tree.write(xml_path, encoding="UTF-8", xml_declaration=True)
-        messagebox.showinfo(
-            "Success", f"Expansion.xml created at {xml_path}", parent=self
-        )
+        tree.write(xml_path, encoding='UTF-8', xml_declaration=True)
+        messagebox.showinfo("Success", f"Expansion.xml created at {xml_path}", parent=self)
         self.destroy()
-
 
 class FileRenamerWindow(tk.Toplevel):
     def __init__(self, master):
-        super().__init__(master.root if hasattr(master, "root") else master)
+        super().__init__(master.root if hasattr(master, 'root') else master)
         self.title("File Renamer")
         self.geometry("900x600")
         self.resizable(True, True)
@@ -978,50 +803,31 @@ class FileRenamerWindow(tk.Toplevel):
 
         top_frame = ttk.Frame(main_frame)
         top_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
-        ttk.Button(top_frame, text="Rescan Files", command=self.scan_files).pack(
-            side="left"
-        )
-        ttk.Checkbutton(
-            top_frame,
-            text="Include Folder Name in Suggestion",
-            variable=self.include_folder_var,
-            command=self.update_all_suggestions,
-        ).pack(side="left", padx=10)
+        ttk.Button(top_frame, text="Rescan Files", command=self.scan_files).pack(side="left")
+        ttk.Checkbutton(top_frame, text="Include Folder Name in Suggestion", variable=self.include_folder_var, command=self.update_all_suggestions).pack(side="left", padx=10)
 
         batch_frame = ttk.LabelFrame(main_frame, text="Batch Operations", padding="5")
-        batch_frame.grid(row=1, column=0, sticky="ew", pady=(0, 5))
+        batch_frame.grid(row=1, column=0, sticky="ew", pady=(0,5))
         ttk.Label(batch_frame, text="Remove chars:").pack(side="left")
         self.remove_chars_entry = ttk.Entry(batch_frame, width=10)
         self.remove_chars_entry.pack(side="left", padx=2)
-        ttk.Button(batch_frame, text="Apply", command=self.batch_remove_chars).pack(
-            side="left"
-        )
-        ttk.Label(batch_frame, text="Replace:").pack(side="left", padx=(10, 0))
+        ttk.Button(batch_frame, text="Apply", command=self.batch_remove_chars).pack(side="left")
+        ttk.Label(batch_frame, text="Replace:").pack(side="left", padx=(10,0))
         self.replace_from_entry = ttk.Entry(batch_frame, width=10)
         self.replace_from_entry.pack(side="left", padx=2)
         ttk.Label(batch_frame, text="with").pack(side="left")
         self.replace_to_entry = ttk.Entry(batch_frame, width=10)
         self.replace_to_entry.pack(side="left", padx=2)
-        ttk.Button(batch_frame, text="Apply", command=self.batch_replace).pack(
-            side="left"
-        )
-        ttk.Button(
-            batch_frame, text="Title Case", command=lambda: self.batch_case("title")
-        ).pack(side="left", padx=(10, 2))
-        ttk.Button(
-            batch_frame, text="UPPERCASE", command=lambda: self.batch_case("upper")
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            batch_frame, text="lowercase", command=lambda: self.batch_case("lower")
-        ).pack(side="left", padx=2)
+        ttk.Button(batch_frame, text="Apply", command=self.batch_replace).pack(side="left")
+        ttk.Button(batch_frame, text="Title Case", command=lambda: self.batch_case('title')).pack(side="left", padx=(10, 2))
+        ttk.Button(batch_frame, text="UPPERCASE", command=lambda: self.batch_case('upper')).pack(side="left", padx=2)
+        ttk.Button(batch_frame, text="lowercase", command=lambda: self.batch_case('lower')).pack(side="left", padx=2)
 
         tree_frame = ttk.Frame(main_frame)
         tree_frame.grid(row=2, column=0, sticky="nsew")
         tree_frame.grid_rowconfigure(0, weight=1)
         tree_frame.grid_columnconfigure(0, weight=1)
-        self.tree = Treeview(
-            tree_frame, columns=("Select", "Original", "Suggested"), show="headings"
-        )
+        self.tree = Treeview(tree_frame, columns=("Select", "Original", "Suggested"), show="headings")
         self.tree.heading("Select", text="Select")
         self.tree.heading("Original", text="Original Filename")
         self.tree.heading("Suggested", text="Suggested New Filename")
@@ -1033,52 +839,37 @@ class FileRenamerWindow(tk.Toplevel):
         self.tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
         self.tree.bind("<Button-1>", self.on_tree_click)
-        self.tree.bind("<Double-1>", self.on_edit_cell)
+        self.tree.bind('<Double-1>', self.on_edit_cell)
 
         bottom_frame = ttk.Frame(main_frame)
-        bottom_frame.grid(row=3, column=0, sticky="ew", pady=(5, 0))
-        ttk.Button(
-            bottom_frame,
-            text="Select All",
-            command=lambda: self.toggle_all_checks(True),
-        ).pack(side="left")
-        ttk.Button(
-            bottom_frame,
-            text="Deselect All",
-            command=lambda: self.toggle_all_checks(False),
-        ).pack(side="left", padx=5)
-        self.apply_button = ttk.Button(
-            bottom_frame,
-            text="Apply Selected Renames",
-            command=self.apply_renames,
-            state="disabled",
-        )
+        bottom_frame.grid(row=3, column=0, sticky="ew", pady=(5,0))
+        ttk.Button(bottom_frame, text="Select All", command=lambda: self.toggle_all_checks(True)).pack(side="left")
+        ttk.Button(bottom_frame, text="Deselect All", command=lambda: self.toggle_all_checks(False)).pack(side="left", padx=5)
+        self.apply_button = ttk.Button(bottom_frame, text="Apply Selected Renames", command=self.apply_renames, state="disabled")
         self.apply_button.pack(side="right")
 
     def _generate_suggestion(self, proposal):
-        info = get_clean_sample_info(proposal["original_path"])
-        note_str = str(proposal["note"]) if proposal["note"] is not None else ""
+        info = get_clean_sample_info(proposal['original_path'])
+        note_str = str(proposal['note']) if proposal['note'] is not None else ''
         parts = []
         if self.include_folder_var.get():
-            parts.append(info["folder"].strip())
+            parts.append(info['folder'].strip())
 
-        base_name_cleaned = re.sub(
-            r"([A-G][#b]?\-?\d+)", "", info["base"], flags=re.IGNORECASE
-        ).strip()
-        base_name_cleaned = re.sub(r"\b(\d{2,3})\b", "", base_name_cleaned).strip()
+        base_name_cleaned = re.sub(r'([A-G][#b]?\-?\d+)', '', info['base'], flags=re.IGNORECASE).strip()
+        base_name_cleaned = re.sub(r'\b(\d{2,3})\b', '', base_name_cleaned).strip()
         parts.append(base_name_cleaned)
 
         if note_str:
             parts.append(note_str)
 
-        final_base = " ".join(filter(None, parts))
+        final_base = ' '.join(filter(None, parts))
         return f"{final_base}{info['ext']}"
 
     def update_all_suggestions(self):
         for i, row_id in enumerate(self.tree.get_children()):
             proposal = self.rename_proposals[i]
             new_name = self._generate_suggestion(proposal)
-            proposal["new_name"] = new_name
+            proposal['new_name'] = new_name
             self.tree.set(row_id, "Suggested", new_name)
 
     def scan_files(self):
@@ -1088,51 +879,38 @@ class FileRenamerWindow(tk.Toplevel):
         self.check_vars.clear()
 
         if not self.folder_path or not os.path.isdir(self.folder_path):
-            messagebox.showwarning(
-                "No Folder", "Please select a source folder first.", parent=self
-            )
+            messagebox.showwarning("No Folder", "Please select a source folder first.", parent=self)
             return
 
-        wav_files = glob.glob(
-            os.path.join(self.folder_path, "**", "*.wav"), recursive=True
-        )
+        wav_files = glob.glob(os.path.join(self.folder_path, '**', '*.wav'), recursive=True)
         for path in wav_files:
-            if ".xpm.wav" in path.lower():
-                continue
+            if '.xpm.wav' in path.lower(): continue
 
             info = get_clean_sample_info(path)
             proposal = {
-                "original_path": path,
-                "original_name": os.path.basename(path),
-                "new_name": "",
-                "folder": info["folder"],
-                "note": info["note"],
-                "ext": info["ext"],
-                "base": info["base"],
+                'original_path': path,
+                'original_name': os.path.basename(path),
+                'new_name': '',
+                'folder': info['folder'],
+                'note': info['note'],
+                'ext': info['ext'],
+                'base': info['base']
             }
-            proposal["new_name"] = self._generate_suggestion(proposal)
+            proposal['new_name'] = self._generate_suggestion(proposal)
             self.rename_proposals.append(proposal)
 
         for i, proposal in enumerate(self.rename_proposals):
-            row_id = self.tree.insert(
-                "",
-                "end",
-                values=("No", proposal["original_name"], proposal["new_name"]),
-            )
+            row_id = self.tree.insert('', 'end', values=("No", proposal['original_name'], proposal['new_name']))
             self.check_vars[row_id] = tk.BooleanVar(value=False)
 
-        self.apply_button.config(
-            state="normal" if self.rename_proposals else "disabled"
-        )
+        self.apply_button.config(state="normal" if self.rename_proposals else "disabled")
 
     def on_tree_click(self, event):
         region = self.tree.identify("region", event.x, event.y)
-        if region != "cell":
-            return
+        if region != "cell": return
         col = self.tree.identify_column(event.x)
         row_id = self.tree.identify_row(event.y)
-        if not row_id:
-            return
+        if not row_id: return
 
         if col == "#1":
             current_val = self.check_vars[row_id].get()
@@ -1141,8 +919,7 @@ class FileRenamerWindow(tk.Toplevel):
 
     def batch_remove_chars(self):
         chars = self.remove_chars_entry.get()
-        if not chars:
-            return
+        if not chars: return
         for row_id in self.tree.get_children():
             if self.check_vars.get(row_id, tk.BooleanVar(value=False)).get():
                 current_name = self.tree.set(row_id, "Suggested")
@@ -1152,8 +929,7 @@ class FileRenamerWindow(tk.Toplevel):
     def batch_replace(self):
         old = self.replace_from_entry.get()
         new = self.replace_to_entry.get()
-        if not old:
-            return
+        if not old: return
         for row_id in self.tree.get_children():
             if self.check_vars.get(row_id, tk.BooleanVar(value=False)).get():
                 current_name = self.tree.set(row_id, "Suggested")
@@ -1165,102 +941,73 @@ class FileRenamerWindow(tk.Toplevel):
             if self.check_vars.get(row_id, tk.BooleanVar(value=False)).get():
                 current_name = self.tree.set(row_id, "Suggested")
                 name_part, ext_part = os.path.splitext(current_name)
-                if mode == "upper":
-                    new_name_part = name_part.upper()
-                elif mode == "lower":
-                    new_name_part = name_part.lower()
-                elif mode == "title":
-                    new_name_part = name_part.title()
-                else:
-                    continue
+                if mode == 'upper': new_name_part = name_part.upper()
+                elif mode == 'lower': new_name_part = name_part.lower()
+                elif mode == 'title': new_name_part = name_part.title()
+                else: continue
                 self.tree.set(row_id, "Suggested", new_name_part + ext_part)
 
     def on_edit_cell(self, event):
         region = self.tree.identify("region", event.x, event.y)
-        if region != "cell":
-            return
+        if region != "cell": return
         col = self.tree.identify_column(event.x)
         if col == "#3":
             row_id = self.tree.identify_row(event.y)
-            if not row_id:
-                return
+            if not row_id: return
             x, y, width, height = self.tree.bbox(row_id, col)
             value = self.tree.set(row_id, "Suggested")
             entry = ttk.Entry(self.tree)
             entry.place(x=x, y=y, width=width, height=height)
             entry.insert(0, value)
             entry.focus()
-
             def save_edit(event=None):
                 self.tree.set(row_id, "Suggested", entry.get())
                 entry.destroy()
-
-            entry.bind("<Return>", save_edit)
-            entry.bind("<FocusOut>", save_edit)
+            entry.bind('<Return>', save_edit)
+            entry.bind('<FocusOut>', save_edit)
 
     def apply_renames(self):
         selected_proposals = []
         for i, row_id in enumerate(self.tree.get_children()):
             if self.check_vars.get(row_id, tk.BooleanVar(value=False)).get():
                 proposal = self.rename_proposals[i]
-                proposal["new_name"] = self.tree.set(row_id, "Suggested")
+                proposal['new_name'] = self.tree.set(row_id, 'Suggested')
                 selected_proposals.append(proposal)
 
         if not selected_proposals:
-            messagebox.showinfo(
-                "No Selection", "No files were selected to rename.", parent=self
-            )
+            messagebox.showinfo("No Selection", "No files were selected to rename.", parent=self)
             return
 
-        if not messagebox.askyesno(
-            "Confirm Rename",
-            f"This will rename {len(selected_proposals)} file(s) and modify all affected .xpm programs. This action CANNOT be undone. Are you sure?",
-            parent=self,
-        ):
+        if not messagebox.askyesno("Confirm Rename", f"This will rename {len(selected_proposals)} file(s) and modify all affected .xpm programs. This action CANNOT be undone. Are you sure?", parent=self):
             return
 
-        rename_map = {
-            item["original_path"]: os.path.join(
-                os.path.dirname(item["original_path"]), item["new_name"]
-            )
-            for item in selected_proposals
-        }
+        rename_map = {item['original_path']: os.path.join(os.path.dirname(item['original_path']), item['new_name']) for item in selected_proposals}
 
-        all_xpms = glob.glob(
-            os.path.join(self.folder_path, "**", "*.xpm"), recursive=True
-        )
+        all_xpms = glob.glob(os.path.join(self.folder_path, '**', '*.xpm'), recursive=True)
 
         for xpm_path in all_xpms:
             try:
                 tree = ET.parse(xpm_path)
                 root = tree.getroot()
                 changed = False
-                for elem in root.findall(".//SampleFile"):
+                for elem in root.findall('.//SampleFile'):
                     if elem is not None and elem.text:
-                        rel_path = elem.text.replace("/", os.sep)
-                        original_sample_path = os.path.normpath(
-                            os.path.join(os.path.dirname(xpm_path), rel_path)
-                        )
+                        rel_path = elem.text.replace('/', os.sep)
+                        original_sample_path = os.path.normpath(os.path.join(os.path.dirname(xpm_path), rel_path))
                         if original_sample_path in rename_map:
                             new_sample_path = rename_map[original_sample_path]
-                            new_rel_path = os.path.relpath(
-                                new_sample_path, os.path.dirname(xpm_path)
-                            )
-                            elem.text = new_rel_path.replace(os.sep, "/")
+                            new_rel_path = os.path.relpath(new_sample_path, os.path.dirname(xpm_path))
+                            elem.text = new_rel_path.replace(os.sep, '/')
 
-                            parent_layer = root.find(
-                                f".//Layer[SampleFile='{elem.text}']"
-                            )
+                            parent_layer = root.find(f".//Layer[SampleFile='{elem.text}']")
                             if parent_layer is not None:
-                                sample_name_elem = parent_layer.find("SampleName")
+                                sample_name_elem = parent_layer.find('SampleName')
                                 if sample_name_elem is not None:
-                                    sample_name_elem.text = os.path.splitext(
-                                        os.path.basename(new_sample_path)
-                                    )[0]
+                                    sample_name_elem.text = os.path.splitext(os.path.basename(new_sample_path))[0]
                             changed = True
                 if changed:
                     indent_tree(tree)
-                    tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                    tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
             except Exception as e:
                 logging.error(f"Error updating XPM {xpm_path}: {e}")
 
@@ -1273,16 +1020,13 @@ class FileRenamerWindow(tk.Toplevel):
             except Exception as e:
                 logging.error(f"Error renaming {original} to {new}: {e}")
 
-        messagebox.showinfo(
-            "Success", "Files renamed and programs updated.", parent=self
-        )
+        messagebox.showinfo("Success", "Files renamed and programs updated.", parent=self)
         self.scan_files()
 
     def toggle_all_checks(self, select_all):
         for row_id in self.tree.get_children():
             self.check_vars[row_id].set(select_all)
             self.tree.set(row_id, "Select", "Yes" if select_all else "No")
-
 
 class CreativeModeConfigWindow(tk.Toplevel):
     def __init__(self, master, mode):
@@ -1296,61 +1040,32 @@ class CreativeModeConfigWindow(tk.Toplevel):
         frame = ttk.Frame(self, padding="10")
         frame.pack(fill="both", expand=True)
 
-        if self.mode == "synth":
-            ttk.Label(frame, text="Resonance (0.0-1.0):").pack(anchor="w")
-            self.resonance = tk.DoubleVar(
-                value=master.creative_config.get("synth", {}).get("resonance", 0.2)
-            )
-            ttk.Scale(
-                frame, from_=0, to=1, variable=self.resonance, orient="horizontal"
-            ).pack(fill="x", pady=2)
-            ttk.Label(frame, text="Release Time (0.0-2.0s):").pack(
-                anchor="w", pady=(10, 0)
-            )
-            self.release = tk.DoubleVar(
-                value=master.creative_config.get("synth", {}).get("release", 0.5)
-            )
-            ttk.Scale(
-                frame, from_=0, to=2, variable=self.release, orient="horizontal"
-            ).pack(fill="x", pady=2)
-        elif self.mode == "lofi":
-            ttk.Label(frame, text="Filter Cutoff (0.1-0.8):").pack(anchor="w")
-            self.cutoff = tk.DoubleVar(
-                value=master.creative_config.get("lofi", {}).get("cutoff", 0.5)
-            )
-            ttk.Scale(
-                frame, from_=0.1, to=0.8, variable=self.cutoff, orient="horizontal"
-            ).pack(fill="x", pady=2)
-            ttk.Label(frame, text="Pitch Wobble Amount (0.0-0.5):").pack(
-                anchor="w", pady=(10, 0)
-            )
-            self.pitch_wobble = tk.DoubleVar(
-                value=master.creative_config.get("lofi", {}).get("pitch_wobble", 0.1)
-            )
-            ttk.Scale(
-                frame, from_=0, to=0.5, variable=self.pitch_wobble, orient="horizontal"
-            ).pack(fill="x", pady=2)
+        if self.mode == 'synth':
+            ttk.Label(frame, text="Resonance (0.0-1.0):").pack(anchor='w')
+            self.resonance = tk.DoubleVar(value=master.creative_config.get('synth', {}).get('resonance', 0.2))
+            ttk.Scale(frame, from_=0, to=1, variable=self.resonance, orient='horizontal').pack(fill='x', pady=2)
+            ttk.Label(frame, text="Release Time (0.0-2.0s):").pack(anchor='w', pady=(10, 0))
+            self.release = tk.DoubleVar(value=master.creative_config.get('synth', {}).get('release', 0.5))
+            ttk.Scale(frame, from_=0, to=2, variable=self.release, orient='horizontal').pack(fill='x', pady=2)
+        elif self.mode == 'lofi':
+            ttk.Label(frame, text="Filter Cutoff (0.1-0.8):").pack(anchor='w')
+            self.cutoff = tk.DoubleVar(value=master.creative_config.get('lofi', {}).get('cutoff', 0.5))
+            ttk.Scale(frame, from_=0.1, to=0.8, variable=self.cutoff, orient='horizontal').pack(fill='x', pady=2)
+            ttk.Label(frame, text="Pitch Wobble Amount (0.0-0.5):").pack(anchor='w', pady=(10, 0))
+            self.pitch_wobble = tk.DoubleVar(value=master.creative_config.get('lofi', {}).get('pitch_wobble', 0.1))
+            ttk.Scale(frame, from_=0, to=0.5, variable=self.pitch_wobble, orient='horizontal').pack(fill='x', pady=2)
 
-        ttk.Button(frame, text="Save Configuration", command=self.save).pack(
-            side="bottom", pady=10
-        )
+        ttk.Button(frame, text="Save Configuration", command=self.save).pack(side='bottom', pady=10)
 
     def save(self):
-        if self.mode == "synth":
-            self.config = {
-                "resonance": self.resonance.get(),
-                "release": self.release.get(),
-            }
-        elif self.mode == "lofi":
-            self.config = {
-                "cutoff": self.cutoff.get(),
-                "pitch_wobble": self.pitch_wobble.get(),
-            }
+        if self.mode == 'synth':
+            self.config = {'resonance': self.resonance.get(), 'release': self.release.get()}
+        elif self.mode == 'lofi':
+            self.config = {'cutoff': self.cutoff.get(), 'pitch_wobble': self.pitch_wobble.get()}
 
         self.master.creative_config[self.mode] = self.config
         logging.info(f"Updated creative config for '{self.mode}': {self.config}")
         self.destroy()
-
 
 class SCWToolWindow(tk.Toplevel):
     def __init__(self, master):
@@ -1365,28 +1080,21 @@ class SCWToolWindow(tk.Toplevel):
     def create_widgets(self):
         frame = ttk.Frame(self, padding="10")
         frame.pack(fill="both", expand=True)
-        ttk.Label(
-            frame,
-            text=f"Found potential SCWs (WAV files < {SCW_FRAME_THRESHOLD} frames):",
-        ).pack(anchor="w")
+        ttk.Label(frame, text=f"Found potential SCWs (WAV files < {SCW_FRAME_THRESHOLD} frames):").pack(anchor='w')
 
         list_frame = ttk.Frame(frame)
-        list_frame.pack(fill="both", expand=True, pady=5)
-        self.listbox = tk.Listbox(list_frame, selectmode="extended")
-        self.listbox.pack(side="left", fill="both", expand=True)
-        vsb = ttk.Scrollbar(list_frame, orient="vertical", command=self.listbox.yview)
-        vsb.pack(side="right", fill="y")
+        list_frame.pack(fill='both', expand=True, pady=5)
+        self.listbox = tk.Listbox(list_frame, selectmode='extended')
+        self.listbox.pack(side='left', fill='both', expand=True)
+        vsb = ttk.Scrollbar(list_frame, orient='vertical', command=self.listbox.yview)
+        vsb.pack(side='right', fill='y')
         self.listbox.config(yscrollcommand=vsb.set)
 
-        ttk.Button(
-            frame,
-            text="Create Looped Instruments from Selected",
-            command=self.create_instruments,
-        ).pack(pady=5)
+        ttk.Button(frame, text="Create Looped Instruments from Selected", command=self.create_instruments).pack(pady=5)
 
     def scan_for_scw(self):
         folder = self.master.folder_path.get()
-        wav_files = glob.glob(os.path.join(folder, "**", "*.wav"), recursive=True)
+        wav_files = glob.glob(os.path.join(folder, '**', '*.wav'), recursive=True)
         for wav_path in wav_files:
             if get_wav_frames(wav_path) < SCW_FRAME_THRESHOLD:
                 self.scw_files.append(wav_path)
@@ -1395,11 +1103,7 @@ class SCWToolWindow(tk.Toplevel):
     def create_instruments(self):
         selected_indices = self.listbox.curselection()
         if not selected_indices:
-            messagebox.showwarning(
-                "No Selection",
-                "Please select one or more files from the list.",
-                parent=self,
-            )
+            messagebox.showwarning("No Selection", "Please select one or more files from the list.", parent=self)
             return
 
         selected_files = [self.scw_files[i] for i in selected_indices]
@@ -1407,7 +1111,7 @@ class SCWToolWindow(tk.Toplevel):
         options = InstrumentOptions(
             loop_one_shots=True,
             polyphony=1,
-            firmware_version=self.master.firmware_version.get(),
+            firmware_version=self.master.firmware_version.get()
         )
 
         builder = InstrumentBuilder(self.master.folder_path.get(), self.master, options)
@@ -1416,22 +1120,17 @@ class SCWToolWindow(tk.Toplevel):
             rel_path = os.path.relpath(file_path, self.master.folder_path.get())
             program_name = os.path.splitext(os.path.basename(file_path))[0]
             output_folder = os.path.dirname(file_path)
-            builder._create_xpm(
-                program_name, [rel_path], output_folder, mode="one-shot"
-            )
+            builder._create_xpm(program_name, [rel_path], output_folder, mode='one-shot')
 
-        messagebox.showinfo(
-            "Success", f"Created {len(selected_files)} looped instruments.", parent=self
-        )
+        messagebox.showinfo("Success", f"Created {len(selected_files)} looped instruments.", parent=self)
         self.destroy()
-
 
 class BatchProgramEditorWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root)
         self.master = master
         self.title("Batch Program Editor")
-        self.geometry("450x550")  # Increased height for tabs
+        self.geometry("450x550") # Increased height for tabs
         self.resizable(True, True)
         self.params = {}
         self.create_widgets()
@@ -1445,35 +1144,17 @@ class BatchProgramEditorWindow(tk.Toplevel):
         top_frame.pack(fill="x", pady=(0, 10))
         top_frame.columnconfigure(1, weight=1)
 
-        self.params["rename"] = tk.BooleanVar(value=True)
-        ttk.Checkbutton(
-            top_frame,
-            text="Rename ProgramName to file name",
-            variable=self.params["rename"],
-        ).grid(row=0, column=0, columnspan=2, sticky="w")
+        self.params['rename'] = tk.BooleanVar(value=True)
+        ttk.Checkbutton(top_frame, text="Rename ProgramName to file name", variable=self.params['rename']).grid(row=0, column=0, columnspan=2, sticky="w")
 
-        ttk.Label(top_frame, text="Application Version:").grid(
-            row=1, column=0, sticky="w", pady=(5, 0)
-        )
-        self.params["version"] = tk.StringVar(value=self.master.firmware_version.get())
-        versions = ["2.3.0.0", "2.6.0.17", "3.4.0", "3.5.0"]
-        ttk.Combobox(
-            top_frame,
-            textvariable=self.params["version"],
-            values=versions,
-            state="readonly",
-        ).grid(row=1, column=1, sticky="ew", pady=(5, 0))
+        ttk.Label(top_frame, text="Application Version:").grid(row=1, column=0, sticky="w", pady=(5,0))
+        self.params['version'] = tk.StringVar(value=self.master.firmware_version.get())
+        versions = ['2.3.0.0','2.6.0.17','3.4.0','3.5.0']
+        ttk.Combobox(top_frame, textvariable=self.params['version'], values=versions, state="readonly").grid(row=1, column=1, sticky="ew", pady=(5,0))
 
-        ttk.Label(top_frame, text="Format:").grid(
-            row=2, column=0, sticky="w", pady=(5, 0)
-        )
-        self.params["format_version"] = tk.StringVar(value="advanced")
-        ttk.Combobox(
-            top_frame,
-            textvariable=self.params["format_version"],
-            values=["legacy", "advanced"],
-            state="readonly",
-        ).grid(row=2, column=1, sticky="ew", pady=(5, 0))
+        ttk.Label(top_frame, text="Format:").grid(row=2, column=0, sticky="w", pady=(5,0))
+        self.params['format_version'] = tk.StringVar(value="advanced")
+        ttk.Combobox(top_frame, textvariable=self.params['format_version'], values=["legacy","advanced"], state="readonly").grid(row=2, column=1, sticky="ew", pady=(5,0))
 
         # --- Notebook for Basic and Advanced tabs ---
         notebook = ttk.Notebook(main_frame)
@@ -1481,91 +1162,60 @@ class BatchProgramEditorWindow(tk.Toplevel):
 
         basic_tab = ttk.Frame(notebook, padding="10")
         advanced_tab = ttk.Frame(notebook, padding="10")
-        notebook.add(basic_tab, text="Basic")
-        notebook.add(advanced_tab, text="Advanced")
+        notebook.add(basic_tab, text='Basic')
+        notebook.add(advanced_tab, text='Advanced')
 
         self.create_basic_tab(basic_tab)
         self.create_advanced_tab(advanced_tab)
 
         # --- Bottom buttons ---
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(fill="x", pady=(10, 0))
-        ttk.Button(
-            btn_frame,
-            text="Apply Edits",
-            command=self.apply_edits,
-            style="Accent.TButton",
-        ).pack(side="right")
-        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(
-            side="right", padx=(0, 5)
-        )
+        btn_frame.pack(fill="x", pady=(10,0))
+        ttk.Button(btn_frame, text="Apply Edits", command=self.apply_edits, style="Accent.TButton").pack(side="right")
+        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(side="right", padx=(0,5))
 
     def create_basic_tab(self, parent):
         """Populates the Basic settings tab."""
         parent.columnconfigure(1, weight=1)
 
         # Creative Mode
-        ttk.Label(parent, text="Creative Mode:").grid(
-            row=0, column=0, sticky="w", pady=2
-        )
+        ttk.Label(parent, text="Creative Mode:").grid(row=0, column=0, sticky="w", pady=2)
         creative_frame = ttk.Frame(parent)
         creative_frame.grid(row=0, column=1, sticky="ew", pady=2)
         creative_frame.columnconfigure(0, weight=1)
-        self.params["creative_mode"] = tk.StringVar(value="off")
-        modes = ["off", "subtle", "synth", "lofi", "reverse", "stereo_spread"]
-        creative_combo = ttk.Combobox(
-            creative_frame,
-            textvariable=self.params["creative_mode"],
-            values=modes,
-            state="readonly",
-        )
+        self.params['creative_mode'] = tk.StringVar(value="off")
+        modes = ['off', 'subtle', 'synth', 'lofi', 'reverse', 'stereo_spread']
+        creative_combo = ttk.Combobox(creative_frame, textvariable=self.params['creative_mode'], values=modes, state="readonly")
         creative_combo.grid(row=0, column=0, sticky="ew")
         creative_combo.bind("<<ComboboxSelected>>", self.toggle_config_btn)
-        self.config_btn = ttk.Button(
-            creative_frame,
-            text="Cfg",
-            command=self.open_config,
-            state="disabled",
-            width=4,
-        )
-        self.config_btn.grid(row=0, column=1, padx=(5, 0))
+        self.config_btn = ttk.Button(creative_frame, text="Cfg", command=self.open_config, state='disabled', width=4)
+        self.config_btn.grid(row=0, column=1, padx=(5,0))
 
         # Volume ADSR
         ttk.Label(parent, text="Volume ADSR:").grid(row=1, column=0, sticky="w", pady=2)
         adsr_frame = ttk.Frame(parent)
         adsr_frame.grid(row=1, column=1, sticky="ew", pady=2)
-        self.params["attack"] = self.create_param_entry(adsr_frame, "A", 4)
-        self.params["decay"] = self.create_param_entry(adsr_frame, "D", 4)
-        self.params["sustain"] = self.create_param_entry(adsr_frame, "S", 4)
-        self.params["release"] = self.create_param_entry(adsr_frame, "R", 4)
+        self.params['attack'] = self.create_param_entry(adsr_frame, "A", 4)
+        self.params['decay'] = self.create_param_entry(adsr_frame, "D", 4)
+        self.params['sustain'] = self.create_param_entry(adsr_frame, "S", 4)
+        self.params['release'] = self.create_param_entry(adsr_frame, "R", 4)
 
         # Mod Matrix
-        ttk.Label(parent, text="Mod Matrix File:").grid(
-            row=2, column=0, sticky="w", pady=2
-        )
+        ttk.Label(parent, text="Mod Matrix File:").grid(row=2, column=0, sticky="w", pady=2)
         mm_frame = ttk.Frame(parent)
         mm_frame.grid(row=2, column=1, sticky="ew", pady=2)
         mm_frame.columnconfigure(0, weight=1)
-        self.params["mod_matrix_file"] = tk.StringVar()
-        ttk.Entry(mm_frame, textvariable=self.params["mod_matrix_file"]).grid(
-            row=0, column=0, sticky="ew"
-        )
-        ttk.Button(mm_frame, text="Browse...", command=self.browse_mod_matrix).grid(
-            row=0, column=1, padx=(5, 0)
-        )
+        self.params['mod_matrix_file'] = tk.StringVar()
+        ttk.Entry(mm_frame, textvariable=self.params['mod_matrix_file']).grid(row=0, column=0, sticky="ew")
+        ttk.Button(mm_frame, text="Browse...", command=self.browse_mod_matrix).grid(row=0, column=1, padx=(5,0))
 
         # Checkboxes
-        self.params["fix_notes"] = tk.BooleanVar()
-        ttk.Checkbutton(
-            parent,
-            text="Fix sample notes from WAV metadata",
-            variable=self.params["fix_notes"],
-        ).grid(row=3, column=0, columnspan=2, sticky="w", pady=(5, 0))
+        self.params['fix_notes'] = tk.BooleanVar()
+        ttk.Checkbutton(parent, text="Fix sample notes from WAV metadata", variable=self.params['fix_notes']).grid(row=3, column=0, columnspan=2, sticky="w", pady=(5,0))
 
-        self.params["keytrack"] = tk.BooleanVar(value=True)
-        ttk.Checkbutton(
-            parent, text="Keytrack (Layer Transpose)", variable=self.params["keytrack"]
-        ).grid(row=4, column=0, columnspan=2, sticky="w")
+        self.params['keytrack'] = tk.BooleanVar(value=True)
+        ttk.Checkbutton(parent, text="Keytrack (Layer Transpose)", variable=self.params['keytrack']).grid(row=4, column=0, columnspan=2, sticky="w")
+
 
     def create_advanced_tab(self, parent):
         """Populates the Advanced settings tab."""
@@ -1573,101 +1223,73 @@ class BatchProgramEditorWindow(tk.Toplevel):
         parent.columnconfigure(3, weight=1)
 
         # Filter Env
-        ttk.Label(parent, text="Filter ADSR:", font="-weight bold").grid(
-            row=0, column=0, columnspan=4, sticky="w", pady=(0, 5)
-        )
+        ttk.Label(parent, text="Filter ADSR:", font='-weight bold').grid(row=0, column=0, columnspan=4, sticky="w", pady=(0,5))
 
         ttk.Label(parent, text="ADSR:").grid(row=1, column=0, sticky="w", pady=2)
         f_adsr_frame = ttk.Frame(parent)
         f_adsr_frame.grid(row=1, column=1, sticky="ew", pady=2)
-        self.params["filter_attack"] = self.create_param_entry(f_adsr_frame, "A", 4)
-        self.params["filter_decay"] = self.create_param_entry(f_adsr_frame, "D", 4)
-        self.params["filter_sustain"] = self.create_param_entry(f_adsr_frame, "S", 4)
-        self.params["filter_release"] = self.create_param_entry(f_adsr_frame, "R", 4)
+        self.params['filter_attack'] = self.create_param_entry(f_adsr_frame, "A", 4)
+        self.params['filter_decay'] = self.create_param_entry(f_adsr_frame, "D", 4)
+        self.params['filter_sustain'] = self.create_param_entry(f_adsr_frame, "S", 4)
+        self.params['filter_release'] = self.create_param_entry(f_adsr_frame, "R", 4)
 
-        ttk.Label(parent, text="Env Amt:").grid(
-            row=1, column=2, sticky="w", padx=(10, 0), pady=2
-        )
-        self.params["filter_env_amount"] = tk.StringVar()
-        ttk.Entry(parent, textvariable=self.params["filter_env_amount"], width=6).grid(
-            row=1, column=3, sticky="ew", pady=2
-        )
+        ttk.Label(parent, text="Env Amt:").grid(row=1, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['filter_env_amount'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['filter_env_amount'], width=6).grid(row=1, column=3, sticky="ew", pady=2)
 
         # Velocity Mods
-        ttk.Label(parent, text="Velocity Mod:", font="-weight bold").grid(
-            row=2, column=0, columnspan=4, sticky="w", pady=(10, 5)
-        )
+        ttk.Label(parent, text="Velocity Mod:", font='-weight bold').grid(row=2, column=0, columnspan=4, sticky="w", pady=(10,5))
 
         ttk.Label(parent, text="-> Level:").grid(row=3, column=0, sticky="w", pady=2)
-        self.params["velocity_to_level"] = tk.StringVar()
-        ttk.Entry(parent, textvariable=self.params["velocity_to_level"], width=6).grid(
-            row=3, column=1, sticky="ew", pady=2
-        )
+        self.params['velocity_to_level'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_level'], width=6).grid(row=3, column=1, sticky="ew", pady=2)
 
-        ttk.Label(parent, text="-> Attack:").grid(
-            row=3, column=2, sticky="w", padx=(10, 0), pady=2
-        )
-        self.params["velocity_to_attack"] = tk.StringVar()
-        ttk.Entry(parent, textvariable=self.params["velocity_to_attack"], width=6).grid(
-            row=3, column=3, sticky="ew", pady=2
-        )
+        ttk.Label(parent, text="-> Attack:").grid(row=3, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['velocity_to_attack'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_attack'], width=6).grid(row=3, column=3, sticky="ew", pady=2)
 
         ttk.Label(parent, text="-> Start:").grid(row=4, column=0, sticky="w", pady=2)
-        self.params["velocity_to_start"] = tk.StringVar()
-        ttk.Entry(parent, textvariable=self.params["velocity_to_start"], width=6).grid(
-            row=4, column=1, sticky="ew", pady=2
-        )
+        self.params['velocity_to_start'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['velocity_to_start'], width=6).grid(row=4, column=1, sticky="ew", pady=2)
 
         # LFOs
-        ttk.Label(parent, text="LFO 1:", font="-weight bold").grid(
-            row=5, column=0, columnspan=4, sticky="w", pady=(10, 5)
-        )
+        ttk.Label(parent, text="LFO 1:", font='-weight bold').grid(row=5, column=0, columnspan=4, sticky="w", pady=(10,5))
 
         ttk.Label(parent, text="Rate:").grid(row=6, column=0, sticky="w", pady=2)
-        self.params["lfo1_rate"] = tk.StringVar()
-        ttk.Entry(parent, textvariable=self.params["lfo1_rate"], width=6).grid(
-            row=6, column=1, sticky="ew", pady=2
-        )
+        self.params['lfo1_rate'] = tk.StringVar()
+        ttk.Entry(parent, textvariable=self.params['lfo1_rate'], width=6).grid(row=6, column=1, sticky="ew", pady=2)
 
-        ttk.Label(parent, text="Shape:").grid(
-            row=6, column=2, sticky="w", padx=(10, 0), pady=2
-        )
-        self.params["lfo1_shape"] = tk.StringVar()
-        ttk.Combobox(
-            parent,
-            textvariable=self.params["lfo1_shape"],
-            values=["Sine", "Triangle", "Saw", "Square", "S&H"],
-            state="readonly",
-        ).grid(row=6, column=3, sticky="ew", pady=2)
+        ttk.Label(parent, text="Shape:").grid(row=6, column=2, sticky="w", padx=(10,0), pady=2)
+        self.params['lfo1_shape'] = tk.StringVar()
+        ttk.Combobox(parent, textvariable=self.params['lfo1_shape'], values=['Sine', 'Triangle', 'Saw', 'Square', 'S&H'], state='readonly').grid(row=6, column=3, sticky="ew", pady=2)
 
     def create_param_entry(self, parent, label, width):
         """Helper to create a small labeled entry for ADSR-style widgets."""
         ttk.Label(parent, text=label).pack(side="left")
         var = tk.StringVar()
-        ttk.Entry(parent, width=width, textvariable=var).pack(side="left", padx=(0, 5))
+        ttk.Entry(parent, width=width, textvariable=var).pack(side="left", padx=(0,5))
         return var
 
     def toggle_config_btn(self, event=None):
-        if self.params["creative_mode"].get() in ["synth", "lofi"]:
-            self.config_btn.config(state="normal")
+        if self.params['creative_mode'].get() in ['synth', 'lofi']:
+            self.config_btn.config(state='normal')
         else:
-            self.config_btn.config(state="disabled")
+            self.config_btn.config(state='disabled')
 
     def open_config(self):
-        self.master.open_window(
-            CreativeModeConfigWindow, self.params["creative_mode"].get()
-        )
+        self.master.open_window(CreativeModeConfigWindow, self.params['creative_mode'].get())
 
     def browse_mod_matrix(self):
         path = filedialog.askopenfilename(
             parent=self,
             title="Select Mod Matrix JSON",
             filetypes=[("JSON Files", "*.json"), ("All Files", "*")],
-            initialdir=self.master.last_browse_path,
+            initialdir=self.master.last_browse_path
         )
         if path:
-            self.params["mod_matrix_file"].set(path)
+            self.params['mod_matrix_file'].set(path)
             self.master.last_browse_path = os.path.dirname(path)
+
 
     def apply_edits(self):
         # Collect all parameters from the StringVars
@@ -1683,7 +1305,6 @@ class BatchProgramEditorWindow(tk.Toplevel):
         self.master.run_batch_process(batch_edit_programs, args_dict)
         self.destroy()
 
-
 class SmartSplitWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root)
@@ -1696,41 +1317,19 @@ class SmartSplitWindow(tk.Toplevel):
     def create_widgets(self):
         frame = ttk.Frame(self, padding="10")
         frame.pack(fill="both", expand=True)
-        ttk.Label(frame, text="Choose a method to split files into folders:").pack(
-            anchor="w", pady=5
-        )
-        ttk.Radiobutton(
-            frame,
-            text="By First Word (e.g., 'Kick Drum.wav' -> 'Kick' folder)",
-            variable=self.split_mode,
-            value="word",
-        ).pack(anchor="w")
-        ttk.Radiobutton(
-            frame,
-            text="By Repeating Prefix (e.g., 'AAA_Snare.wav' -> 'AAA' folder)",
-            variable=self.split_mode,
-            value="prefix",
-        ).pack(anchor="w")
-        ttk.Radiobutton(
-            frame,
-            text="By Instrument Category (e.g., 'Bass', 'Piano', etc.)",
-            variable=self.split_mode,
-            value="category",
-        ).pack(anchor="w")
+        ttk.Label(frame, text="Choose a method to split files into folders:").pack(anchor="w", pady=5)
+        ttk.Radiobutton(frame, text="By First Word (e.g., 'Kick Drum.wav' -> 'Kick' folder)", variable=self.split_mode, value="word").pack(anchor="w")
+        ttk.Radiobutton(frame, text="By Repeating Prefix (e.g., 'AAA_Snare.wav' -> 'AAA' folder)", variable=self.split_mode, value="prefix").pack(anchor="w")
+        ttk.Radiobutton(frame, text="By Instrument Category (e.g., 'Bass', 'Piano', etc.)", variable=self.split_mode, value="category").pack(anchor="w")
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(fill="x", pady=(20, 0))
-        ttk.Button(btn_frame, text="Apply Split", command=self.apply_split).pack(
-            side="right"
-        )
-        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(
-            side="right", padx=5
-        )
+        ttk.Button(btn_frame, text="Apply Split", command=self.apply_split).pack(side="right")
+        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=5)
 
     def apply_split(self):
         mode = self.split_mode.get()
         self.destroy()
-        self.master.run_batch_process(split_files_smartly, {"mode": mode})
-
+        self.master.run_batch_process(split_files_smartly, {'mode': mode})
 
 class MergeSubfoldersWindow(tk.Toplevel):
     def __init__(self, master):
@@ -1750,52 +1349,37 @@ class MergeSubfoldersWindow(tk.Toplevel):
         frame.pack(fill="both", expand=True)
 
         ttk.Label(frame, text="Move files up to level:").pack(anchor="w")
-        ttk.Radiobutton(frame, text="Root", variable=self.target_depth, value=0).pack(
-            anchor="w"
-        )
-        ttk.Radiobutton(
-            frame, text="1st Level", variable=self.target_depth, value=1
-        ).pack(anchor="w")
-        ttk.Radiobutton(
-            frame, text="2nd Level", variable=self.target_depth, value=2
-        ).pack(anchor="w")
+        ttk.Radiobutton(frame, text="Root", variable=self.target_depth, value=0).pack(anchor="w")
+        ttk.Radiobutton(frame, text="1st Level", variable=self.target_depth, value=1).pack(anchor="w")
+        ttk.Radiobutton(frame, text="2nd Level", variable=self.target_depth, value=2).pack(anchor="w")
 
         opt_frame = ttk.Frame(frame)
-        opt_frame.pack(anchor="w", pady=(10, 0))
+        opt_frame.pack(anchor="w", pady=(10,0))
         ttk.Label(opt_frame, text="Max depth to scan:").pack(side="left")
-        ttk.Spinbox(
-            opt_frame, from_=1, to=10, textvariable=self.max_depth_var, width=4
-        ).pack(side="left")
+        ttk.Spinbox(opt_frame, from_=1, to=10, textvariable=self.max_depth_var, width=4).pack(side="left")
 
         btn_frame = ttk.Frame(frame)
-        btn_frame.pack(fill="x", pady=(20, 0))
+        btn_frame.pack(fill="x", pady=(20,0))
         ttk.Button(btn_frame, text="Merge", command=self.apply_merge).pack(side="right")
-        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(
-            side="right", padx=5
-        )
+        ttk.Button(btn_frame, text="Cancel", command=self.destroy).pack(side="right", padx=5)
 
     def apply_merge(self):
         depth = self.target_depth.get()
         max_depth = self.max_depth_var.get()
         self.destroy()
         # wrap merge_subfolders so run_batch_process can call it with two args
-        merge_func = lambda folder, _=None: merge_subfolders(
-            folder, {"target_depth": depth, "max_depth": max_depth}
-        )
+        merge_func = lambda folder, _=None: merge_subfolders(folder, {'target_depth': depth, 'max_depth': max_depth})
         self.master.run_batch_process(
             merge_func,
             {},
             confirm=True,
             confirm_message="This will move all files up and remove empty folders. This can't be undone. Continue?",
         )
+#</editor-fold>
 
-
-# </editor-fold>
-
-# <editor-fold desc="NEW & IMPROVED: SampleSelectorWindow">
+#<editor-fold desc="NEW & IMPROVED: SampleSelectorWindow">
 class SampleSelectorWindow(tk.Toplevel):
     """A dialog to manually add/remove samples before rebuilding an XPM."""
-
     def __init__(self, master, xpm_path, initial_mappings, unreferenced_files):
         super().__init__(master)
         self.title(f"Sample Selector for {os.path.basename(xpm_path)}")
@@ -1804,7 +1388,7 @@ class SampleSelectorWindow(tk.Toplevel):
 
         self.final_mappings = initial_mappings
         self.unreferenced_files = {os.path.basename(f): f for f in unreferenced_files}
-        self.result = None  # To store the final decision
+        self.result = None # To store the final decision
 
         self.filter_var = tk.StringVar()
         self.filter_var.trace_add("write", self.update_available_list)
@@ -1820,40 +1404,32 @@ class SampleSelectorWindow(tk.Toplevel):
         main_frame.grid_columnconfigure(2, weight=1)
 
         # Included Samples List
-        included_frame = ttk.LabelFrame(
-            main_frame, text="Samples to Include in Rebuild", padding="5"
-        )
-        included_frame.grid(row=0, column=2, sticky="nsew", padx=(5, 0))
+        included_frame = ttk.LabelFrame(main_frame, text="Samples to Include in Rebuild", padding="5")
+        included_frame.grid(row=0, column=2, sticky="nsew", padx=(5,0))
         included_frame.grid_rowconfigure(0, weight=1)
         included_frame.grid_columnconfigure(0, weight=1)
         self.included_list = tk.Listbox(included_frame, selectmode="extended")
         self.included_list.grid(row=0, column=0, sticky="nsew")
-        vsb1 = ttk.Scrollbar(
-            included_frame, orient="vertical", command=self.included_list.yview
-        )
+        vsb1 = ttk.Scrollbar(included_frame, orient="vertical", command=self.included_list.yview)
         vsb1.grid(row=0, column=1, sticky="ns")
         self.included_list.config(yscrollcommand=vsb1.set)
 
         # Available Samples List
-        available_frame = ttk.LabelFrame(
-            main_frame, text="Available Unreferenced Samples", padding="5"
-        )
-        available_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        available_frame = ttk.LabelFrame(main_frame, text="Available Unreferenced Samples", padding="5")
+        available_frame.grid(row=0, column=0, sticky="nsew", padx=(0,5))
         available_frame.grid_rowconfigure(1, weight=1)
         available_frame.grid_columnconfigure(0, weight=1)
 
         # NEW: Filter entry
         filter_entry_frame = ttk.Frame(available_frame)
-        filter_entry_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 5))
-        ttk.Label(filter_entry_frame, text="Filter:").pack(side="left", padx=(0, 5))
+        filter_entry_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0,5))
+        ttk.Label(filter_entry_frame, text="Filter:").pack(side="left", padx=(0,5))
         filter_entry = ttk.Entry(filter_entry_frame, textvariable=self.filter_var)
         filter_entry.pack(side="left", fill="x", expand=True)
 
         self.available_list = tk.Listbox(available_frame, selectmode="extended")
         self.available_list.grid(row=1, column=0, sticky="nsew")
-        vsb2 = ttk.Scrollbar(
-            available_frame, orient="vertical", command=self.available_list.yview
-        )
+        vsb2 = ttk.Scrollbar(available_frame, orient="vertical", command=self.available_list.yview)
         vsb2.grid(row=1, column=1, sticky="ns")
         self.available_list.config(yscrollcommand=vsb2.set)
 
@@ -1861,31 +1437,20 @@ class SampleSelectorWindow(tk.Toplevel):
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=0, column=1, sticky="ns", padx=10)
         ttk.Button(button_frame, text="<-- Add", command=self.add_selected).pack(pady=5)
-        ttk.Button(button_frame, text="Remove -->", command=self.remove_selected).pack(
-            pady=5
-        )
+        ttk.Button(button_frame, text="Remove -->", command=self.remove_selected).pack(pady=5)
 
         # Bottom Buttons
         bottom_frame = ttk.Frame(main_frame)
-        bottom_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(10, 0))
-        ttk.Button(
-            bottom_frame,
-            text="Apply and Rebuild",
-            command=self.apply_changes,
-            style="Accent.TButton",
-        ).pack(side="right")
-        ttk.Button(bottom_frame, text="Cancel", command=self.cancel).pack(
-            side="right", padx=5
-        )
+        bottom_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(10,0))
+        ttk.Button(bottom_frame, text="Apply and Rebuild", command=self.apply_changes, style="Accent.TButton").pack(side="right")
+        ttk.Button(bottom_frame, text="Cancel", command=self.cancel).pack(side="right", padx=5)
 
     def populate_lists(self):
         self.included_list.delete(0, tk.END)
         # Sort by basename for consistent order
-        sorted_mappings = sorted(
-            self.final_mappings, key=lambda m: os.path.basename(m["sample_path"])
-        )
+        sorted_mappings = sorted(self.final_mappings, key=lambda m: os.path.basename(m['sample_path']))
         for mapping in sorted_mappings:
-            self.included_list.insert(tk.END, os.path.basename(mapping["sample_path"]))
+            self.included_list.insert(tk.END, os.path.basename(mapping['sample_path']))
         self.update_available_list()
 
     # NEW: Method to filter the available list based on entry text
@@ -1905,18 +1470,14 @@ class SampleSelectorWindow(tk.Toplevel):
             basename = self.available_list.get(i)
             # Find the full path from the dictionary and remove it
             full_path = self.unreferenced_files.pop(basename, None)
-            if not full_path:
-                continue
+            if not full_path: continue
 
             # Create a new mapping for the added sample
             midi = infer_note_from_filename(basename) or 60
             new_mapping = {
-                "sample_path": full_path,
-                "root_note": midi,
-                "low_note": midi,
-                "high_note": midi,
-                "velocity_low": 0,
-                "velocity_high": 127,
+                'sample_path': full_path,
+                'root_note': midi, 'low_note': midi, 'high_note': midi,
+                'velocity_low': 0, 'velocity_high': 127
             }
             self.final_mappings.append(new_mapping)
 
@@ -1930,18 +1491,11 @@ class SampleSelectorWindow(tk.Toplevel):
         for i in reversed(selected_indices):
             basename = self.included_list.get(i)
             # Find the corresponding mapping and remove it
-            mapping_to_remove = next(
-                (
-                    m
-                    for m in self.final_mappings
-                    if os.path.basename(m["sample_path"]) == basename
-                ),
-                None,
-            )
+            mapping_to_remove = next((m for m in self.final_mappings if os.path.basename(m['sample_path']) == basename), None)
             if mapping_to_remove:
                 self.final_mappings.remove(mapping_to_remove)
                 # Add it back to the available list
-                self.unreferenced_files[basename] = mapping_to_remove["sample_path"]
+                self.unreferenced_files[basename] = mapping_to_remove['sample_path']
 
         self.populate_lists()
 
@@ -1953,13 +1507,12 @@ class SampleSelectorWindow(tk.Toplevel):
         self.result = None
         self.destroy()
 
+#</editor-fold>
 
-# </editor-fold>
-
-# <editor-fold desc="REVISED: BatchProgramFixerWindow">
+#<editor-fold desc="REVISED: BatchProgramFixerWindow">
 class BatchProgramFixerWindow(tk.Toplevel):
     def __init__(self, master):
-        super().__init__(master.root if hasattr(master, "root") else master)
+        super().__init__(master.root if hasattr(master, 'root') else master)
         self.title("Batch Program Fixer")
         self.geometry("800x600")
         self.master = master
@@ -1967,7 +1520,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
         self.firmware_var = tk.StringVar(value=master.firmware_version.get())
         self.format_var = tk.StringVar(value="advanced")
         self.check_vars = {}
-        self.xpm_map = {}  # Maps treeview item ID to absolute path
+        self.xpm_map = {} # Maps treeview item ID to absolute path
         self.create_widgets()
 
     def create_widgets(self):
@@ -1980,25 +1533,17 @@ class BatchProgramFixerWindow(tk.Toplevel):
         top_bar = ttk.Frame(main_frame)
         top_bar.grid(row=0, column=0, sticky="ew", pady=(0, 5))
         top_bar.grid_columnconfigure(1, weight=1)
-        ttk.Label(top_bar, text="Program Folder:").pack(side="left", padx=(0, 5))
-        ttk.Entry(top_bar, textvariable=self.folder_path).pack(
-            side="left", expand=True, fill="x"
-        )
-        ttk.Button(top_bar, text="Browse...", command=self.browse_folder).pack(
-            side="left", padx=5
-        )
-        ttk.Button(top_bar, text="Scan Folder", command=self.scan_folder).pack(
-            side="left"
-        )
+        ttk.Label(top_bar, text="Program Folder:").pack(side="left", padx=(0,5))
+        ttk.Entry(top_bar, textvariable=self.folder_path).pack(side="left", expand=True, fill="x")
+        ttk.Button(top_bar, text="Browse...", command=self.browse_folder).pack(side="left", padx=5)
+        ttk.Button(top_bar, text="Scan Folder", command=self.scan_folder).pack(side="left")
 
         # Treeview for displaying XPM files
         tree_frame = ttk.Frame(main_frame)
         tree_frame.grid(row=1, column=0, sticky="nsew", pady=5)
         tree_frame.grid_rowconfigure(0, weight=1)
         tree_frame.grid_columnconfigure(0, weight=1)
-        self.tree = Treeview(
-            tree_frame, columns=("Select", "File", "Version", "Status"), show="headings"
-        )
+        self.tree = Treeview(tree_frame, columns=("Select", "File", "Version", "Status"), show="headings")
         self.tree.heading("Select", text="Select")
         self.tree.heading("File", text="Program File")
         self.tree.heading("Version", text="Version")
@@ -2022,60 +1567,28 @@ class BatchProgramFixerWindow(tk.Toplevel):
         options_frame = ttk.Frame(actions_frame)
         options_frame.pack(side="left", padx=5)
         ttk.Label(options_frame, text="Firmware:").grid(row=0, column=0, sticky="e")
-        ttk.Combobox(
-            options_frame,
-            textvariable=self.firmware_var,
-            values=["2.3.0.0", "2.6.0.17", "3.4.0", "3.5.0"],
-            state="readonly",
-            width=10,
-        ).grid(row=0, column=1)
+        ttk.Combobox(options_frame, textvariable=self.firmware_var,
+                     values=['2.3.0.0','2.6.0.17','3.4.0','3.5.0'],
+                     state='readonly', width=10).grid(row=0, column=1)
         ttk.Label(options_frame, text="Format:").grid(row=1, column=0, sticky="e")
-        ttk.Combobox(
-            options_frame,
-            textvariable=self.format_var,
-            values=["legacy", "advanced"],
-            state="readonly",
-            width=10,
-        ).grid(row=1, column=1)
-        ttk.Button(
-            actions_frame,
-            text="Select All",
-            command=lambda: self.toggle_all_checks(True),
-        ).pack(side="left", padx=5)
-        ttk.Button(
-            actions_frame,
-            text="Deselect All",
-            command=lambda: self.toggle_all_checks(False),
-        ).pack(side="left", padx=5)
-        ttk.Button(
-            actions_frame,
-            text="Analyze & Relink Selected",
-            command=self.run_relink_thread,
-        ).pack(side="left", padx=20)
-        ttk.Button(
-            actions_frame,
-            text="Rebuild Selected",
-            command=self.run_rebuild_thread,
-            style="Accent.TButton",
-        ).pack(side="left", padx=5)
-        ttk.Button(
-            actions_frame, text="Edit Samples...", command=self.open_sample_editor
-        ).pack(side="left", padx=5)
+        ttk.Combobox(options_frame, textvariable=self.format_var,
+                     values=['legacy','advanced'], state='readonly', width=10).grid(row=1, column=1)
+        ttk.Button(actions_frame, text="Select All", command=lambda: self.toggle_all_checks(True)).pack(side="left", padx=5)
+        ttk.Button(actions_frame, text="Deselect All", command=lambda: self.toggle_all_checks(False)).pack(side="left", padx=5)
+        ttk.Button(actions_frame, text="Analyze & Relink Selected", command=self.run_relink_thread).pack(side="left", padx=20)
+        ttk.Button(actions_frame, text="Rebuild Selected", command=self.run_rebuild_thread, style="Accent.TButton").pack(side="left", padx=5)
+        ttk.Button(actions_frame, text="Edit Samples...", command=self.open_sample_editor).pack(side="left", padx=5)
 
     def _show_info_safe(self, title, message):
-        self.master.root.after(
-            0, lambda: messagebox.showinfo(title, message, parent=self)
-        )
+        self.master.root.after(0, lambda: messagebox.showinfo(title, message, parent=self))
 
     def _ask_yesno_safe(self, title, message):
         """Safely ask a yes/no question from a background thread."""
         result = threading.Event()
         answer = tk.BooleanVar()
-
         def ask():
             answer.set(messagebox.askyesno(title, message, parent=self))
             result.set()
-
         self.master.root.after(0, ask)
         result.wait()
         return answer.get()
@@ -2084,16 +1597,12 @@ class BatchProgramFixerWindow(tk.Toplevel):
         """Safely ask for a directory from a background thread."""
         result = threading.Event()
         path = tk.StringVar()
-
         def ask():
-            res = filedialog.askdirectory(
-                parent=self, title=title, initialdir=self.master.last_browse_path
-            )
+            res = filedialog.askdirectory(parent=self, title=title, initialdir=self.master.last_browse_path)
             if res:
                 path.set(res)
                 self.master.last_browse_path = res
             result.set()
-
         self.master.root.after(0, ask)
         result.wait()
         return path.get()
@@ -2128,11 +1637,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
         return result_container.get("result")
 
     def browse_folder(self):
-        path = filedialog.askdirectory(
-            parent=self,
-            title="Select Folder Containing XPM Programs",
-            initialdir=self.master.last_browse_path,
-        )
+        path = filedialog.askdirectory(parent=self, title="Select Folder Containing XPM Programs", initialdir=self.master.last_browse_path)
         if path:
             self.folder_path.set(path)
             self.master.last_browse_path = path
@@ -2141,9 +1646,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
     def scan_folder(self):
         folder = self.folder_path.get()
         if not folder or not os.path.isdir(folder):
-            messagebox.showerror(
-                "Error", "Please select a valid folder first.", parent=self
-            )
+            messagebox.showerror("Error", "Please select a valid folder first.", parent=self)
             return
 
         for i in self.tree.get_children():
@@ -2151,13 +1654,11 @@ class BatchProgramFixerWindow(tk.Toplevel):
         self.check_vars.clear()
         self.xpm_map.clear()
 
-        xpm_files = glob.glob(os.path.join(folder, "**", "*.xpm"), recursive=True)
+        xpm_files = glob.glob(os.path.join(folder, '**', '*.xpm'), recursive=True)
         for path in xpm_files:
             version = get_xpm_version(path)
             rel_path = os.path.relpath(path, folder)
-            item_id = self.tree.insert(
-                "", "end", values=("No", rel_path, version, "Ready")
-            )
+            item_id = self.tree.insert('', 'end', values=("No", rel_path, version, "Ready"))
             self.check_vars[item_id] = tk.BooleanVar(value=False)
             self.xpm_map[item_id] = path
 
@@ -2170,12 +1671,10 @@ class BatchProgramFixerWindow(tk.Toplevel):
 
     def on_tree_click(self, event):
         region = self.tree.identify("region", event.x, event.y)
-        if region != "cell":
-            return
+        if region != "cell": return
         col = self.tree.identify_column(event.x)
         row_id = self.tree.identify_row(event.y)
-        if not row_id:
-            return
+        if not row_id: return
 
         if col == "#1":
             current_val = self.check_vars[row_id].get()
@@ -2191,28 +1690,16 @@ class BatchProgramFixerWindow(tk.Toplevel):
     def run_relink_thread(self):
         selected_ids = self.get_selected_items()
         if not selected_ids:
-            messagebox.showwarning(
-                "No Selection",
-                "Please select at least one program to analyze.",
-                parent=self,
-            )
+            messagebox.showwarning("No Selection", "Please select at least one program to analyze.", parent=self)
             return
-        threading.Thread(
-            target=self.analyze_and_relink_batch, args=(selected_ids,), daemon=True
-        ).start()
+        threading.Thread(target=self.analyze_and_relink_batch, args=(selected_ids,), daemon=True).start()
 
     def run_rebuild_thread(self):
         selected_ids = self.get_selected_items()
         if not selected_ids:
-            messagebox.showwarning(
-                "No Selection",
-                "Please select at least one program to rebuild.",
-                parent=self,
-            )
+            messagebox.showwarning("No Selection", "Please select at least one program to rebuild.", parent=self)
             return
-        threading.Thread(
-            target=self.rebuild_batch, args=(selected_ids,), daemon=True
-        ).start()
+        threading.Thread(target=self.rebuild_batch, args=(selected_ids,), daemon=True).start()
 
     def open_sample_editor(self):
         selected_ids = self.get_selected_items()
@@ -2551,7 +2038,7 @@ class InstrumentBuilder:
         created_xpms, created_count, error_count = [], 0, 0
         try:
             self.app.status_text.set("Analyzing files...")
-
+            
             # If files are passed directly (from MultiSampleBuilderWindow), use them.
             # Otherwise, group files from the main folder path.
             if files:
@@ -4051,6 +3538,105 @@ def clean_all_previews(folder_path):
     return deleted_count
 
 
+# REVISED: Greatly improved parsing function for robust rebuilding.
+def _parse_xpm_for_rebuild(xpm_path):
+    """
+    Parses an XPM file (legacy or modern) to extract all necessary info
+    for a complete rebuild, including detailed sample mappings and all
+    instrument and layer parameters.
+    """
+    mappings = []
+    instrument_params = {}
+    xpm_dir = os.path.dirname(xpm_path)
+
+    try:
+        tree = ET.parse(xpm_path)
+        root = tree.getroot()
+    except ET.ParseError as e:
+        logging.error(f"Could not parse XPM for rebuild: {xpm_path}. Error: {e}")
+        return None, None
+
+    # Get program name
+    program_name_elem = root.find(".//ProgramName")
+    if program_name_elem is not None:
+        instrument_params["ProgramName"] = program_name_elem.text
+
+    # Capture all parameters from the first Instrument element to use as a base
+    inst = root.find(".//Instrument")
+    if inst is not None:
+        for child in inst:
+            if len(list(child)) == 0 and child.text is not None:
+                instrument_params[child.tag] = child.text
+
+    # Fallback to legacy XML format as it contains the most detailed layer info
+    logging.info(
+        f"Parsing legacy Instrument/Layer structure for {os.path.basename(xpm_path)}."
+    )
+    for inst_elem in root.findall(".//Instrument"):
+        try:
+            low_note_elem = inst_elem.find("LowNote")
+            high_note_elem = inst_elem.find("HighNote")
+
+            # FIX: Check if essential elements exist before proceeding
+            if low_note_elem is None or high_note_elem is None:
+                logging.warning(
+                    f"Skipping Instrument element in {os.path.basename(xpm_path)} due to missing LowNote/HighNote tags."
+                )
+                continue
+
+            low_note = int(low_note_elem.text)
+            high_note = int(high_note_elem.text)
+
+            for layer in inst_elem.findall(".//Layer"):
+                sample_file_elem = layer.find("SampleFile")
+                root_note_elem = layer.find("RootNote")
+                if sample_file_elem is None or not sample_file_elem.text:
+                    continue
+
+                abs_path = os.path.normpath(
+                    os.path.join(xpm_dir, sample_file_elem.text)
+                )
+
+                # NEW: Extract all desired layer parameters
+                layer_params = {}
+                for param_name in LAYER_PARAMS_TO_PRESERVE:
+                    elem = layer.find(param_name)
+                    if elem is not None and elem.text is not None:
+                        layer_params[param_name] = elem.text
+
+                mappings.append(
+                    {
+                        "sample_path": abs_path,
+                        "root_note": (
+                            int(root_note_elem.text)
+                            if root_note_elem is not None and root_note_elem.text
+                            else 60
+                        ),
+                        "low_note": low_note,
+                        "high_note": high_note,
+                        "velocity_low": int(layer_params.get("VelStart", 0)),
+                        "velocity_high": int(layer_params.get("VelEnd", 127)),
+                        "layer_params": layer_params,  # Store all preserved params
+                    }
+                )
+        except (AttributeError, ValueError, TypeError) as e:
+            logging.warning(
+                f"Skipping malformed Instrument element in {os.path.basename(xpm_path)}: {e}"
+            )
+            continue
+
+    if not mappings:
+        logging.warning(
+            f"No valid sample mappings could be parsed from {os.path.basename(xpm_path)}"
+        )
+        return None, None  # Explicitly return None on failure
+
+    logging.info(
+        f"Successfully parsed {len(mappings)} samples from {os.path.basename(xpm_path)}"
+    )
+    return mappings, instrument_params
+
+
 def batch_edit_programs(folder_path, params):
     """
     Batch rebuilds XPM files, converting legacy to advanced if specified,
@@ -4147,8 +3733,6 @@ def batch_edit_programs(folder_path, params):
                     if params.get("fix_notes") and fix_sample_notes(
                         root, os.path.dirname(path)
                     ):
-                        post_change = True
-                    if fix_master_transpose(root, os.path.dirname(path)):
                         post_change = True
                     if "keytrack" in params and set_layer_keytrack(
                         root, params["keytrack"]
