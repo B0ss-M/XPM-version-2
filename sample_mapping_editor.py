@@ -8,8 +8,10 @@ from xpm_parameter_editor import (
     extract_root_note_from_wav,
     infer_note_from_filename,
     name_to_midi,
+    fix_sample_notes,
+    fix_master_transpose,
 )
-from batch_program_editor import build_program_pads_json
+from batch_program_editor import build_program_pads_json, indent_tree
 from firmware_profiles import fw_program_parameters, get_pad_settings
 from xml.sax.saxutils import escape as xml_escape
 import json
@@ -63,17 +65,23 @@ class SampleMappingEditorWindow(tk.Toplevel):
         self.tree.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
 
+        self.canvas = tk.Canvas(frame, height=30)
+        self.canvas.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(5, 0))
+        frame.grid_rowconfigure(1, weight=0)
+
         btn_frame = ttk.Frame(self)
         btn_frame.pack(fill='x', pady=5)
         ttk.Button(btn_frame, text='Add Samples...', command=self.add_samples).pack(side='left')
         ttk.Button(btn_frame, text='Remove Selected', command=self.remove_selected).pack(side='left', padx=5)
         ttk.Button(btn_frame, text='Set Root Note...', command=self.set_root_note).pack(side='left')
+        ttk.Button(btn_frame, text='Refresh/Fix Notes', command=self.fix_notes).pack(side='right', padx=(0, 5))
         ttk.Button(btn_frame, text='Rebuild Program', command=self.rebuild).pack(side='right')
 
     def refresh_tree(self):
         self.tree.delete(*self.tree.get_children())
         for m in self.mappings:
             self.tree.insert('', 'end', values=(os.path.basename(m['sample_path']), midi_to_name(m['root_note'])))
+        self.draw_keyboard()
 
     def add_samples(self):
         paths = filedialog.askopenfilenames(parent=self, filetypes=[('Audio', '*.wav *.aif *.aiff *.flac *.mp3 *.ogg *.m4a')])
@@ -184,3 +192,42 @@ class SampleMappingEditorWindow(tk.Toplevel):
         tree.write(output_path, encoding='utf-8', xml_declaration=True)
         messagebox.showinfo('Rebuild Complete', f'Created {output_path}', parent=self)
         self.destroy()
+
+    def fix_notes(self):
+        """Refresh mappings by correcting note metadata in the source XPM."""
+        try:
+            tree = ET.parse(self.xpm_path)
+            root = tree.getroot()
+        except ET.ParseError as exc:
+            messagebox.showerror(
+                "Parse Error",
+                f"Failed to parse program:\n{exc}",
+                parent=self,
+            )
+            return
+
+        folder = os.path.dirname(self.xpm_path)
+        changed = False
+        if fix_sample_notes(root, folder) or fix_master_transpose(root, folder):
+            changed = True
+            indent_tree(tree)
+            tree.write(self.xpm_path, encoding="utf-8", xml_declaration=True)
+
+        if changed:
+            self.mappings, self.params = _parse_xpm_for_rebuild(self.xpm_path)
+        self.refresh_tree()
+
+    def draw_keyboard(self):
+        """Visualize note ranges for all mappings."""
+        self.canvas.delete("all")
+        width = max(self.canvas.winfo_width(), 512)
+        height = int(self.canvas.cget("height"))
+        note_width = width / 128.0
+        for i in range(128):
+            x0 = i * note_width
+            x1 = x0 + note_width
+            self.canvas.create_rectangle(x0, 0, x1, height, outline="gray", fill="white")
+        for m in self.mappings:
+            x0 = m.get("low_note", 0) * note_width
+            x1 = (m.get("high_note", 0) + 1) * note_width
+            self.canvas.create_rectangle(x0, 0, x1, height, outline="", fill="#7ec8e3")

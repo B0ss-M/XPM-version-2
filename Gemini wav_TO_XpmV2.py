@@ -3372,6 +3372,11 @@ class App(tk.Tk):
             text="Batch Program Fixer...",
             command=lambda: self.open_window(BatchProgramFixerWindow),
         ).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+        ttk.Button(
+            frame,
+            text="Sample Mapping Editor...",
+            command=self.open_sample_mapping_editor,
+        ).grid(row=2, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
 
     def create_quick_edits_frame(self, parent):
         frame = ttk.LabelFrame(parent, text="Quick Edits", padding="10")
@@ -3520,6 +3525,17 @@ class App(tk.Tk):
 
     def open_smart_split_window(self):
         self.open_window(SmartSplitWindow)
+
+    def open_sample_mapping_editor(self):
+        path = filedialog.askopenfilename(
+            parent=self.root,
+            title="Select XPM Program",
+            filetypes=[("XPM Files", "*.xpm")],
+            initialdir=self.last_browse_path,
+        )
+        if path:
+            self.last_browse_path = os.path.dirname(path)
+            self.open_window(SampleMappingEditorWindow, path)
 
     def open_creative_config(self):
         self.open_window(CreativeModeConfigWindow, self.creative_mode_var.get())
