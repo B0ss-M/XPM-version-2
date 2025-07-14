@@ -47,9 +47,14 @@ Additional documentation can be found in the [docs/](docs/) directory, including
    The package list includes **soundfile** and **numpy** which are required for automatic pitch detection.
 2. Launch the GUI:
    ```bash
-    python "Gemini wav_TO_XpmV2.py"
-    ```
+   python "Gemini wav_TO_XpmV2.py"
+   ```
    The filename contains a space after `Gemini`, so quoting the command is required.
+
+   **macOS Python Version Warning:** Recent builds of Python 3.13 on macOS ship
+   with an unstable Tkinter framework that can crash when running this
+   application. If you encounter a sudden "NSInvalidArgumentException" at
+   startup, install Python 3.12 or earlier and run the script again.
 
 ## Development Notes
 
