@@ -81,6 +81,7 @@ class SampleMappingEditorWindow(tk.Toplevel):
         ttk.Button(btn_frame, text='Add Samples...', command=self.add_samples).pack(side='left')
         ttk.Button(btn_frame, text='Remove Selected', command=self.remove_selected).pack(side='left', padx=5)
         ttk.Button(btn_frame, text='Set Root Note...', command=self.set_root_note).pack(side='left')
+        ttk.Button(btn_frame, text='Detect Root Notes', command=self.detect_root_notes).pack(side='left', padx=(5, 0))
         ttk.Button(btn_frame, text='Refresh/Fix Notes', command=self.fix_notes).pack(side='right', padx=(0, 5))
         ttk.Button(btn_frame, text='Rebuild Program', command=self.rebuild).pack(side='right')
 
@@ -140,6 +141,20 @@ class SampleMappingEditorWindow(tk.Toplevel):
         self.mappings[idx]['low_note'] = midi
         self.mappings[idx]['high_note'] = midi
         self.refresh_tree()
+
+    def detect_root_notes(self):
+        """Auto-detect root notes for selected mappings."""
+        items = self.tree.selection()
+        if not items:
+            items = self.tree.get_children()
+        for item in items:
+            idx = self.tree.index(item)
+            midi = detect_pitch(self.mappings[idx]['sample_path'])
+            self.mappings[idx]['root_note'] = midi
+            self.mappings[idx]['low_note'] = midi
+            self.mappings[idx]['high_note'] = midi
+        if items:
+            self.refresh_tree()
 
     def rebuild(self):
         """Write a corrected XPM and keep the original as ``.bak``."""
