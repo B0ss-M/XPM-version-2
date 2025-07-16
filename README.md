@@ -12,13 +12,9 @@ Additional documentation can be found in the [docs/](docs/) directory, including
   This functionality is also accessible from the GUI via **Batch Program Editor...** under Advanced Tools.
   The editor includes drop-downs for **Application Version** and engine **Format**, a
   checkbox for fixing sample note mappings, and a **Browse...** button for selecting a Mod Matrix JSON file.
-  The matrix file should be a `.json` list where each entry contains a `Num` value and the desired
-  parameters for that modulation slot.
-  parameters for that modulation slot. The command-line version exposes the same options via
-  `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments. The `--verify-map` option can also rebuild programs when extra WAV files are found, assigning them to new keygroups based on their filenames.
+  The matrix file should be a `.json` list where each entry contains a `Num` value and the desired parameters for that modulation slot. The command-line version exposes the same options via `--format`, `--mod-matrix`, and the new `--fix-notes` flag for repairing sample note assignments. The `--verify-map` option can also rebuild programs when extra WAV files are found, assigning them to new keygroups based on their filenames.
 - `fix_xpm_notes.py` – standalone utility to repair root note mappings and automatically adjust the global transpose when a consistent offset is detected. Use `--update-wav` to also write the detected notes back into each WAV file.
-
-
+- `sample_mapping_checker.py` – GUI tool for inspecting a program's sample mappings. It can auto-correct root notes and adjust the master transpose so the program plays in tune on the MPC.
 ### New in this update
 - Batch Program Fixer rebuild option now includes firmware and format selectors. You
   can rebuild programs into legacy (v2) or advanced (v3) formats while preserving

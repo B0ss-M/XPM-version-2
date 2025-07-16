@@ -47,6 +47,7 @@ try:
     from drumkit_grouping import group_similar_files
     from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
     from sample_mapping_editor import SampleMappingEditorWindow
+    from sample_mapping_checker import SampleMappingCheckerWindow
     from firmware_profiles import (
         get_pad_settings,
         get_program_parameters as fw_program_parameters,
@@ -59,6 +60,7 @@ except ImportError as e:
     MISSING_MODULE = str(e)
     # Ensure optional classes are defined to avoid NameError later
     SampleMappingEditorWindow = None
+    SampleMappingCheckerWindow = None
     MultiSampleBuilderWindow = None
 from xpm_utils import (
     LAYER_PARAMS_TO_PRESERVE,
@@ -3374,6 +3376,13 @@ class App(tk.Tk):
             text="Batch Program Fixer...",
             command=lambda: self.open_window(BatchProgramFixerWindow),
         ).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+        ttk.Button(
+            frame,
+            text="Sample Mapping Checker...",
+            command=lambda: self.open_window(SampleMappingCheckerWindow),
+        ).grid(row=2, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+
+    def create_quick_edits_frame(self, parent):
         frame = ttk.LabelFrame(parent, text="Quick Edits", padding="10")
         frame.grid(row=4, column=0, sticky="ew", pady=5)
         frame.grid_columnconfigure(0, weight=1)
@@ -3492,6 +3501,7 @@ class App(tk.Tk):
             ExpansionBuilderWindow,
             BatchProgramFixerWindow,
             globals().get("SampleMappingEditorWindow"),
+            globals().get("SampleMappingCheckerWindow"),
             CreativeModeConfigWindow,  # Added missing class here
         ]
         if window_class not in folder_independent_windows and (
