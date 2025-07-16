@@ -891,7 +891,7 @@ class ExpansionBuilderWindow(tk.Toplevel):
         path = filedialog.askopenfilename(
             parent=self,
             title="Select Image",
-            filetypes=[("Image Files", "*.jpg *.jpeg *.png")],
+            filetypes=[("Image Files", ("*.jpg", "*.jpeg", "*.png"))],
         )
         if path:
             self.image_var.set(path)
@@ -1664,7 +1664,7 @@ class BatchProgramEditorWindow(tk.Toplevel):
         path = filedialog.askopenfilename(
             parent=self,
             title="Select Mod Matrix JSON",
-            filetypes=[("JSON Files", "*.json"), ("All Files", "*")],
+            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
             initialdir=self.master.last_browse_path,
         )
         if path:

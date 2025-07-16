@@ -80,7 +80,10 @@ class SampleMappingCheckerWindow(tk.Toplevel):
     def open_program(self):
         path = filedialog.askopenfilename(
             parent=self,
-            filetypes=[('XPM Files', '*.xpm'), ('Backup XPM', '*.bak *.bak.xpm *.xpm.bak')],
+            filetypes=[
+                ('XPM Files', '*.xpm'),
+                ('Backup XPM', ('*.bak', '*.bak.xpm', '*.xpm.bak')),
+            ],
         )
         if not path:
             return
