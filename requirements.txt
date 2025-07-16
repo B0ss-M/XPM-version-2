@@ -1,19 +1,7 @@
-# Required packages for XPM-version-2
-# Ensure your Python distribution includes Tkinter support.
+# Required for image processing (keyboard background)
+Pillow
 
-# Image processing
-Pillow>=10.0.0
-
-# Audio processing
-numpy>=1.24.0
-soundfile>=0.12.0
-librosa>=0.10.0
-scipy>=1.10.0
-
-# XML processing
-lxml>=4.9.0
-
-# Development tools (optional)
-pytest>=7.0.0  # For running tests
-black>=22.0.0  # For code formatting
-tkinterdnd2>=0.4.3  # For drag-and-drop support
+# Required for audio analysis (pitch detection)
+numpy
+scipy
+librosa
