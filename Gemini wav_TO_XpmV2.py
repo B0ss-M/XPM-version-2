@@ -3374,6 +3374,8 @@ class App(tk.Tk):
             text="Batch Program Fixer...",
             command=lambda: self.open_window(BatchProgramFixerWindow),
         ).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+
+    def create_quick_edits_frame(self, parent):
         frame = ttk.LabelFrame(parent, text="Quick Edits", padding="10")
         frame.grid(row=4, column=0, sticky="ew", pady=5)
         frame.grid_columnconfigure(0, weight=1)
