@@ -76,7 +76,10 @@ class SampleMappingEditorWindow(tk.Toplevel):
             self.tree.insert('', 'end', values=(os.path.basename(m['sample_path']), midi_to_name(m['root_note'])))
 
     def add_samples(self):
-        paths = filedialog.askopenfilenames(parent=self, filetypes=[('Audio', '*.wav *.aif *.aiff *.flac *.mp3 *.ogg *.m4a')])
+        paths = filedialog.askopenfilenames(
+            parent=self,
+            filetypes=[('Audio', ('*.wav', '*.aif', '*.aiff', '*.flac', '*.mp3', '*.ogg', '*.m4a'))]
+        )
         for path in paths:
             if not path:
                 continue
