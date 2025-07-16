@@ -3374,13 +3374,6 @@ class App(tk.Tk):
             text="Batch Program Fixer...",
             command=lambda: self.open_window(BatchProgramFixerWindow),
         ).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
-        ttk.Button(
-            frame,
-            text="Sample Mapping Editor...",
-            command=self.open_sample_mapping_editor,
-        ).grid(row=2, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
-
-    def create_quick_edits_frame(self, parent):
         frame = ttk.LabelFrame(parent, text="Quick Edits", padding="10")
         frame.grid(row=4, column=0, sticky="ew", pady=5)
         frame.grid_columnconfigure(0, weight=1)
@@ -3534,27 +3527,6 @@ class App(tk.Tk):
 
     def open_smart_split_window(self):
         self.open_window(SmartSplitWindow)
-
-    def open_sample_mapping_editor(self):
-        if globals().get("SampleMappingEditorWindow") is None:
-            messagebox.showerror(
-                "Missing Dependency",
-                f"Sample Mapping Editor is unavailable. Missing module: {MISSING_MODULE}",
-                parent=self.root,
-            )
-            return
-        path = filedialog.askopenfilename(
-            parent=self.root,
-            title="Select XPM Program",
-            filetypes=[
-                ("XPM Files", "*.xpm"),
-                ("Backup XPM", "*.bak *.bak.xpm *.xpm.bak"),
-            ],
-            initialdir=self.last_browse_path,
-        )
-        if path:
-            self.last_browse_path = os.path.dirname(path)
-            self.open_window(globals().get("SampleMappingEditorWindow"), path)
 
     def open_creative_config(self):
         self.open_window(CreativeModeConfigWindow, self.creative_mode_var.get())
