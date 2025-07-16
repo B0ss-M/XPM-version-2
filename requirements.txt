@@ -1,7 +1,4 @@
-# Required for image processing (keyboard background)
 Pillow
-
-# Required for audio analysis (pitch detection)
 numpy
 scipy
 librosa
