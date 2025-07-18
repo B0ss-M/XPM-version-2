@@ -3558,7 +3558,7 @@ class App(tk.Tk):
         else:
             self.creative_config_btn.config(state="disabled")
 
-    # REVISED: Corrected window opening logic
+    # REVISED: Corrected window opening logic with improved SampleMappingChecker support
     def open_window(self, window_class, *args):
         if window_class is None:
             messagebox.showerror(
@@ -3567,13 +3567,18 @@ class App(tk.Tk):
                 parent=self.root,
             )
             return
+            
+        # Define windows that can be opened without a source folder
         folder_independent_windows = [
             ExpansionBuilderWindow,
             BatchProgramFixerWindow,
-            globals().get("SampleMappingEditorWindow"),
-            globals().get("SampleMappingCheckerWindow"),
             CreativeModeConfigWindow,  # Added missing class here
         ]
+        
+        # Special case for SampleMappingCheckerWindow - we want to pass the folder but not require it
+        if window_class.__name__ == "SampleMappingCheckerWindow":
+            folder_independent_windows.append(window_class)
+            
         if window_class not in folder_independent_windows and (
             not self.folder_path.get() or not os.path.isdir(self.folder_path.get())
         ):
@@ -3581,13 +3586,24 @@ class App(tk.Tk):
                 "Error", "Please select a valid source folder first.", parent=self.root
             )
             return
+            
         try:
+            # Check if window is already open
             for win in self.winfo_children():
                 if isinstance(win, tk.Toplevel) and isinstance(win, window_class):
                     win.focus()
                     return
-            # Simplified logic - no special cases needed now
-            window_class(self, *args)
+                    
+            # Create new window
+            window = window_class(self, *args)
+            
+            # Special handling for Sample Mapping Checker - make sure it loads the folder
+            if window_class.__name__ == "SampleMappingCheckerWindow" and hasattr(window, "load_folder"):
+                folder = self.folder_path.get()
+                if folder and os.path.isdir(folder):
+                    logging.info(f"Loading folder {folder} in Sample Mapping Checker")
+                    window.load_folder(folder)
+                    
         except Exception as e:
             logging.error(
                 f"Error opening {window_class.__name__}: {e}\n{traceback.format_exc()}"

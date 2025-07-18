@@ -173,29 +173,44 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         total_diff = 0
         valid_diffs = 0
         
-        for m in self.mappings:
-            detected = detect_pitch(m['sample_path'])
-            xpm_root = int(m['root_note'])
-            diff = ''
+        if not self.mappings:
+            logging.warning("No mappings found to refresh tree")
+            return
             
-            if detected is not None:
-                diff_val = detected - xpm_root
-                diff = f'{diff_val:+d}'
-                if abs(diff_val) > 0:  # Only count non-zero differences
-                    total_diff += diff_val
-                    valid_diffs += 1
-                detected = midi_to_name(detected)
-            else:
-                detected = 'N/A'
-            
-            # Add item to tree and store mapping index for editing
-            item = self.tree.insert('', 'end', values=(
-                os.path.basename(m['sample_path']), 
-                midi_to_name(xpm_root), 
-                detected, 
-                diff
-            ))
-            self.tree.set(item, 'index', str(self.mappings.index(m)))
+        logging.info(f"Refreshing tree with {len(self.mappings)} mappings")
+        
+        for i, m in enumerate(self.mappings):
+            try:
+                sample_path = m['sample_path']
+                if not os.path.exists(sample_path):
+                    logging.warning(f"Sample file not found: {sample_path}")
+                    continue
+                    
+                xpm_root = int(m['root_note'])
+                detected = detect_pitch(sample_path)
+                diff = ''
+                
+                if detected is not None:
+                    diff_val = detected - xpm_root
+                    diff = f'{diff_val:+d}'
+                    if abs(diff_val) > 0:  # Only count non-zero differences
+                        total_diff += diff_val
+                        valid_diffs += 1
+                    detected = midi_to_name(detected)
+                else:
+                    detected = 'N/A'
+                
+                # Add item to tree and store mapping index for editing
+                item = self.tree.insert('', 'end', values=(
+                    os.path.basename(sample_path), 
+                    midi_to_name(xpm_root), 
+                    detected, 
+                    diff
+                ))
+                self.tree.set(item, 'index', str(i))
+            except Exception as e:
+                logging.error(f"Error processing mapping {i}: {e}")
+                continue
         
         # Calculate suggested transpose if there's a consistent offset
         if valid_diffs > 0 and valid_diffs == len(self.mappings):
@@ -309,42 +324,52 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         """Load XPM files from the specified folder and subfolders"""
         try:
             if not os.path.isdir(folder_path):
+                logging.warning(f"Invalid folder path: {folder_path}")
                 return
             
             self.folder = folder_path
-            self.folder_label.config(text=os.path.basename(folder_path))
+            folder_name = os.path.basename(folder_path) or folder_path
+            self.folder_label.config(text=folder_name)
+            logging.info(f"Loading XPM files from: {folder_path}")
             
             # Find all XPM files in the folder and subfolders
             xpm_files = []
+            
+            # First, check for XPM files directly in the specified folder
+            for file in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, file)
+                if os.path.isfile(file_path) and file.lower().endswith('.xpm'):
+                    xpm_files.append(file)
+            
+            # Then, look for XPM files in subfolders
             for root, dirs, files in os.walk(folder_path):
-                # Skip hidden directories (starting with .)
-                dirs[:] = [d for d in dirs if not d.startswith('.')]
-                
-                for file in files:
-                    # Skip hidden and system files
-                    if file.startswith('.') or file.startswith('_'):
-                        continue
+                # Skip the top-level folder since we already processed it
+                if root == folder_path:
+                    continue
                     
+                # Process files in this subfolder
+                for file in files:
                     # Only include .xpm files (case insensitive)
                     if file.lower().endswith('.xpm'):
                         # Get relative path for better display
                         rel_path = os.path.relpath(os.path.join(root, file), folder_path)
-                        if os.path.sep in rel_path:
-                            # Show subfolder/file.xpm format
-                            display_name = rel_path
-                        else:
-                            # Show just filename if in root folder
-                            display_name = file
-                        xpm_files.append(display_name)
+                        xpm_files.append(rel_path)
+                        
+            logging.info(f"Found {len(xpm_files)} XPM files in {folder_path}")
                         
             # Update the XPM list
             self.xpm_list.delete(0, tk.END)
             for xpm in sorted(xpm_files, key=lambda x: x.lstrip('.')):
                 self.xpm_list.insert(tk.END, xpm)
             
+            # Update selection count label
+            self.selection_label.config(text=f"{len(xpm_files)} XPM files found")
+            
             if xpm_files:
                 self.xpm_list.select_set(0)
                 self.analyze_program(os.path.join(folder_path, xpm_files[0]))
+            else:
+                logging.info(f"No XPM files found in {folder_path}")
                 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load folder: {e}", parent=self)
@@ -371,15 +396,17 @@ class SampleMappingCheckerWindow(tk.Toplevel):
                 full_path = os.path.join(self.folder, path)
                 
             if not full_path or not os.path.exists(full_path):
+                logging.warning(f"XPM file not found: {full_path}")
                 return
                 
             self.xpm_path = full_path
             
             try:
-                self.tree_xml = ET.parse(path)
+                self.tree_xml = ET.parse(full_path)  # Use full_path here, not path
+                logging.info(f"Successfully parsed XPM: {os.path.basename(full_path)}")
             except ET.ParseError as exc:
                 messagebox.showerror('Parse Error', 
-                    f'Failed to parse {os.path.basename(path)}:\n{exc}', 
+                    f'Failed to parse {os.path.basename(full_path)}:\n{exc}', 
                     parent=self)
                 return
             
@@ -393,14 +420,26 @@ class SampleMappingCheckerWindow(tk.Toplevel):
 
     def refresh_folder(self):
         """Refresh the current folder to check for new XPM files"""
-        if hasattr(self.master, 'folder_path'):
-            folder = self.master.folder_path.get()
-            if folder and os.path.isdir(folder):
-                self.load_folder(folder)
-                return
+        folder = None
         
-        if self.folder and os.path.isdir(self.folder):
-            self.load_folder(self.folder)
+        # First try to get folder path from master
+        if hasattr(self.master, 'folder_path'):
+            if hasattr(self.master.folder_path, 'get'):  # Check if it's a StringVar
+                folder = self.master.folder_path.get()
+            else:
+                folder = self.master.folder_path
+                
+        # If master doesn't have a valid folder, use our own
+        if not folder or not os.path.isdir(folder):
+            folder = self.folder
+            
+        # Finally, load the folder if it's valid
+        if folder and os.path.isdir(folder):
+            logging.info(f"Refreshing folder: {folder}")
+            self.load_folder(folder)
+        else:
+            logging.warning("No valid folder to refresh")
+            messagebox.showinfo("No Folder", "No valid folder selected to refresh.", parent=self)
 
     def on_double_click(self, event):
         """Handle double-click on a tree item to edit root note"""
