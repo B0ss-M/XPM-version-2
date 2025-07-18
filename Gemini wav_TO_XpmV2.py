@@ -3119,7 +3119,58 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.root = self
+        
         if not IMPORTS_SUCCESSFUL:
+            self.withdraw()
+            messagebox.showerror(
+                "Missing Dependencies",
+                f"A required file could not be found:\n\n{MISSING_MODULE}\n\nPlease make sure all script files are in the same directory.",
+            )
+            sys.exit(1)
+
+        self.firmware_version = tk.StringVar(value="3.5.0")
+        self.title(f"Wav to XPM Converter v{APP_VERSION}")
+        self.geometry("850x750")
+        self.minsize(700, 600)
+
+        self.creative_config = {}
+        self.last_browse_path = os.path.expanduser("~")  # Remember last path
+
+        self.setup_retro_theme()
+
+        main_frame = ttk.Frame(self, padding="10", style="Retro.TFrame")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_rowconfigure(6, weight=1)  # Adjusted for new row
+        main_frame.grid_columnconfigure(0, weight=1)
+
+        self.create_browser_bar(main_frame)
+        self.create_advanced_options_frame(main_frame)
+        self.create_action_buttons(main_frame)
+        self.create_advanced_tools(main_frame)
+        self.create_quick_edits_frame(main_frame)  # New frame
+        self.create_batch_tools(main_frame)
+        self.create_log_viewer(main_frame)
+        self.create_status_bar(main_frame)
+
+        self.setup_logging()
+
+    def _safe_file_dialog(self, dialog_type='folder', **kwargs):
+        """Safely handle file dialogs to prevent macOS NSInvalidArgumentException"""
+        try:
+            if dialog_type == 'folder':
+                # Ensure we have an initial directory
+                kwargs.setdefault('initialdir', os.path.expanduser("~"))
+                # Ensure we have a parent
+                kwargs.setdefault('parent', self)
+                result = filedialog.askdirectory(**kwargs)
+            else:
+                result = None
+                
+            # Never return None
+            return result if result else ""
+        except Exception as e:
+            print(f"File dialog error: {e}")
+            return ""
             self.withdraw()
             messagebox.showerror(
                 "Missing Dependencies",
@@ -3470,14 +3521,33 @@ class App(tk.Tk):
 
     # <editor-fold desc="GUI Event Handlers & Window Openers">
     def browse_folder(self):
-        folder = filedialog.askdirectory(
-            parent=self.root,
-            title="Select Sample Folder",
-            initialdir=self.last_browse_path,
-        )
-        if folder:
-            self.folder_path.set(folder)
-            self.last_browse_path = folder
+        try:
+            initial_dir = getattr(self, 'last_browse_path', None)
+            if not initial_dir or not os.path.exists(initial_dir):
+                initial_dir = os.path.expanduser("~")
+            
+            folder = self._safe_file_dialog(
+                'folder',
+                title="Select Sample Folder",
+                initialdir=initial_dir,
+                mustexist=True
+            )
+            
+            if folder and os.path.exists(folder):
+                self.folder_path.set(folder)
+                self.last_browse_path = folder
+                logging.info(f"Selected folder: {folder}")
+        except Exception as e:
+            logging.error(f"Error in folder browse dialog: {e}")
+            # Fallback to basic dialog if the advanced one fails
+            folder = filedialog.askdirectory(
+                parent=self,
+                title="Select Sample Folder"
+            )
+            if folder and os.path.exists(folder):
+                self.folder_path.set(folder)
+                self.last_browse_path = folder
+                logging.info(f"Selected folder (fallback): {folder}")
             logging.info(f"Selected folder: {folder}")
 
     def on_creative_mode_change(self, event=None):

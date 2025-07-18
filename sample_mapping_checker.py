@@ -77,9 +77,31 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         ttk.Label(bottom, textvariable=self.transpose_var).pack(side='right', padx=5)
         ttk.Label(bottom, text='Master Transpose:').pack(side='right')
 
+    def _safe_file_dialog(self, dialog_type='open', **kwargs):
+        """Safely handle file dialogs to prevent macOS NSInvalidArgumentException"""
+        try:
+            # Ensure we have a parent
+            kwargs.setdefault('parent', self)
+            # Set initial directory if not specified
+            if 'initialdir' not in kwargs:
+                kwargs['initialdir'] = os.path.expanduser("~")
+
+            if dialog_type == 'open':
+                result = filedialog.askopenfilename(**kwargs)
+            elif dialog_type == 'save':
+                result = filedialog.asksaveasfilename(**kwargs)
+            else:
+                result = None
+
+            # Never return None
+            return result if result else ""
+        except Exception as e:
+            print(f"File dialog error: {e}")
+            return ""
+
     def open_program(self):
-        path = filedialog.askopenfilename(
-            parent=self,
+        path = self._safe_file_dialog(
+            'open',
             filetypes=[
                 ('XPM Files', '*.xpm'),
                 ('Backup XPM', '*.bak *.xpm.bak *.bak.xpm'),
@@ -143,8 +165,8 @@ class SampleMappingCheckerWindow(tk.Toplevel):
     def save_program(self):
         if not self.tree_xml or not self.xpm_path:
             return
-        out_path = filedialog.asksaveasfilename(
-            parent=self,
+        out_path = self._safe_file_dialog(
+            'save',
             defaultextension='.xpm',
             filetypes=[('XPM Files', '*.xpm')],
             initialfile=os.path.basename(self.xpm_path),

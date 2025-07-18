@@ -75,14 +75,38 @@ class SampleMappingEditorWindow(tk.Toplevel):
         for m in self.mappings:
             self.tree.insert('', 'end', values=(os.path.basename(m['sample_path']), midi_to_name(m['root_note'])))
 
+    def _safe_file_dialog(self, dialog_type='open', **kwargs):
+        """Safely handle file dialogs to prevent macOS NSInvalidArgumentException"""
+        try:
+            # Ensure we have a parent
+            kwargs.setdefault('parent', self)
+            # Set initial directory if not specified
+            if 'initialdir' not in kwargs:
+                kwargs['initialdir'] = os.path.expanduser("~")
+
+            if dialog_type == 'open':
+                result = filedialog.askopenfilenames(**kwargs)
+            elif dialog_type == 'save':
+                result = filedialog.asksaveasfilename(**kwargs)
+            else:
+                result = None
+
+            # Never return None
+            if dialog_type == 'open':
+                return result if result else ()
+            else:
+                return result if result else ""
+        except Exception as e:
+            print(f"File dialog error: {e}")
+            return () if dialog_type == 'open' else ""
+
     def add_samples(self):
         """Add additional audio files to the mapping list."""
         # Create a single, space-separated string of wildcard patterns
         # from the ``AUDIO_EXTS`` tuple for macOS compatibility.
         audio_patterns = " ".join([f"*{ext}" for ext in AUDIO_EXTS])
 
-        paths = filedialog.askopenfilenames(
-            parent=self,
+        paths = self._safe_file_dialog(
             title="Select Audio Files",
             filetypes=[
                 ('Audio Files', audio_patterns),
