@@ -208,10 +208,60 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             if hidden_count > 0:
                 logging.info(f"Filtered out {hidden_count} hidden sample files")
                 
+        # Process each mapping to detect pitches
+        processed_mappings = []
+        for idx, m in enumerate(self.mappings):
+            sample_path = m.get('sample_path', '')
+            sample_name = os.path.basename(sample_path)
+            root_note = m.get('root_note', 60)
+            
+            # Only process files that exist
+            if os.path.exists(sample_path):
+                detected = detect_pitch(sample_path)
+                if detected is None:
+                    detected = root_note  # Use root note if detection fails
+                
+                # Calculate difference
+                diff = detected - root_note
+                
+                processed_mappings.append({
+                    'sample_path': sample_path,
+                    'sample': sample_name,
+                    'root_note': root_note,
+                    'detected': detected,
+                    'diff': diff,
+                    'index': idx
+                })
+        
+        self.mappings = processed_mappings
+        self.suggested_transpose = self._calculate_suggested_transpose()
+                
         trans = params.get('KeygroupMasterTranspose', '0') if params else '0'
         self.transpose_var.set(str(trans))
         self.refresh_tree()
 
+    def _calculate_suggested_transpose(self):
+        """Calculate the suggested master transpose value based on the average difference"""
+        if not self.mappings:
+            return 0
+            
+        # Get all diff values
+        diffs = [m.get('diff', 0) for m in self.mappings]
+        
+        # If no diffs, return 0
+        if not diffs:
+            return 0
+            
+        # Calculate the most common diff value (mode)
+        from collections import Counter
+        counts = Counter(diffs)
+        most_common = counts.most_common(1)
+        if most_common:
+            return most_common[0][0]
+        
+        # Fallback to average if no mode
+        return round(sum(diffs) / len(diffs))
+    
     def batch_manual_correction(self):
         """Open a dialog for batch manual correction of detected pitches"""
         if not self.mappings:
@@ -257,10 +307,10 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         # Add rows for each sample
         row = 1
         for idx, mapping in enumerate(self.mappings):
-            if 'path' not in mapping:
+            if 'sample_path' not in mapping:
                 continue
                 
-            sample_path = mapping['path']
+            sample_path = mapping['sample_path']
             if not os.path.exists(sample_path):  # Skip missing samples
                 continue
                 
@@ -365,11 +415,11 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             
         # Add mappings back
         for mapping in self.mappings:
-            if 'path' not in mapping:
+            if 'sample_path' not in mapping:
                 continue
             
             # Skip hidden files
-            if is_hidden_file(mapping['path']):
+            if is_hidden_file(mapping['sample_path']):
                 continue
                 
             self.tree.insert('', 'end', values=(
@@ -733,7 +783,7 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             
         item = selected[0]
         idx = int(self.tree.set(item, 'index'))
-        sample_path = self.mappings[idx]['path']
+        sample_path = self.mappings[idx]['sample_path']
         
         if not os.path.exists(sample_path):
             messagebox.showerror("File Not Found", f"Sample file not found:\n{sample_path}", parent=self)

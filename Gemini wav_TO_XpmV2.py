@@ -3603,7 +3603,8 @@ class App(tk.Tk):
                 if folder and os.path.isdir(folder):
                     logging.info(f"Loading folder {folder} in Sample Mapping Checker")
                     # Ensure the window is fully created before loading the folder
-                    self.root.after(100, lambda: window.load_folder(folder))
+                    # Use a delay to allow the window to initialize properly
+                    self.root.after(200, lambda f=folder: window.load_folder(f))
                     
         except Exception as e:
             logging.error(
