@@ -219,9 +219,9 @@ def infer_note_from_filename(filename: str) -> Optional[int]:
 
     Enhanced version to handle various filename formats:
     - Standard note patterns: A3, C#4, G-2
-    - Underscore-separated: file_c2.wav, piano_D4.wav
-    - No separator: fileC3.wav, pianoD4.wav
-    - Various letter cases: c2, C2, etc.
+    - Underscore-separated: file_c2.wav, piano_D4.wav, sample_g#2.wav
+    - No separator: fileC3.wav, pianoD4.wav, pianoG#3.wav
+    - Various letter cases: c2, C2, g#2, G#2, etc.
     - MIDI numbers: file-60.wav
     
     Returns the last valid note found or None if no note is detected.
@@ -231,17 +231,20 @@ def infer_note_from_filename(filename: str) -> Optional[int]:
     
     # Pattern 1: Standard note patterns like A3, C#4, etc.
     note_matches = re.findall(
-        r"(?<![A-Za-z])([A-G][#b]?-?\d{1,2})(?![A-Za-z0-9])", base, re.IGNORECASE
+        r"(?<![A-Za-z])([A-Ga-g][#b]?-?\d{1,2})(?![A-Za-z0-9])", base, re.IGNORECASE
     )
     
-    # Pattern 2: Notes at the end after underscore: file_c2, piano_D4
+    # Pattern 2: Notes at the end after underscore: file_c2.wav, piano_D4.wav, sample_g#2.wav
     underscore_matches = re.findall(r"_([A-Ga-g][#b]?\d{1,2})$", base, re.IGNORECASE)
     
-    # Pattern 3: Notes at the end with no separator: fileC3, pianoD4
+    # Pattern 3: Notes at the end with no separator: fileC3.wav, pianoD4.wav, sampleg#2.wav
     end_note_matches = re.findall(r"([A-Ga-g][#b]?\d{1,2})$", base, re.IGNORECASE)
     
-    # Pattern 4: Notes in the middle after underscore: file_c2_xxx
+    # Pattern 4: Notes in the middle after underscore: file_c2_xxx, sample_g#2_stereo
     middle_underscore_matches = re.findall(r"_([A-Ga-g][#b]?\d{1,2})(?=_)", base, re.IGNORECASE)
+    
+    # Pattern 5: Explicit sharp/flat notation with possible separators
+    sharp_matches = re.findall(r"([A-Ga-g])[_-]?(?:sharp|#)[_-]?(\d{1,2})", base, re.IGNORECASE)
     
     # Combine all note matches
     all_note_matches = note_matches + underscore_matches + end_note_matches + middle_underscore_matches
