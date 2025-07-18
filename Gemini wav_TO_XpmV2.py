@@ -891,7 +891,7 @@ class ExpansionBuilderWindow(tk.Toplevel):
         path = filedialog.askopenfilename(
             parent=self,
             title="Select Image",
-            filetypes=[("Image Files", ("*.jpg", "*.jpeg", "*.png"))],
+            filetypes=[("Image Files", "*.jpg *.jpeg *.png")],
         )
         if path:
             self.image_var.set(path)
