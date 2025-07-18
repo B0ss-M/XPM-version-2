@@ -45,6 +45,81 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         self.master = master
         self.title('Sample Mapping Checker')
         self.geometry('640x400')
+        self.create_widgets()
+
+    def load_folder(self, folder_path):
+        """Load XPM files from the specified folder and subfolders"""
+        try:
+            if not os.path.isdir(folder_path):
+                return
+            
+            self.folder = folder_path
+            self.folder_label.config(text=os.path.basename(folder_path))
+            
+            # Find all XPM files in the folder and subfolders
+            xpm_files = []
+            for root, dirs, files in os.walk(folder_path):
+                # Skip hidden directories (starting with .)
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+                
+                for file in files:
+                    # Skip hidden and system files
+                    if file.startswith('.') or file.startswith('_'):
+                        continue
+                    
+                    # Only include .xpm files (case insensitive)
+                    if file.lower().endswith('.xpm'):
+                        # Get relative path for better display
+                        rel_path = os.path.relpath(os.path.join(root, file), folder_path)
+                        if os.path.sep in rel_path:
+                            # Show subfolder/file.xpm format
+                            display_name = rel_path
+                        else:
+                            # Show just filename if in root folder
+                            display_name = file
+                        xpm_files.append(display_name)
+                        
+            # Update the XPM list
+            self.xpm_list.delete(0, tk.END)
+            for xpm in sorted(xpm_files, key=lambda x: x.lstrip('.')):
+                self.xpm_list.insert(tk.END, xpm)
+            
+            if xpm_files:
+                self.xpm_list.select_set(0)
+                self.analyze_program(os.path.join(folder_path, xpm_files[0]))
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load folder: {e}", parent=self)
+            logging.error(f"Failed to load folder {folder_path}: {e}")
+            
+    def on_xpm_select(self, event):
+        """Handle XPM file selection from the list"""
+        selection = self.xpm_list.curselection()
+        if not selection:
+            return
+            
+        # Get the selected file (might be a relative path)
+        xpm_path = self.xpm_list.get(selection[0])
+        if self.folder and xpm_path:
+            self.analyze_program(xpm_path)
+    extract_root_note_from_wav,
+    infer_note_from_filename,
+    fix_sample_notes,
+    fix_master_transpose,
+    name_to_midi,
+)
+
+    def __init__(self, master):
+
+
+class SampleMappingCheckerWindow(tk.Toplevel):
+    """Inspect and correct sample mappings in an XPM program."""
+
+    def __init__(self, master):
+        super().__init__(master.root if hasattr(master, 'root') else master)
+        self.master = master
+        self.title('Sample Mapping Checker')
+        self.geometry('640x400')
         self.xpm_path = None
         self.tree_xml = None
         self.folder = None
@@ -58,6 +133,32 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             folder = master.folder_path.get()
             if folder and os.path.isdir(folder):
                 self.load_folder(folder)
+        
+    def _safe_file_dialog(self, dialog_type='open', **kwargs):
+        """Safely handle file dialogs to prevent macOS NSInvalidArgumentException"""
+        try:
+            # Ensure we have a parent
+            kwargs.setdefault('parent', self)
+            # Set initial directory if not specified
+            if 'initialdir' not in kwargs:
+                kwargs['initialdir'] = getattr(self, 'last_path', os.path.expanduser("~"))
+
+            if dialog_type == 'open':
+                result = filedialog.askopenfilename(**kwargs)
+            elif dialog_type == 'save':
+                result = filedialog.asksaveasfilename(**kwargs)
+            else:
+                result = None
+
+            # Store the last used directory
+            if result:
+                self.last_path = os.path.dirname(result)
+            
+            # Never return None
+            return result if result else ""
+        except Exception as e:
+            print(f"File dialog error: {e}")
+            return ""
 
     def create_widgets(self):
         # Top frame for folder info and XPM list
@@ -131,6 +232,130 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         ttk.Label(bottom, textvariable=self.transpose_var).pack(side='right', padx=5)
         ttk.Label(bottom, text='Master Transpose:').pack(side='right')
 
+    def load_folder(self, folder_path):
+        """Load XPM files from the specified folder"""
+        try:
+            if not os.path.isdir(folder_path):
+                return
+            
+            self.folder = folder_path
+            self.folder_label.config(text=os.path.basename(folder_path))
+            
+            # Find all XPM files in the folder, including hidden files
+            xpm_files = []
+            for file in os.listdir(folder_path):
+                # Remove any leading dots from the name for comparison
+                clean_name = file.lstrip('.')
+                if clean_name.lower().endswith('.xpm'):
+                    xpm_files.append(file)
+            
+            # Update the XPM list
+            self.xpm_list.delete(0, tk.END)
+            for xpm in sorted(xpm_files, key=lambda x: x.lstrip('.')):
+                self.xpm_list.insert(tk.END, xpm)
+            
+            if xpm_files:
+                self.xpm_list.select_set(0)
+                self.analyze_program(os.path.join(folder_path, xpm_files[0]))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load folder: {e}", parent=self)
+            logging.error(f"Failed to load folder {folder_path}: {e}")
+
+    def refresh_folder(self):
+        """Refresh the current folder to check for new XPM files"""
+        if hasattr(self.master, 'folder_path'):
+            folder = self.master.folder_path.get()
+            if folder and os.path.isdir(folder):
+                self.load_folder(folder)
+                return
+        
+        if self.folder and os.path.isdir(self.folder):
+            self.load_folder(self.folder)
+            
+    def on_double_click(self, event):
+        """Handle double-click on a tree item to edit root note"""
+        item = self.tree.identify('item', event.x, event.y)
+        if not item:
+            return
+            
+        # Get the current mapping index and root note
+        idx = int(self.tree.set(item, 'index'))
+        current = self.mappings[idx]['root_note']
+        current_name = midi_to_name(current)
+        
+        # Ask for new root note
+        res = simpledialog.askstring(
+            'Edit Root Note', 
+            'Enter new root note (e.g., C3 or 60):\nUse note names (C3) or MIDI numbers (60)',
+            parent=self,
+            initialvalue=current_name
+        )
+        if not res:
+            return
+            
+        # Convert input to MIDI note number
+        try:
+            if res.isdigit():
+                midi = int(res)
+                if not 0 <= midi <= 127:
+                    raise ValueError("MIDI note must be between 0 and 127")
+            else:
+                midi = name_to_midi(res)
+                if midi is None:
+                    raise ValueError("Invalid note name")
+                    
+            # Update mapping and refresh display
+            self.mappings[idx]['root_note'] = midi
+            self.mappings[idx]['low_note'] = midi
+            self.mappings[idx]['high_note'] = midi
+            self.tree_xml.dirty = True  # Mark as modified
+            self.refresh_tree()
+            
+        except Exception as e:
+            messagebox.showerror('Invalid Note', str(e), parent=self)
+
+    def on_xpm_select(self, event):
+        """Handle XPM file selection from the list"""
+        selection = self.xpm_list.curselection()
+        if not selection:
+            return
+            
+        xpm_name = self.xpm_list.get(selection[0])
+        if self.folder and xpm_name:
+            xpm_path = os.path.join(self.folder, xpm_name)
+            self.analyze_program(xpm_path)
+
+    def analyze_program(self, path):
+        """Analyze an XPM file and display its sample mappings"""
+        try:
+            # Handle both relative and absolute paths
+            if os.path.isabs(path):
+                full_path = path
+            else:
+                full_path = os.path.join(self.folder, path)
+                
+            if not full_path or not os.path.exists(full_path):
+                return
+                
+            self.xpm_path = full_path
+            
+            try:
+                self.tree_xml = ET.parse(path)
+            except ET.ParseError as exc:
+                messagebox.showerror('Parse Error', 
+                    f'Failed to parse {os.path.basename(path)}:\n{exc}', 
+                    parent=self)
+                return
+            
+            self.load_mappings()
+        except Exception as e:
+            messagebox.showerror('Error', 
+                f'Failed to analyze program {os.path.basename(path)}:\n{e}', 
+                parent=self)
+            logging.error(f"Failed to analyze program {path}: {e}")
+            return
+
     def _safe_file_dialog(self, dialog_type='open', **kwargs):
         """Safely handle file dialogs to prevent macOS NSInvalidArgumentException"""
         try:
@@ -138,7 +363,7 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             kwargs.setdefault('parent', self)
             # Set initial directory if not specified
             if 'initialdir' not in kwargs:
-                kwargs['initialdir'] = getattr(self, 'last_path', os.path.expanduser("~"))
+                kwargs['initialdir'] = os.path.expanduser("~")
 
             if dialog_type == 'open':
                 result = filedialog.askopenfilename(**kwargs)
@@ -305,141 +530,3 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         self.tree_xml.write(out_path, encoding='utf-8', xml_declaration=True)
         messagebox.showinfo('Saved', f'Saved corrected program to\n{out_path}', parent=self)
 
-    def load_folder(self, folder_path):
-        """Load XPM files from the specified folder and subfolders"""
-        try:
-            if not os.path.isdir(folder_path):
-                return
-            
-            self.folder = folder_path
-            self.folder_label.config(text=os.path.basename(folder_path))
-            
-            # Find all XPM files in the folder and subfolders
-            xpm_files = []
-            for root, dirs, files in os.walk(folder_path):
-                # Skip hidden directories (starting with .)
-                dirs[:] = [d for d in dirs if not d.startswith('.')]
-                
-                for file in files:
-                    # Skip hidden and system files
-                    if file.startswith('.') or file.startswith('_'):
-                        continue
-                    
-                    # Only include .xpm files (case insensitive)
-                    if file.lower().endswith('.xpm'):
-                        # Get relative path for better display
-                        rel_path = os.path.relpath(os.path.join(root, file), folder_path)
-                        if os.path.sep in rel_path:
-                            # Show subfolder/file.xpm format
-                            display_name = rel_path
-                        else:
-                            # Show just filename if in root folder
-                            display_name = file
-                        xpm_files.append(display_name)
-                        
-            # Update the XPM list
-            self.xpm_list.delete(0, tk.END)
-            for xpm in sorted(xpm_files, key=lambda x: x.lstrip('.')):
-                self.xpm_list.insert(tk.END, xpm)
-            
-            if xpm_files:
-                self.xpm_list.select_set(0)
-                self.analyze_program(os.path.join(folder_path, xpm_files[0]))
-                
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load folder: {e}", parent=self)
-            logging.error(f"Failed to load folder {folder_path}: {e}")
-
-    def on_xpm_select(self, event):
-        """Handle XPM file selection from the list"""
-        selection = self.xpm_list.curselection()
-        if not selection:
-            return
-            
-        # Get the selected file (might be a relative path)
-        xpm_path = self.xpm_list.get(selection[0])
-        if self.folder and xpm_path:
-            self.analyze_program(os.path.join(self.folder, xpm_path))
-
-    def analyze_program(self, path):
-        """Analyze an XPM file and display its sample mappings"""
-        try:
-            # Handle both relative and absolute paths
-            if os.path.isabs(path):
-                full_path = path
-            else:
-                full_path = os.path.join(self.folder, path)
-                
-            if not full_path or not os.path.exists(full_path):
-                return
-                
-            self.xpm_path = full_path
-            
-            try:
-                self.tree_xml = ET.parse(path)
-            except ET.ParseError as exc:
-                messagebox.showerror('Parse Error', 
-                    f'Failed to parse {os.path.basename(path)}:\n{exc}', 
-                    parent=self)
-                return
-            
-            self.load_mappings()
-        except Exception as e:
-            messagebox.showerror('Error', 
-                f'Failed to analyze program {os.path.basename(path)}:\n{e}', 
-                parent=self)
-            logging.error(f"Failed to analyze program {path}: {e}")
-            return
-
-    def refresh_folder(self):
-        """Refresh the current folder to check for new XPM files"""
-        if hasattr(self.master, 'folder_path'):
-            folder = self.master.folder_path.get()
-            if folder and os.path.isdir(folder):
-                self.load_folder(folder)
-                return
-        
-        if self.folder and os.path.isdir(self.folder):
-            self.load_folder(self.folder)
-
-    def on_double_click(self, event):
-        """Handle double-click on a tree item to edit root note"""
-        item = self.tree.identify('item', event.x, event.y)
-        if not item:
-            return
-            
-        # Get the current mapping index and root note
-        idx = int(self.tree.set(item, 'index'))
-        current = self.mappings[idx]['root_note']
-        current_name = midi_to_name(current)
-        
-        # Ask for new root note
-        res = simpledialog.askstring(
-            'Edit Root Note', 
-            'Enter new root note (e.g., C3 or 60):\nUse note names (C3) or MIDI numbers (60)',
-            parent=self,
-            initialvalue=current_name
-        )
-        if not res:
-            return
-            
-        # Convert input to MIDI note number
-        try:
-            if res.isdigit():
-                midi = int(res)
-                if not 0 <= midi <= 127:
-                    raise ValueError("MIDI note must be between 0 and 127")
-            else:
-                midi = name_to_midi(res)
-                if midi is None:
-                    raise ValueError("Invalid note name")
-                    
-            # Update mapping and refresh display
-            self.mappings[idx]['root_note'] = midi
-            self.mappings[idx]['low_note'] = midi
-            self.mappings[idx]['high_note'] = midi
-            self.tree_xml.dirty = True  # Mark as modified
-            self.refresh_tree()
-            
-        except Exception as e:
-            messagebox.showerror('Invalid Note', str(e), parent=self)
