@@ -151,6 +151,7 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         self.context_menu.add_command(label="Override Detected Pitch", command=self.override_detected_pitch)
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Play Sample", command=self.play_selected_sample)
+        self.context_menu.add_command(label="Stop Audio", command=self.stop_audio)
         
         # Bind right-click to show context menu
         self.tree.bind("<Button-3>", self.show_context_menu)
@@ -274,6 +275,11 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         correction_window.geometry("800x500")
         correction_window.transient(self)  # Make it modal
         
+        # Ensure audio stops when window is closed
+        correction_window.protocol("WM_DELETE_WINDOW", 
+                                 lambda: [self._stop_audio(correction_window), 
+                                          correction_window.destroy()])
+        
         # Create a frame with scrollable area
         main_frame = ttk.Frame(correction_window)
         main_frame.pack(fill='both', expand=True, padx=10, pady=10)
@@ -338,14 +344,27 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             entry.grid(row=row, column=3, padx=5, pady=2)
             manual_entries[idx] = entry_var
             
+            # Play/audio control frame
+            audio_frame = ttk.Frame(scrollable_frame)
+            audio_frame.grid(row=row, column=4, padx=5, pady=2)
+            
             # Play button
             play_btn = ttk.Button(
-                scrollable_frame, 
+                audio_frame, 
                 text="▶",
                 width=3,
                 command=lambda path=sample_path: self._play_audio(path, correction_window)
             )
-            play_btn.grid(row=row, column=4, padx=5, pady=2)
+            play_btn.pack(side='left', padx=(0,2))
+            
+            # Stop button (individual for each row)
+            stop_btn = ttk.Button(
+                audio_frame, 
+                text="■",
+                width=3,
+                command=lambda: self._stop_audio(correction_window)
+            )
+            stop_btn.pack(side='left')
             
             row += 1
         
@@ -382,6 +401,13 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             self.refresh_tree()
             correction_window.destroy()
         
+        # Add a global stop button
+        ttk.Button(
+            btn_frame, 
+            text="Stop Audio", 
+            command=lambda: self._stop_audio(correction_window)
+        ).pack(side="left", padx=5)
+        
         ttk.Button(btn_frame, text="Apply Changes", command=apply_changes).pack(side="right", padx=5)
         ttk.Button(btn_frame, text="Cancel", command=correction_window.destroy).pack(side="right", padx=5)
     
@@ -402,10 +428,30 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             pygame.mixer.init()
             pygame.mixer.music.load(file_path)
             pygame.mixer.music.play()
+            
+            # Create or show the stop button if it doesn't exist yet
+            if not hasattr(parent_window, 'stop_button'):
+                parent_window.stop_button = ttk.Button(
+                    parent_window, 
+                    text="Stop Audio", 
+                    command=lambda: self._stop_audio(parent_window)
+                )
+                parent_window.stop_button.pack(side='left', padx=5, pady=5, before=parent_window.winfo_children()[0])
+            else:
+                parent_window.stop_button.pack(side='left', padx=5, pady=5)
+                
         except Exception as e:
             messagebox.showerror("Playback Error", 
                                 f"Couldn't play the sample: {e}\n\nMake sure the file is valid.",
                                 parent=parent_window)
+    
+    def _stop_audio(self, parent_window):
+        """Stop audio playback"""
+        if PYGAME_AVAILABLE and pygame.mixer.get_init():
+            pygame.mixer.music.stop()
+            # Hide the stop button
+            if hasattr(parent_window, 'stop_button'):
+                parent_window.stop_button.pack_forget()
     
     def refresh_tree(self):
         """Refresh the tree view display"""
@@ -800,9 +846,28 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             pygame.mixer.init()
             pygame.mixer.music.load(sample_path)
             pygame.mixer.music.play()
+            
+            # Show the stop button if it exists, or create it if it doesn't
+            if not hasattr(self, 'audio_stop_btn'):
+                # Create a stop button
+                self.audio_stop_btn = ttk.Button(self, text="Stop Audio", command=self.stop_audio)
+                self.audio_stop_btn.pack(side='bottom', pady=5, before=self.winfo_children()[-1])
+            else:
+                # Make sure the button is visible
+                self.audio_stop_btn.pack(side='bottom', pady=5, before=self.winfo_children()[-1])
+                
         except Exception as e:
             messagebox.showerror("Playback Error", 
                                f"Couldn't play the sample: {e}\n\nMake sure the file is valid.")
+    
+    def stop_audio(self):
+        """Stop audio playback"""
+        if PYGAME_AVAILABLE and pygame.mixer.get_init():
+            pygame.mixer.music.stop()
+            
+            # Hide the stop button
+            if hasattr(self, 'audio_stop_btn'):
+                self.audio_stop_btn.pack_forget()
     
     def on_double_click(self, event):
         """Handle double-click on a tree item to edit root note"""

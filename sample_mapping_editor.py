@@ -27,13 +27,21 @@ AUDIO_EXTS = ('.wav', '.aif', '.aiff', '.flac', '.mp3', '.ogg', '.m4a')
 
 
 def detect_pitch(path: str) -> int:
-    midi = extract_root_note_from_wav(path)
+    # First try to detect from filename - this is often more reliable for properly named files
+    midi = infer_note_from_filename(path)
+    
+    # If filename detection fails, try to extract from embedded WAV metadata
+    if midi is None:
+        midi = extract_root_note_from_wav(path)
+        
+    # If metadata extraction fails, use audio analysis
     if midi is None:
         midi = detect_fundamental_pitch(path)
-    if midi is None:
-        midi = infer_note_from_filename(path)
+        
+    # Default to middle C if all detection methods fail
     if midi is None:
         midi = 60
+        
     return midi
 
 
@@ -53,27 +61,51 @@ class SampleMappingEditorWindow(tk.Toplevel):
         frame.pack(fill='both', expand=True)
         frame.grid_rowconfigure(0, weight=1)
         frame.grid_columnconfigure(0, weight=1)
-        self.tree = ttk.Treeview(frame, columns=('sample', 'note'), show='headings', selectmode='extended')
+        
+        # Enhanced treeview with detection method column
+        self.tree = ttk.Treeview(frame, columns=('sample', 'note', 'method'), show='headings', selectmode='extended')
         self.tree.heading('sample', text='Sample File')
-        self.tree.heading('note', text='Root')
-        self.tree.column('sample', width=400)
+        self.tree.heading('note', text='Root Note')
+        self.tree.heading('method', text='Detection Method')
+        self.tree.column('sample', width=350)
         self.tree.column('note', width=80, anchor='center')
+        self.tree.column('method', width=120)
+        
         vsb = ttk.Scrollbar(frame, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
 
+        # Control buttons
         btn_frame = ttk.Frame(self)
         btn_frame.pack(fill='x', pady=5)
         ttk.Button(btn_frame, text='Add Samples...', command=self.add_samples).pack(side='left')
         ttk.Button(btn_frame, text='Remove Selected', command=self.remove_selected).pack(side='left', padx=5)
         ttk.Button(btn_frame, text='Set Root Note...', command=self.set_root_note).pack(side='left')
+        ttk.Button(btn_frame, text='Batch Detect Notes', command=self.batch_detect_notes).pack(side='left', padx=5)
         ttk.Button(btn_frame, text='Rebuild Program', command=self.rebuild).pack(side='right')
 
     def refresh_tree(self):
         self.tree.delete(*self.tree.get_children())
         for m in self.mappings:
-            self.tree.insert('', 'end', values=(os.path.basename(m['sample_path']), midi_to_name(m['root_note'])))
+            # Get detection method if available, otherwise show "unknown"
+            method = m.get('detection_method', 'unknown')
+            
+            # Format method display to be more user-friendly
+            if method == 'filename':
+                method_display = 'Filename'
+            elif method == 'audio analysis':
+                method_display = 'Audio Analysis'
+            elif method == 'default':
+                method_display = 'Default (C3)'
+            else:
+                method_display = 'Unknown'
+                
+            self.tree.insert('', 'end', values=(
+                os.path.basename(m['sample_path']), 
+                midi_to_name(m['root_note']),
+                method_display
+            ))
 
     def _safe_file_dialog(self, dialog_type='open', **kwargs):
         """Safely handle file dialogs to prevent macOS NSInvalidArgumentException"""
@@ -113,11 +145,38 @@ class SampleMappingEditorWindow(tk.Toplevel):
                 ('All Files', '*.*'),
             ],
         )
-
+        
+        if not paths:
+            return
+            
+        detection_summary = {
+            "total": 0,
+            "detected": 0,
+            "default": 0
+        }
+        
         for path in paths:
             if not path:
                 continue
-            midi = detect_pitch(path)
+                
+            detection_summary["total"] += 1
+            
+            # Try to get note from filename first
+            filename_midi = infer_note_from_filename(path)
+            if filename_midi is not None:
+                midi = filename_midi
+                detection_summary["detected"] += 1
+                detection_method = "filename"
+            else:
+                # Try other methods if filename detection fails
+                midi = detect_pitch(path)
+                if midi == 60 and not extract_root_note_from_wav(path) and not detect_fundamental_pitch(path):
+                    detection_summary["default"] += 1
+                    detection_method = "default"
+                else:
+                    detection_summary["detected"] += 1
+                    detection_method = "audio analysis"
+                    
             self.mappings.append({
                 'sample_path': path,
                 'root_note': midi,
@@ -125,9 +184,18 @@ class SampleMappingEditorWindow(tk.Toplevel):
                 'high_note': midi,
                 'velocity_low': 0,
                 'velocity_high': 127,
+                'detection_method': detection_method
             })
-        if paths:
+            
+        # Show detection summary to the user
+        if detection_summary["total"] > 0:
             self.refresh_tree()
+            msg = f"Added {detection_summary['total']} samples:\n"
+            msg += f"- {detection_summary['detected']} with detected root notes\n"
+            if detection_summary["default"] > 0:
+                msg += f"- {detection_summary['default']} assigned to default note (C3/60)\n"
+            msg += "\nCheck the tree view and adjust root notes if needed."
+            messagebox.showinfo("Sample Detection Results", msg, parent=self)
         
     def remove_selected(self):
         to_remove = []
@@ -161,7 +229,70 @@ class SampleMappingEditorWindow(tk.Toplevel):
         self.mappings[idx]['root_note'] = midi
         self.mappings[idx]['low_note'] = midi
         self.mappings[idx]['high_note'] = midi
+        self.mappings[idx]['detection_method'] = 'manual'
         self.refresh_tree()
+        
+    def batch_detect_notes(self):
+        """Re-analyze all samples to detect root notes from filenames."""
+        if not self.mappings:
+            messagebox.showinfo("No Samples", "No samples to analyze", parent=self)
+            return
+            
+        if not messagebox.askyesno("Confirm Detection", 
+                                 "This will attempt to detect root notes from filenames for all samples.\n\n"
+                                 "Any manually set notes will be overwritten. Continue?", 
+                                 parent=self):
+            return
+            
+        detection_stats = {
+            "total": 0,
+            "filename": 0,
+            "audio": 0,
+            "default": 0
+        }
+        
+        for idx, m in enumerate(self.mappings):
+            detection_stats["total"] += 1
+            sample_path = m['sample_path']
+            
+            # First try filename detection
+            filename_midi = infer_note_from_filename(sample_path)
+            if filename_midi is not None:
+                self.mappings[idx]['root_note'] = filename_midi
+                self.mappings[idx]['low_note'] = filename_midi
+                self.mappings[idx]['high_note'] = filename_midi
+                self.mappings[idx]['detection_method'] = 'filename'
+                detection_stats["filename"] += 1
+                continue
+                
+            # Try audio detection if filename fails
+            audio_midi = extract_root_note_from_wav(sample_path)
+            if audio_midi is None:
+                audio_midi = detect_fundamental_pitch(sample_path)
+                
+            if audio_midi is not None:
+                self.mappings[idx]['root_note'] = audio_midi
+                self.mappings[idx]['low_note'] = audio_midi
+                self.mappings[idx]['high_note'] = audio_midi
+                self.mappings[idx]['detection_method'] = 'audio analysis'
+                detection_stats["audio"] += 1
+            else:
+                # Use default C3 if all detection fails
+                self.mappings[idx]['root_note'] = 60
+                self.mappings[idx]['low_note'] = 60
+                self.mappings[idx]['high_note'] = 60
+                self.mappings[idx]['detection_method'] = 'default'
+                detection_stats["default"] += 1
+                
+        self.refresh_tree()
+        
+        # Show results
+        msg = f"Detection Results ({detection_stats['total']} samples):\n\n"
+        msg += f"- {detection_stats['filename']} detected from filenames\n"
+        msg += f"- {detection_stats['audio']} detected from audio analysis\n"
+        msg += f"- {detection_stats['default']} set to default (C3/60)\n\n"
+        msg += "Review the results and make manual adjustments if needed."
+        messagebox.showinfo("Note Detection Complete", msg, parent=self)
 
     def rebuild(self):
         program_name = os.path.splitext(os.path.basename(self.xpm_path))[0]

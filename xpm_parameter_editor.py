@@ -161,12 +161,23 @@ def set_engine_mode(root: ET.Element, mode: str) -> bool:
 
 
 def name_to_midi(note_name: str) -> Optional[int]:
-    """Convert a note name such as ``C#4`` to a MIDI note number."""
+    """Convert a note name such as ``C#4`` to a MIDI note number.
+    
+    Enhanced to handle:
+    - Uppercase and lowercase notes (C4, c4)
+    - Both sharp (#) and flat (b) notation
+    - Handles notes without separators (C4)
+    - Supports negative octaves (C-1)
+    """
 
     if not note_name:
         return None
 
     note_name = note_name.strip().upper()
+    
+    # Replace 'b' with 'B' for flats to standardize
+    note_name = note_name.replace('b', 'B')
+    
     note_map = {
         "C": 0,
         "C#": 1,
@@ -187,12 +198,15 @@ def name_to_midi(note_name: str) -> Optional[int]:
         "B": 11,
     }
 
+    # Extended pattern to capture various formats
     m = re.match(r"^([A-G][#B]?)(-?\d+)$", note_name)
     if not m:
         return None
+        
     note, octave_str = m.groups()
     if note not in note_map:
         return None
+        
     try:
         midi = 12 + note_map[note] + 12 * int(octave_str)
         return midi if 0 <= midi <= 127 else None
@@ -203,28 +217,48 @@ def name_to_midi(note_name: str) -> Optional[int]:
 def infer_note_from_filename(filename: str) -> Optional[int]:
     """Try to infer a MIDI note number from ``filename``.
 
-    The function now scans the entire basename for multiple note tokens like
-    ``A3`` or ``C#4`` and returns the **last** valid note found. This allows
-    patterns such as ``Piano_A3-64.wav`` or ``VNLGF41C2.wav`` to resolve
-    correctly. If no note name is detected, it falls back to the last numeric
-    sequence that looks like a MIDI value (e.g. ``64``).
+    Enhanced version to handle various filename formats:
+    - Standard note patterns: A3, C#4, G-2
+    - Underscore-separated: file_c2.wav, piano_D4.wav
+    - No separator: fileC3.wav, pianoD4.wav
+    - Various letter cases: c2, C2, etc.
+    - MIDI numbers: file-60.wav
+    
+    Returns the last valid note found or None if no note is detected.
     """
 
     base = os.path.splitext(os.path.basename(filename))[0]
-
+    
+    # Pattern 1: Standard note patterns like A3, C#4, etc.
     note_matches = re.findall(
         r"(?<![A-Za-z])([A-G][#b]?-?\d{1,2})(?![A-Za-z0-9])", base, re.IGNORECASE
     )
-    for note in reversed(note_matches):
+    
+    # Pattern 2: Notes at the end after underscore: file_c2, piano_D4
+    underscore_matches = re.findall(r"_([A-Ga-g][#b]?\d{1,2})$", base, re.IGNORECASE)
+    
+    # Pattern 3: Notes at the end with no separator: fileC3, pianoD4
+    end_note_matches = re.findall(r"([A-Ga-g][#b]?\d{1,2})$", base, re.IGNORECASE)
+    
+    # Pattern 4: Notes in the middle after underscore: file_c2_xxx
+    middle_underscore_matches = re.findall(r"_([A-Ga-g][#b]?\d{1,2})(?=_)", base, re.IGNORECASE)
+    
+    # Combine all note matches
+    all_note_matches = note_matches + underscore_matches + end_note_matches + middle_underscore_matches
+    
+    # Try each match in reverse order (prefer end of filename)
+    for note in reversed(all_note_matches):
         midi = name_to_midi(note)
         if midi is not None:
             return midi
 
+    # Fall back to looking for MIDI numbers
     num_matches = re.findall(r"\b(\d{2,3})\b", base)
     if num_matches:
         num = int(num_matches[-1])
         if 0 <= num <= 127:
             return num
+            
     return None
 
 
