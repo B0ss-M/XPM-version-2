@@ -20,6 +20,22 @@ try:
     PYGAME_AVAILABLE = True
 except ImportError:
     PYGAME_AVAILABLE = False
+    
+    
+def is_hidden_file(filepath):
+    """Check if a file is hidden (starts with dot or has hidden attribute)"""
+    name = os.path.basename(filepath)
+    # Check for files starting with a dot
+    if name.startswith('.'):
+        return True
+    # Check for macOS hidden files
+    try:
+        if os.path.exists(filepath) and bool(os.stat(filepath).st_flags & 0x8000):
+            return True
+    except (AttributeError, OSError):
+        # st_flags might not be available on all platforms
+        pass
+    return False
 
 
 NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
@@ -183,6 +199,15 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             messagebox.showerror('Error', f'Unable to read mappings from {os.path.basename(self.xpm_path)}', parent=self)
             self.tree.delete(*self.tree.get_children())
             return
+            
+        # Filter out hidden sample files
+        if self.mappings:
+            orig_count = len(self.mappings)
+            self.mappings = [m for m in self.mappings if not is_hidden_file(m.get('sample_path', ''))]
+            hidden_count = orig_count - len(self.mappings)
+            if hidden_count > 0:
+                logging.info(f"Filtered out {hidden_count} hidden sample files")
+                
         trans = params.get('KeygroupMasterTranspose', '0') if params else '0'
         self.transpose_var.set(str(trans))
         self.refresh_tree()
@@ -342,6 +367,10 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         for mapping in self.mappings:
             if 'path' not in mapping:
                 continue
+            
+            # Skip hidden files
+            if is_hidden_file(mapping['path']):
+                continue
                 
             self.tree.insert('', 'end', values=(
                 mapping['sample'],
@@ -462,6 +491,9 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             # First, check for XPM files directly in the specified folder
             for file in os.listdir(folder_path):
                 file_path = os.path.join(folder_path, file)
+                # Skip hidden files
+                if is_hidden_file(file_path):
+                    continue
                 if os.path.isfile(file_path) and file.lower().endswith('.xpm'):
                     xpm_files.append(file)
             
@@ -471,12 +503,19 @@ class SampleMappingCheckerWindow(tk.Toplevel):
                 if root == folder_path:
                     continue
                     
+                # Skip hidden directories
+                dirs[:] = [d for d in dirs if not is_hidden_file(os.path.join(root, d))]
+                    
                 # Process files in this subfolder
                 for file in files:
+                    file_path = os.path.join(root, file)
+                    # Skip hidden files
+                    if is_hidden_file(file_path):
+                        continue
                     # Only include .xpm files (case insensitive)
                     if file.lower().endswith('.xpm'):
                         # Get relative path for better display
-                        rel_path = os.path.relpath(os.path.join(root, file), folder_path)
+                        rel_path = os.path.relpath(file_path, folder_path)
                         xpm_files.append(rel_path)
                         
             logging.info(f"Found {len(xpm_files)} XPM files in {folder_path}")
