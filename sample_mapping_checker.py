@@ -95,14 +95,30 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         self.folder_label = ttk.Label(top_frame, text="No folder selected")
         self.folder_label.pack(side='left', padx=5)
         
-        # XPM List frame
+        # XPM List frame with scrollbar
         xpm_frame = ttk.LabelFrame(self, text="XPM Files", padding=5)
         xpm_frame.pack(fill='x', padx=5, pady=(0,5))
         
-        # XPM Listbox
-        self.xpm_list = tk.Listbox(xpm_frame, height=3)
-        self.xpm_list.pack(fill='x', padx=5, pady=5)
+        # Create a frame to hold listbox and scrollbar
+        list_frame = ttk.Frame(xpm_frame)
+        list_frame.pack(fill='x', padx=5, pady=5)
+        list_frame.grid_columnconfigure(0, weight=1)  # Make listbox expand horizontally
+        
+        # XPM Listbox with scrollbar
+        self.xpm_list = tk.Listbox(list_frame, height=6)  # Increased height to show more files
+        self.xpm_list.grid(row=0, column=0, sticky='ew')
         self.xpm_list.bind('<<ListboxSelect>>', self.on_xpm_select)
+        
+        # Add vertical scrollbar
+        xpm_scrollbar = ttk.Scrollbar(list_frame, orient='vertical', 
+                                     command=self.xpm_list.yview,
+                                     style='Vertical.TScrollbar')
+        xpm_scrollbar.grid(row=0, column=1, sticky='ns')
+        self.xpm_list.configure(yscrollcommand=xpm_scrollbar.set)
+        
+        # Add selection count label
+        self.selection_label = ttk.Label(xpm_frame, text="0 XPM files found")
+        self.selection_label.pack(fill='x', padx=5, pady=(0,5))
         
         # Main frame for sample analysis
         frame = ttk.Frame(self, padding=10)
@@ -150,15 +166,17 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             self.folder = folder_path
             self.folder_label.config(text=os.path.basename(folder_path))
             
-            # Find all XPM files in the folder
+            # Find all XPM files in the folder, including hidden files
             xpm_files = []
             for file in os.listdir(folder_path):
-                if file.lower().endswith('.xpm'):
+                # Remove any leading dots from the name for comparison
+                clean_name = file.lstrip('.')
+                if clean_name.lower().endswith('.xpm'):
                     xpm_files.append(file)
             
             # Update the XPM list
             self.xpm_list.delete(0, tk.END)
-            for xpm in sorted(xpm_files):
+            for xpm in sorted(xpm_files, key=lambda x: x.lstrip('.')):
                 self.xpm_list.insert(tk.END, xpm)
             
             if xpm_files:
