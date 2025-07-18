@@ -1,4 +1,5 @@
 import os
+import logging
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import xml.etree.ElementTree as ET
@@ -41,7 +42,34 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         self.folder = None
         self.mappings = []
         self.transpose_var = tk.StringVar(value='0')
+        self.last_path = os.path.expanduser("~")
         self.create_widgets()
+        
+    def _safe_file_dialog(self, dialog_type='open', **kwargs):
+        """Safely handle file dialogs to prevent macOS NSInvalidArgumentException"""
+        try:
+            # Ensure we have a parent
+            kwargs.setdefault('parent', self)
+            # Set initial directory if not specified
+            if 'initialdir' not in kwargs:
+                kwargs['initialdir'] = getattr(self, 'last_path', os.path.expanduser("~"))
+
+            if dialog_type == 'open':
+                result = filedialog.askopenfilename(**kwargs)
+            elif dialog_type == 'save':
+                result = filedialog.asksaveasfilename(**kwargs)
+            else:
+                result = None
+
+            # Store the last used directory
+            if result:
+                self.last_path = os.path.dirname(result)
+            
+            # Never return None
+            return result if result else ""
+        except Exception as e:
+            print(f"File dialog error: {e}")
+            return ""
 
     def create_widgets(self):
         frame = ttk.Frame(self, padding=10)
@@ -77,6 +105,51 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         ttk.Label(bottom, textvariable=self.transpose_var).pack(side='right', padx=5)
         ttk.Label(bottom, text='Master Transpose:').pack(side='right')
 
+    def open_program(self):
+        """Open an XPM file and analyze its sample mappings"""
+        try:
+            # If we're called from main window, try to use its folder path
+            initial_dir = None
+            if hasattr(self.master, 'folder_path'):
+                folder = self.master.folder_path.get()
+                if folder and os.path.exists(folder):
+                    initial_dir = folder
+            
+            if not initial_dir:
+                initial_dir = getattr(self, 'last_path', os.path.expanduser("~"))
+            
+            path = self._safe_file_dialog(
+                'open',
+                filetypes=[
+                    ('XPM Files', '*.xpm'),
+                    ('Backup XPM', '*.bak *.xpm.bak *.bak.xpm'),
+                    ('All Files', '*.*'),
+                ],
+                initialdir=initial_dir
+            )
+            if not path:
+                return
+                
+            self.xpm_path = path
+            self.folder = os.path.dirname(path)
+            self.last_path = self.folder
+            
+            try:
+                self.tree_xml = ET.parse(path)
+            except ET.ParseError as exc:
+                messagebox.showerror('Parse Error', 
+                    f'Failed to parse {os.path.basename(path)}:\n{exc}', 
+                    parent=self)
+                return
+            
+            self.load_mappings()
+        except Exception as e:
+            messagebox.showerror('Error', 
+                f'Failed to open program {os.path.basename(path) if path else ""}:\n{e}', 
+                parent=self)
+            logging.error(f"Failed to open program: {e}")
+            return
+
     def _safe_file_dialog(self, dialog_type='open', **kwargs):
         """Safely handle file dialogs to prevent macOS NSInvalidArgumentException"""
         try:
@@ -91,33 +164,17 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             elif dialog_type == 'save':
                 result = filedialog.asksaveasfilename(**kwargs)
             else:
-                result = None
-
+                raise ValueError(f"Unsupported dialog_type: {dialog_type}")
+            
+            # Store the last used directory if a file was selected
+            if result:
+                self.last_path = os.path.dirname(result)
+            
             # Never return None
             return result if result else ""
         except Exception as e:
-            print(f"File dialog error: {e}")
+            logging.error(f"File dialog error: {e}")
             return ""
-
-    def open_program(self):
-        path = self._safe_file_dialog(
-            'open',
-            filetypes=[
-                ('XPM Files', '*.xpm'),
-                ('Backup XPM', '*.bak *.xpm.bak *.bak.xpm'),
-                ('All Files', '*.*'),
-            ],
-        )
-        if not path:
-            return
-        self.xpm_path = path
-        self.folder = os.path.dirname(path)
-        try:
-            self.tree_xml = ET.parse(path)
-        except ET.ParseError as exc:
-            messagebox.showerror('Parse Error', f'Failed to parse:\n{exc}', parent=self)
-            return
-        self.load_mappings()
 
     def load_mappings(self):
         self.mappings, params = _parse_xpm_for_rebuild(self.xpm_path)
