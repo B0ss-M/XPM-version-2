@@ -75,26 +75,36 @@ class SampleMappingEditorWindow(tk.Toplevel):
         for m in self.mappings:
             self.tree.insert('', 'end', values=(os.path.basename(m['sample_path']), midi_to_name(m['root_note'])))
 
-    def add_samples(self):
-        paths = filedialog.askopenfilenames(
-            parent=self,
-            filetypes=[('Audio', ('*.wav', '*.aif', '*.aiff', '*.flac', '*.mp3', '*.ogg', '*.m4a'))]
-        )
-        for path in paths:
-            if not path:
-                continue
-            midi = detect_pitch(path)
-            self.mappings.append({
-                'sample_path': path,
-                'root_note': midi,
-                'low_note': midi,
-                'high_note': midi,
-                'velocity_low': 0,
-                'velocity_high': 127
-            })
-        if paths:
-            self.refresh_tree()
+# sample_mapping_editor.py
 
+def add_samples(self):
+    # Create a single, space-separated string of wildcard patterns from AUDIO_EXTS
+    audio_patterns = " ".join([f"*{ext}" for ext in AUDIO_EXTS])
+    
+    paths = filedialog.askopenfilenames(
+        parent=self,
+        title="Select Audio Files",
+        filetypes=[
+            ('Audio Files', audio_patterns),
+            ('All Files', '*.*')
+        ]
+    )
+    
+    for path in paths:
+        if not path:
+            continue
+        midi = detect_pitch(path)
+        self.mappings.append({
+            'sample_path': path,
+            'root_note': midi,
+            'low_note': midi,
+            'high_note': midi,
+            'velocity_low': 0,
+            'velocity_high': 127
+        })
+    if paths:
+        self.refresh_tree()
+        
     def remove_selected(self):
         to_remove = []
         for item in self.tree.selection():
