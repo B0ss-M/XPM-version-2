@@ -11,7 +11,6 @@ This version combines several state-of-the-art methods from librosa for maximum 
 
 NOTE: Requires the following libraries:
 - librosa (pip install librosa)
-- scipy (pip install scipy)
 """
 
 from __future__ import annotations
@@ -25,7 +24,6 @@ from statistics import mode, median_high
 
 import numpy as np
 import soundfile as sf
-from scipy.stats import gaussian_kde
 
 # Data structure for pitch detection results
 @dataclass
@@ -92,14 +90,17 @@ def detect_fundamental_pitch(path: str) -> Optional[int]:
             voiced_probs = voiced_prob[voiced_flag]
             
             if voiced_f0.size > 0:
-                # Use kernel density estimation for stable pitch
-                kde = gaussian_kde(voiced_f0, weights=voiced_probs)
-                f0_range = np.linspace(voiced_f0.min(), voiced_f0.max(), 100)
-                stable_pitch_hz = f0_range[np.argmax(kde(f0_range))]
+                # Use weighted histogram to find the most stable pitch
+                hist, bins = np.histogram(voiced_f0, bins=100, weights=voiced_probs)
+                bin_centers = (bins[:-1] + bins[1:]) / 2
+                stable_pitch_hz = bin_centers[np.argmax(hist)]
                 
                 midi_note = int(round(librosa.hz_to_midi(stable_pitch_hz)))
                 if 0 <= midi_note <= 127:
-                    confidence = float(np.mean(voiced_probs) * kde(stable_pitch_hz))
+                    # Calculate confidence based on peak prominence and probability
+                    peak_height = np.max(hist)
+                    total_height = np.sum(hist)
+                    confidence = float(np.mean(voiced_probs) * (peak_height / total_height))
                     results.append(PitchResult(midi_note, confidence, 'pyin'))
         except Exception as e:
             logging.warning(f"pYIN detection failed: {e}")
