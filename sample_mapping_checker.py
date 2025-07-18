@@ -82,7 +82,8 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             parent=self,
             filetypes=[
                 ('XPM Files', '*.xpm'),
-                ('Backup XPM', ('*.bak', '*.bak.xpm', '*.xpm.bak')),
+                ('Backup XPM', '*.bak *.xpm.bak *.bak.xpm'),
+                ('All Files', '*.*'),
             ],
         )
         if not path:
