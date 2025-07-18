@@ -113,7 +113,7 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         # Sample analysis tree
         self.tree = ttk.Treeview(
             frame,
-            columns=('sample', 'xpm', 'detected', 'diff'),
+            columns=('sample', 'xpm', 'detected', 'diff', 'index'),
             show='headings',
             selectmode='browse',
         )
@@ -121,6 +121,8 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         self.tree.heading('xpm', text='XPM Root')
         self.tree.heading('detected', text='Detected')
         self.tree.heading('diff', text='Diff')
+        # Hide the index column since it's just for internal use
+        self.tree.column('index', width=0, stretch=False)
         self.tree.column('sample', width=300)
         self.tree.column('xpm', width=80, anchor='center')
         self.tree.column('detected', width=80, anchor='center')
@@ -294,12 +296,20 @@ class SampleMappingCheckerWindow(tk.Toplevel):
     def refresh_tree(self):
         """Update the tree view with current sample mappings and detected pitches"""
         self.tree.delete(*self.tree.get_children())
+        total_diff = 0
+        valid_diffs = 0
+        
         for m in self.mappings:
             detected = detect_pitch(m['sample_path'])
+            xpm_root = int(m['root_note'])
             diff = ''
+            
             if detected is not None:
-                diff_val = detected - int(m['root_note'])
+                diff_val = detected - xpm_root
                 diff = f'{diff_val:+d}'
+                if abs(diff_val) > 0:  # Only count non-zero differences
+                    total_diff += diff_val
+                    valid_diffs += 1
                 detected = midi_to_name(detected)
             else:
                 detected = 'N/A'
@@ -307,34 +317,106 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             # Add item to tree and store mapping index for editing
             item = self.tree.insert('', 'end', values=(
                 os.path.basename(m['sample_path']), 
-                midi_to_name(int(m['root_note'])), 
+                midi_to_name(xpm_root), 
                 detected, 
                 diff
             ))
             self.tree.set(item, 'index', str(self.mappings.index(m)))
-            
+        
+        # Calculate suggested transpose if there's a consistent offset
+        if valid_diffs > 0 and valid_diffs == len(self.mappings):
+            avg_diff = total_diff / valid_diffs
+            if abs(avg_diff - round(avg_diff)) < 0.1:  # Check if it's close to a whole number
+                self.suggested_transpose = -int(round(avg_diff))  # Negate because we want to correct the difference
+                if self.suggested_transpose != 0:
+                    messagebox.showinfo('Transpose Suggestion', 
+                        f'All samples appear to be {abs(self.suggested_transpose)} semitones ' +
+                        ('sharp' if self.suggested_transpose < 0 else 'flat') +
+                        '.\nUse Auto Fix Transpose to correct this.',
+                        parent=self)
+        
         # Bind double-click to edit root note
         self.tree.bind('<Double-1>', self.on_double_click)
 
     def auto_fix_notes(self):
+        """Fix sample mapping by updating individual root notes"""
         if not self.tree_xml:
             return
-        changed = fix_sample_notes(self.tree_xml.getroot(), self.folder)
-        if changed:
+            
+        if not messagebox.askyesno('Confirm Fix',
+            'This will update the root note of each sample based on its detected pitch.\n'
+            'All other parameters (loop points, tuning, etc.) will be preserved.\n\n'
+            'Do you want to proceed? You can use Save As... to create a new file.',
+            parent=self):
+            return
+        
+        root = self.tree_xml.getroot()
+        changes = 0
+        
+        # Process each sample and preserve its settings
+        for m in self.mappings:
+            detected = detect_pitch(m['sample_path'])
+            if detected is None:
+                continue
+                
+            current = int(m['root_note'])
+            if detected != current:
+                changes += 1
+                m['root_note'] = detected
+                m['low_note'] = detected
+                m['high_note'] = detected
+                
+                # Update the XML tree while preserving all other settings
+                for layer in root.findall('.//Layer'):
+                    if layer.findtext('SampleFile') == m['sample_path']:
+                        root_note = layer.find('RootNote')
+                        if root_note is not None:
+                            root_note.text = str(detected)
+                            
+        if changes > 0:
             self.load_mappings()
-            messagebox.showinfo('Done', 'Sample notes updated from audio metadata.', parent=self)
+            messagebox.showinfo('Success', 
+                f'Updated root notes for {changes} samples.\n'
+                'Use Save As... to save your changes.',
+                parent=self)
         else:
-            messagebox.showinfo('No Change', 'No updates were necessary.', parent=self)
+            messagebox.showinfo('No Change', 
+                'No updates were necessary - all samples appear to be correctly mapped.',
+                parent=self)
 
     def auto_fix_transpose(self):
+        """Fix sample mapping by adjusting the master transpose value"""
         if not self.tree_xml:
             return
-        changed = fix_master_transpose(self.tree_xml.getroot(), self.folder)
-        if changed:
-            self.load_mappings()
-            messagebox.showinfo('Done', 'Master transpose adjusted.', parent=self)
-        else:
-            messagebox.showinfo('No Change', 'No adjustment needed.', parent=self)
+            
+        if not hasattr(self, 'suggested_transpose') or self.suggested_transpose is None:
+            messagebox.showinfo('No Action Needed', 
+                'No consistent transposition offset detected.\n'
+                'Try using Auto Fix Notes instead.', 
+                parent=self)
+            return
+            
+        if not messagebox.askyesno('Confirm Fix',
+            f'This will adjust the master transpose by {self.suggested_transpose:+d} semitones.\n\n'
+            'Do you want to proceed? You can use Save As... to create a new file.',
+            parent=self):
+            return
+            
+        # Get current transpose value and add our correction
+        root = self.tree_xml.getroot()
+        for instr in root.findall('.//Instrument'):
+            current = int(instr.findtext('KeygroupMasterTranspose', '0'))
+            new_transpose = current + self.suggested_transpose
+            transpose_elem = instr.find('KeygroupMasterTranspose')
+            if transpose_elem is None:
+                transpose_elem = ET.SubElement(instr, 'KeygroupMasterTranspose')
+            transpose_elem.text = str(new_transpose)
+            
+        self.load_mappings()
+        messagebox.showinfo('Success', 
+            f'Master transpose has been adjusted by {self.suggested_transpose:+d}.\n'
+            'Use Save As... to save your changes.',
+            parent=self)
 
     def save_program(self):
         if not self.tree_xml or not self.xpm_path:

@@ -2,9 +2,25 @@
 
 ## **Recent Updates - July 18, 2025**
 
-The Sample Mapping Checker has been enhanced with the following improvements:
+The Sample Mapping Checker has been significantly enhanced to fix transposition issues and preserve program settings:
 
-1. **Automatic Folder Integration:**
+1. **Improved Transposition Detection & Correction:**
+   - Automatically detects when samples are consistently playing in the wrong octave
+   - Calculates the optimal master transpose value to correct octave shifts
+   - Preserves all program settings when applying fixes
+   - Supports both global transpose adjustment and individual note corrections
+
+2. **Smart Root Note Analysis:**
+   - Shows the difference between detected and assigned root notes
+   - Offers suggestions for fixing inconsistent mappings
+   - Prevents unintended octave shifts when fixing individual notes
+
+3. **Non-Destructive Editing:**
+   - Preserves all existing parameters (loop points, fine tuning, etc.)
+   - Provides Save As... option to create new files without overwriting
+   - Maintains all layer-specific settings during corrections
+
+4. **Automatic Folder Integration:**
    - Automatically loads XPM files from the main window's selected folder
    - Shows a list of all available XPM files for easy switching
    - Added "Refresh Folder" button to check for new files
