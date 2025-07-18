@@ -14,6 +14,13 @@ from xpm_parameter_editor import (
 from audio_pitch import detect_fundamental_pitch
 from xpm_utils import _parse_xpm_for_rebuild, indent_tree
 
+# Optional pygame import for audio playback
+try:
+    import pygame
+    PYGAME_AVAILABLE = True
+except ImportError:
+    PYGAME_AVAILABLE = False
+
 
 NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
@@ -121,12 +128,25 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.grid(row=0, column=0, sticky='nsew')
         vsb.grid(row=0, column=1, sticky='ns')
+        
+        # Create context menu for right-click options
+        self.context_menu = tk.Menu(self, tearoff=0)
+        self.context_menu.add_command(label="Edit Root Note", command=self.edit_root_note)
+        self.context_menu.add_command(label="Override Detected Pitch", command=self.override_detected_pitch)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Play Sample", command=self.play_selected_sample)
+        
+        # Bind right-click to show context menu
+        self.tree.bind("<Button-3>", self.show_context_menu)
+        # Double-click still edits root note for backward compatibility
+        self.tree.bind('<Double-1>', self.on_double_click)
 
         bottom = ttk.Frame(self)
         bottom.pack(fill='x', pady=5)
         ttk.Button(bottom, text='Refresh Folder', command=self.refresh_folder).pack(side='left')
         ttk.Button(bottom, text='Auto Fix Notes', command=self.auto_fix_notes).pack(side='left', padx=5)
         ttk.Button(bottom, text='Auto Fix Transpose', command=self.auto_fix_transpose).pack(side='left')
+        ttk.Button(bottom, text='Manual Correction', command=self.batch_manual_correction).pack(side='left', padx=5)
         ttk.Button(bottom, text='Save As...', command=self.save_program).pack(side='right')
         ttk.Label(bottom, textvariable=self.transpose_var).pack(side='right', padx=5)
         ttk.Label(bottom, text='Master Transpose:').pack(side='right')
@@ -167,65 +187,169 @@ class SampleMappingCheckerWindow(tk.Toplevel):
         self.transpose_var.set(str(trans))
         self.refresh_tree()
 
-    def refresh_tree(self):
-        """Update the tree view with current sample mappings and detected pitches"""
-        self.tree.delete(*self.tree.get_children())
-        total_diff = 0
-        valid_diffs = 0
-        
+    def batch_manual_correction(self):
+        """Open a dialog for batch manual correction of detected pitches"""
         if not self.mappings:
-            logging.warning("No mappings found to refresh tree")
+            messagebox.showinfo("No Data", "No samples loaded to correct", parent=self)
             return
             
-        logging.info(f"Refreshing tree with {len(self.mappings)} mappings")
+        # Create a new top-level window for batch corrections
+        correction_window = tk.Toplevel(self)
+        correction_window.title("Batch Manual Correction")
+        correction_window.geometry("800x500")
+        correction_window.transient(self)  # Make it modal
         
-        for i, m in enumerate(self.mappings):
-            try:
-                sample_path = m['sample_path']
-                if not os.path.exists(sample_path):
-                    logging.warning(f"Sample file not found: {sample_path}")
-                    continue
-                    
-                xpm_root = int(m['root_note'])
-                detected = detect_pitch(sample_path)
-                diff = ''
-                
-                if detected is not None:
-                    diff_val = detected - xpm_root
-                    diff = f'{diff_val:+d}'
-                    if abs(diff_val) > 0:  # Only count non-zero differences
-                        total_diff += diff_val
-                        valid_diffs += 1
-                    detected = midi_to_name(detected)
-                else:
-                    detected = 'N/A'
-                
-                # Add item to tree and store mapping index for editing
-                item = self.tree.insert('', 'end', values=(
-                    os.path.basename(sample_path), 
-                    midi_to_name(xpm_root), 
-                    detected, 
-                    diff
-                ))
-                self.tree.set(item, 'index', str(i))
-            except Exception as e:
-                logging.error(f"Error processing mapping {i}: {e}")
+        # Create a frame with scrollable area
+        main_frame = ttk.Frame(correction_window)
+        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+        
+        # Create canvas with scrollbar
+        canvas = tk.Canvas(main_frame)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Add header
+        ttk.Label(scrollable_frame, text="Sample File", width=40).grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(scrollable_frame, text="Root Note", width=10).grid(row=0, column=1, padx=5, pady=5)
+        ttk.Label(scrollable_frame, text="Detected", width=10).grid(row=0, column=2, padx=5, pady=5)
+        ttk.Label(scrollable_frame, text="Manual", width=10).grid(row=0, column=3, padx=5, pady=5)
+        ttk.Label(scrollable_frame, text="Play", width=5).grid(row=0, column=4, padx=5, pady=5)
+        
+        # Track the manual entry widgets for later retrieval
+        manual_entries = {}
+        
+        # Add rows for each sample
+        row = 1
+        for idx, mapping in enumerate(self.mappings):
+            if 'path' not in mapping:
                 continue
+                
+            sample_path = mapping['path']
+            if not os.path.exists(sample_path):  # Skip missing samples
+                continue
+                
+            # Sample filename (truncated if needed)
+            basename = os.path.basename(sample_path)
+            if len(basename) > 40:
+                basename = basename[:37] + "..."
+            ttk.Label(scrollable_frame, text=basename).grid(row=row, column=0, padx=5, pady=2, sticky="w")
+            
+            # Root note (read-only)
+            root_note = mapping.get('root_note', '')
+            root_name = midi_to_name(root_note) if root_note is not None else ""
+            ttk.Label(scrollable_frame, text=root_name).grid(row=row, column=1, padx=5, pady=2)
+            
+            # Detected note (read-only)
+            detected = mapping.get('detected', '')
+            detected_name = midi_to_name(detected) if detected is not None else ""
+            ttk.Label(scrollable_frame, text=detected_name).grid(row=row, column=2, padx=5, pady=2)
+            
+            # Manual override entry
+            entry_var = tk.StringVar()
+            if mapping.get('manual_detection'):
+                entry_var.set(detected_name)
+            entry = ttk.Entry(scrollable_frame, width=10, textvariable=entry_var)
+            entry.grid(row=row, column=3, padx=5, pady=2)
+            manual_entries[idx] = entry_var
+            
+            # Play button
+            play_btn = ttk.Button(
+                scrollable_frame, 
+                text="▶",
+                width=3,
+                command=lambda path=sample_path: self._play_audio(path, correction_window)
+            )
+            play_btn.grid(row=row, column=4, padx=5, pady=2)
+            
+            row += 1
         
-        # Calculate suggested transpose if there's a consistent offset
-        if valid_diffs > 0 and valid_diffs == len(self.mappings):
-            avg_diff = total_diff / valid_diffs
-            if abs(avg_diff - round(avg_diff)) < 0.1:  # Check if it's close to a whole number
-                self.suggested_transpose = -int(round(avg_diff))  # Negate because we want to correct the difference
-                if self.suggested_transpose != 0:
-                    messagebox.showinfo('Transpose Suggestion', 
-                        f'All samples appear to be {abs(self.suggested_transpose)} semitones ' +
-                        ('sharp' if self.suggested_transpose < 0 else 'flat') +
-                        '.\nUse Auto Fix Transpose to correct this.',
-                        parent=self)
+        # Buttons at the bottom
+        btn_frame = ttk.Frame(correction_window)
+        btn_frame.pack(fill='x', pady=10)
         
-        # Bind double-click to edit root note
-        self.tree.bind('<Double-1>', self.on_double_click)
+        def apply_changes():
+            for idx, entry_var in manual_entries.items():
+                value = entry_var.get().strip()
+                if value:
+                    try:
+                        # Convert note name to MIDI
+                        if value.isdigit():
+                            midi = int(value)
+                            if not 0 <= midi <= 127:
+                                raise ValueError(f"MIDI note out of range: {midi}")
+                        else:
+                            midi = name_to_midi(value)
+                            if midi is None:
+                                raise ValueError(f"Invalid note name: {value}")
+                        
+                        # Update in the mappings
+                        self.mappings[idx]['detected'] = midi
+                        self.mappings[idx]['manual_detection'] = True
+                        
+                        # Recalculate difference
+                        root_note = self.mappings[idx]['root_note']
+                        self.mappings[idx]['diff'] = root_note - midi
+                    except ValueError as e:
+                        messagebox.showwarning("Invalid Note", f"Skipping invalid note '{value}': {e}", parent=correction_window)
+            
+            # Update the tree view
+            self.refresh_tree()
+            correction_window.destroy()
+        
+        ttk.Button(btn_frame, text="Apply Changes", command=apply_changes).pack(side="right", padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=correction_window.destroy).pack(side="right", padx=5)
+    
+    def _play_audio(self, file_path, parent_window):
+        """Helper method to play audio in batch correction dialog"""
+        if not os.path.exists(file_path):
+            messagebox.showerror("File Not Found", f"Sample file not found:\n{file_path}", parent=parent_window)
+            return
+            
+        if not PYGAME_AVAILABLE:
+            messagebox.showinfo("Playback Unavailable", 
+                               "Audio playback requires pygame. Install it with 'pip install pygame'.",
+                               parent=parent_window)
+            return
+            
+        try:
+            # Play using pygame which was already imported at module level
+            pygame.mixer.init()
+            pygame.mixer.music.load(file_path)
+            pygame.mixer.music.play()
+        except Exception as e:
+            messagebox.showerror("Playback Error", 
+                                f"Couldn't play the sample: {e}\n\nMake sure the file is valid.",
+                                parent=parent_window)
+    
+    def refresh_tree(self):
+        """Refresh the tree view display"""
+        # Clear tree
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+            
+        # Add mappings back
+        for mapping in self.mappings:
+            if 'path' not in mapping:
+                continue
+                
+            self.tree.insert('', 'end', values=(
+                mapping['sample'],
+                mapping['root_note'],
+                mapping['detected'],
+                mapping['diff'],
+                mapping['index']
+            ))
 
     def auto_fix_notes(self):
         """Fix sample mapping by updating individual root notes"""
@@ -441,6 +565,156 @@ class SampleMappingCheckerWindow(tk.Toplevel):
             logging.warning("No valid folder to refresh")
             messagebox.showinfo("No Folder", "No valid folder selected to refresh.", parent=self)
 
+    def show_context_menu(self, event):
+        """Show the context menu on right-click"""
+        # Get the item under the cursor
+        item = self.tree.identify_row(event.y)
+        if item:
+            # Select the item and show the context menu
+            self.tree.selection_set(item)
+            self.context_menu.post(event.x_root, event.y_root)
+    
+    def edit_root_note(self):
+        """Edit the root note of the selected sample"""
+        selected = self.tree.selection()
+        if not selected:
+            return
+            
+        item = selected[0]
+        idx = int(self.tree.set(item, 'index'))
+        current = self.mappings[idx]['root_note']
+        current_name = midi_to_name(current)
+        
+        # Ask for new root note
+        res = simpledialog.askstring(
+            'Edit Root Note', 
+            'Enter new root note (e.g., C3 or 60):\nUse note names (C3) or MIDI numbers (60)',
+            parent=self,
+            initialvalue=current_name
+        )
+        if not res:
+            return
+            
+        # Convert input to MIDI note number
+        try:
+            if res.isdigit():
+                midi = int(res)
+                if not 0 <= midi <= 127:
+                    raise ValueError("MIDI note must be between 0 and 127")
+            else:
+                midi = name_to_midi(res)
+                if midi is None:
+                    raise ValueError("Invalid note name")
+                    
+            # Update mapping and refresh display
+            self.mappings[idx]['root_note'] = midi
+            self.mappings[idx]['low_note'] = midi
+            self.mappings[idx]['high_note'] = midi
+            self.tree_xml.dirty = True  # Mark as modified
+            self.refresh_tree()
+            
+            # Update in the XML if a program is loaded
+            if self.xpm_program:
+                sample_path = self.mappings[idx]['path']
+                for keygroup in self.xpm_program.findall('.//keygroup'):
+                    for sample in keygroup.findall('.//sample'):
+                        path_elem = sample.find('path')
+                        if path_elem is not None and path_elem.text == sample_path:
+                            root_note = sample.find('root_note')
+                            if root_note is not None:
+                                root_note.text = str(midi)
+                                
+                            # Also update low_note and high_note if they exist
+                            low_note = sample.find('low_note')
+                            if low_note is not None:
+                                low_note.text = str(midi)
+                                
+                            high_note = sample.find('high_note')
+                            if high_note is not None:
+                                high_note.text = str(midi)
+            
+        except Exception as e:
+            messagebox.showerror('Invalid Note', str(e), parent=self)
+    
+    def override_detected_pitch(self):
+        """Manually override the detected pitch for a sample"""
+        selected = self.tree.selection()
+        if not selected:
+            return
+            
+        item = selected[0]
+        idx = int(self.tree.set(item, 'index'))
+        mapping = self.mappings[idx]
+        current_detected = mapping.get('detected', 60)
+        current_name = midi_to_name(current_detected) if current_detected is not None else "C4"
+        
+        # Ask for new detected pitch
+        res = simpledialog.askstring(
+            'Override Detected Pitch', 
+            'Enter manual pitch detection value (e.g., C3 or 60):\nUse note names (C3) or MIDI numbers (60)',
+            parent=self,
+            initialvalue=current_name
+        )
+        if not res:
+            return
+            
+        # Convert input to MIDI note number
+        try:
+            if res.isdigit():
+                midi = int(res)
+                if not 0 <= midi <= 127:
+                    raise ValueError("MIDI note must be between 0 and 127")
+            else:
+                midi = name_to_midi(res)
+                if midi is None:
+                    raise ValueError("Invalid note name")
+                    
+            # Update detected pitch
+            self.mappings[idx]['detected'] = midi
+            
+            # Recalculate difference
+            root_note = self.mappings[idx]['root_note']
+            diff = root_note - midi
+            self.mappings[idx]['diff'] = diff
+            
+            # Mark as manually set
+            self.mappings[idx]['manual_detection'] = True
+            
+            # Update tree display
+            self.refresh_tree()
+            
+        except Exception as e:
+            messagebox.showerror('Invalid Note', str(e), parent=self)
+    
+    def play_selected_sample(self):
+        """Play the selected sample audio"""
+        selected = self.tree.selection()
+        if not selected:
+            return
+            
+        item = selected[0]
+        idx = int(self.tree.set(item, 'index'))
+        sample_path = self.mappings[idx]['path']
+        
+        if not os.path.exists(sample_path):
+            messagebox.showerror("File Not Found", f"Sample file not found:\n{sample_path}", parent=self)
+            return
+            
+        if not PYGAME_AVAILABLE:
+            messagebox.showinfo("Playback Unavailable", 
+                               "Audio playback requires pygame. Install it with 'pip install pygame'.",
+                               parent=self)
+            return
+            
+        try:
+            # Play using pygame which was already imported at module level
+            pygame.mixer.init()
+            pygame.mixer.music.load(sample_path)
+            pygame.mixer.music.play()
+        except Exception as e:
+            messagebox.showerror("Playback Error", 
+                               f"Couldn't play the sample: {e}\n\nMake sure the file is valid.")
+    
     def on_double_click(self, event):
         """Handle double-click on a tree item to edit root note"""
         item = self.tree.identify('item', event.x, event.y)
