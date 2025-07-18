@@ -1,5 +1,32 @@
 # **XPM Converter Script Documentation**
 
+## **Recent Updates - July 18, 2025**
+
+The Sample Mapping Checker has been enhanced with the following improvements:
+
+1. **Automatic Folder Integration:**
+   - Automatically loads XPM files from the main window's selected folder
+   - Shows a list of all available XPM files for easy switching
+   - Added "Refresh Folder" button to check for new files
+
+2. **Interactive Root Note Editing:**
+   - Double-click any sample to manually edit its root note
+   - Supports both MIDI numbers (0-127) and note names (e.g., C3)
+   - Shows immediate feedback with pitch detection and difference display
+
+3. **Advanced Analysis Features:**
+   - Real-time display of detected vs. assigned root notes
+   - Shows pitch differences for easy identification of mismatched samples
+   - Supports both automatic and manual correction methods
+
+4. **Enhanced UI:**
+   - Clear folder path display
+   - Scrollable XPM file list
+   - Comprehensive sample information display
+   - Improved error handling and user feedback
+
+*Update by: GitHub Copilot Agent*
+
 ## **Core Functions**
 
 ### **\_parse\_xpm\_for\_rebuild(xpm\_path)**
