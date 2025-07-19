@@ -65,7 +65,12 @@ def build_program_pads_json(
     }
     if engine:
         pads_obj['engine'] = engine
+        
+    # Always include padToInstrument mapping for keygroup programs
+    # This ensures MPC knows exactly how many keygroups are defined
     if isinstance(num_instruments, int) and num_instruments > 0:
+        # Create a mapping from pad index to instrument index
+        # Each instrument (keygroup) needs a corresponding entry
         pads_obj['padToInstrument'] = {str(i): i for i in range(num_instruments)}
     return xml_escape(json.dumps(pads_obj, indent=4))
 
@@ -237,6 +242,65 @@ def process_folder(
                 )
             except Exception as exc:
                 logging.error("Failed to edit %s: %s", path, exc)
+
+
+def fix_keygroup_counts(folder: str) -> int:
+    """Fix keygroup counts in XPM files where they don't match the number of instruments.
+    
+    Returns the number of files fixed.
+    """
+    fixed = 0
+    for root_dir, _dirs, files in os.walk(folder):
+        for file in files:
+            if file.startswith('._') or not file.lower().endswith('.xpm'):
+                continue
+            path = os.path.join(root_dir, file)
+            try:
+                tree = ET.parse(path)
+                root = tree.getroot()
+                
+                # Get the declared keygroup count
+                kg_count_elem = root.find(".//KeygroupNumKeygroups")
+                if kg_count_elem is None:
+                    logging.warning(f"No KeygroupNumKeygroups element found in {file}")
+                    continue
+                    
+                declared_count = int(kg_count_elem.text)
+                
+                # Count the actual instruments
+                instruments = root.findall(".//Instruments/Instrument")
+                actual_count = len(instruments)
+                
+                # Fix JSON padToInstrument mapping if needed
+                fixed_json = False
+                pads_elem = root.find(".//ProgramPads-v2.10")
+                if pads_elem is None:
+                    pads_elem = root.find(".//ProgramPads")
+                    
+                if pads_elem is not None and pads_elem.text:
+                    try:
+                        json_text = xml_unescape(pads_elem.text)
+                        data = json.loads(json_text)
+                        
+                        if 'padToInstrument' in data and len(data['padToInstrument']) != actual_count:
+                            # Update padToInstrument mapping
+                            data['padToInstrument'] = {str(i): i for i in range(actual_count)}
+                            pads_elem.text = xml_escape(json.dumps(data, indent=4))
+                            fixed_json = True
+                    except Exception as e:
+                        logging.error(f"Error fixing JSON in {file}: {e}")
+                
+                # Update KeygroupNumKeygroups if it doesn't match
+                if declared_count != actual_count or fixed_json:
+                    kg_count_elem.text = str(actual_count)
+                    indent_tree(tree)
+                    tree.write(path, encoding='utf-8', xml_declaration=True)
+                    fixed += 1
+                    logging.info(f"Fixed keygroup count in {file} from {declared_count} to {actual_count}")
+            except Exception as e:
+                logging.error(f"Error processing {file}: {e}")
+                
+    return fixed
 
 
 def verify_mappings(folder: str, firmware: str, fmt: str | None) -> None:

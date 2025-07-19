@@ -180,11 +180,31 @@ def validate_xpm_file(xpm_path, expected_samples):
     first. If that's not found, it falls back to checking for the legacy
     Instruments section. This ensures both modern and legacy-formatted XPMs
     can be validated correctly.
+    
+    Also verifies that KeygroupNumKeygroups matches the actual instrument count.
     """
     try:
         with open(xpm_path, "r", encoding="utf-8") as f:
             xml_text = f.read()
         root = ET.fromstring(xml_text)
+        
+        # Check if KeygroupNumKeygroups is consistent with actual instruments
+        kg_count_elem = root.find(".//KeygroupNumKeygroups")
+        instruments = root.findall(".//Instruments/Instrument")
+        actual_kg_count = len(instruments)
+        
+        if kg_count_elem is not None:
+            declared_kg_count = int(kg_count_elem.text)
+            if declared_kg_count != actual_kg_count:
+                logging.warning(
+                    f"Keygroup count mismatch in {os.path.basename(xpm_path)}: "
+                    f"Declared {declared_kg_count}, but found {actual_kg_count} instruments."
+                )
+                # Fix the count
+                kg_count_elem.text = str(actual_kg_count)
+                tree = ET.ElementTree(root)
+                tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                logging.info(f"Fixed keygroup count in {os.path.basename(xpm_path)}.")
 
         # Check for modern ProgramPads section
         pads_elem = find_program_pads(root)
@@ -196,6 +216,15 @@ def validate_xpm_file(xpm_path, expected_samples):
             entries = [
                 v for v in pads.values() if isinstance(v, dict) and v.get("samplePath")
             ]
+            
+            # Also check if padToInstrument mapping is correct
+            if 'padToInstrument' in data:
+                pad_to_inst = data['padToInstrument']
+                if len(pad_to_inst) != actual_kg_count:
+                    logging.warning(
+                        f"padToInstrument mapping mismatch in {os.path.basename(xpm_path)}: "
+                        f"Found {len(pad_to_inst)} entries, but {actual_kg_count} instruments."
+                    )
 
             if expected_samples > 0 and len(entries) == 0:
                 logging.warning(
@@ -1970,6 +1999,7 @@ class BatchProgramFixerWindow(tk.Toplevel):
         self.folder_path = tk.StringVar()
         self.firmware_var = tk.StringVar(value=master.firmware_version.get())
         self.format_var = tk.StringVar(value="advanced")
+        self.status_var = tk.StringVar(value="Ready")
         self.check_vars = {}
         self.xpm_map = {}  # Maps treeview item ID to absolute path
         self.create_widgets()
@@ -2019,8 +2049,13 @@ class BatchProgramFixerWindow(tk.Toplevel):
         main_frame.grid_rowconfigure(1, weight=1)
 
         # Action buttons
+        # Status bar
+        status_frame = ttk.Frame(main_frame)
+        status_frame.grid(row=2, column=0, sticky="ew", pady=5)
+        ttk.Label(status_frame, textvariable=self.status_var, anchor="w").pack(side="left", fill="x", expand=True)
+        
         actions_frame = ttk.LabelFrame(main_frame, text="Batch Actions", padding="10")
-        actions_frame.grid(row=2, column=0, sticky="ew", pady=5)
+        actions_frame.grid(row=3, column=0, sticky="ew", pady=5)
         actions_frame.grid_columnconfigure(1, weight=1)
         actions_frame.grid_columnconfigure(2, weight=1)
         options_frame = ttk.Frame(actions_frame)
@@ -2058,6 +2093,11 @@ class BatchProgramFixerWindow(tk.Toplevel):
         ).pack(side="left", padx=20)
         ttk.Button(
             actions_frame,
+            text="Fix Keygroup Counts",
+            command=self.fix_keygroup_counts,
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            actions_frame,
             text="Rebuild Selected",
             command=self.run_rebuild_thread,
             style="Accent.TButton",
@@ -2066,6 +2106,13 @@ class BatchProgramFixerWindow(tk.Toplevel):
             actions_frame, text="Edit Samples...", command=self.open_sample_editor
         ).pack(side="left", padx=5)
 
+    def update_status(self, message):
+        """Update the status bar message."""
+        if threading.current_thread() is threading.main_thread():
+            self.status_var.set(message)
+        else:
+            self.master.root.after_idle(lambda: self.status_var.set(message))
+    
     def _show_info_safe(self, title, message):
         self.master.root.after_idle(
             lambda: messagebox.showinfo(title, message, parent=self)
@@ -2204,6 +2251,49 @@ class BatchProgramFixerWindow(tk.Toplevel):
         threading.Thread(
             target=self.analyze_and_relink_batch, args=(selected_ids,), daemon=True
         ).start()
+        
+    def fix_keygroup_counts(self):
+        """Fix keygroup counts in all XPM files in the selected folder."""
+        folder = self.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "Please select a valid folder first.", parent=self)
+            return
+        
+        # Ask user for confirmation
+        if not messagebox.askyesno(
+            "Fix Keygroup Counts",
+            "This will scan all XPM files in the selected folder and fix any keygroup count mismatches. Continue?",
+            parent=self
+        ):
+            return
+            
+        # Run the fix operation in a separate thread
+        def run_fix():
+            from batch_program_editor import fix_keygroup_counts
+            try:
+                self.update_status("Fixing keygroup counts...")
+                fixed = fix_keygroup_counts(folder)
+                self.master.root.after_idle(
+                    lambda: messagebox.showinfo(
+                        "Fix Complete", 
+                        f"Fixed keygroup count in {fixed} XPM file(s).",
+                        parent=self
+                    )
+                )
+                self.scan_folder()
+            except Exception as e:
+                logging.error(f"Error fixing keygroup counts: {e}")
+                self.master.root.after_idle(
+                    lambda: messagebox.showerror(
+                        "Error", 
+                        f"Failed to fix keygroup counts: {e}",
+                        parent=self
+                    )
+                )
+            finally:
+                self.update_status("Ready")
+                
+        threading.Thread(target=run_fix, daemon=True).start()
 
     def run_rebuild_thread(self):
         selected_ids = self.get_selected_items()
@@ -2726,7 +2816,17 @@ class InstrumentBuilder:
             for info in sample_infos:
                 key = (info["low_note"], info["high_note"])
                 note_layers[key].append(info)
+                
+            # Store both the total sample count and the keygroup count
+            sample_count = len(sample_infos)
             keygroup_count = len(note_layers)
+            
+            # Log if there's a mismatch between samples and keygroups
+            if sample_count != keygroup_count:
+                logging.warning(
+                    f"Sample count ({sample_count}) differs from keygroup count ({keygroup_count}) for {program_name}. "
+                    f"This may happen when multiple samples share the same key range."
+                )
 
             root = ET.Element("MPCVObject")
             version = ET.SubElement(root, "Version")
