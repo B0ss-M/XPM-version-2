@@ -1466,6 +1466,7 @@ class BatchTransposeWindow(tk.Toplevel):
         self.folder_path = tk.StringVar()
         self.transpose_amount = tk.DoubleVar(value=-24.0)
         self.relative_mode = tk.BooleanVar(value=False)
+        self.intelligent_mode = tk.BooleanVar(value=False)
         self.recursive_search = tk.BooleanVar(value=True)
         self.create_backups = tk.BooleanVar(value=True)
         self.status_var = tk.StringVar(value="Ready")
@@ -1518,9 +1519,16 @@ class BatchTransposeWindow(tk.Toplevel):
         ttk.Radiobutton(mode_frame, text="Add to existing transpose",
                         variable=self.relative_mode, value=True).pack(side="left")
 
+        # Intelligence mode
+        intelligence_frame = ttk.Frame(settings_frame)
+        intelligence_frame.grid(row=2, column=0, columnspan=3, sticky="w", pady=(10, 0))
+        
+        ttk.Checkbutton(intelligence_frame, text="🧠 Intelligent Mode - Auto-calculate optimal transpose for each XPM", 
+                        variable=self.intelligent_mode).pack(side="left", padx=(0, 20))
+
         # Options
         options_frame = ttk.Frame(settings_frame)
-        options_frame.grid(row=2, column=0, columnspan=3, sticky="w", pady=(10, 0))
+        options_frame.grid(row=3, column=0, columnspan=3, sticky="w", pady=(5, 0))
         
         ttk.Checkbutton(options_frame, text="Search subfolders recursively", 
                         variable=self.recursive_search).pack(side="left", padx=(0, 20))
@@ -1534,13 +1542,15 @@ class BatchTransposeWindow(tk.Toplevel):
         list_frame.grid_columnconfigure(0, weight=1)
 
         # Create treeview for file list
-        self.tree = ttk.Treeview(list_frame, columns=("Path", "Current", "New"), show="headings")
+        self.tree = ttk.Treeview(list_frame, columns=("Path", "Current", "New", "Analysis"), show="headings")
         self.tree.heading("Path", text="File Path")
         self.tree.heading("Current", text="Current Transpose")
         self.tree.heading("New", text="New Transpose")
-        self.tree.column("Path", width=300)
-        self.tree.column("Current", width=120, anchor="center")
-        self.tree.column("New", width=120, anchor="center")
+        self.tree.heading("Analysis", text="Issue/Notes")
+        self.tree.column("Path", width=250)
+        self.tree.column("Current", width=100, anchor="center")
+        self.tree.column("New", width=100, anchor="center")
+        self.tree.column("Analysis", width=200)
         self.tree.grid(row=0, column=0, sticky="nsew")
 
         tree_scroll = ttk.Scrollbar(list_frame, orient="vertical", command=self.tree.yview)
@@ -1570,6 +1580,7 @@ class BatchTransposeWindow(tk.Toplevel):
         # Bind transpose amount change to update preview
         self.transpose_amount.trace_add("write", self.update_preview)
         self.relative_mode.trace_add("write", self.update_preview)
+        self.intelligent_mode.trace_add("write", self.update_preview)
 
     def browse_folder(self):
         folder = filedialog.askdirectory(
@@ -1624,39 +1635,230 @@ class BatchTransposeWindow(tk.Toplevel):
         except Exception as e:
             logging.warning(f"Could not read transpose from {xpm_path}: {e}")
             return 0.0
-
-    def calculate_new_transpose(self, current_value):
-        """Calculate new transpose value based on mode."""
-        transpose_amount = self.transpose_amount.get()
-        if self.relative_mode.get():
-            return current_value + transpose_amount
+    
+    def analyze_xpm_pitch_issues(self, xpm_path):
+        """Intelligently analyze XPM file to detect optimal transpose for C0-C8 playability."""
+        try:
+            tree = ET.parse(xpm_path)
+            root = tree.getroot()
+            
+            # Get current master transpose
+            current_transpose = self.get_current_transpose(xpm_path)
+            
+            # Analyze sample root notes and key ranges
+            sample_notes = []
+            key_ranges = []
+            
+            # Check modern format (ProgramPads JSON)
+            pads_elem = root.find(".//ProgramPads-v2.10") or root.find(".//ProgramPads")
+            if pads_elem is not None and pads_elem.text:
+                try:
+                    # Parse the JSON data
+                    import json
+                    from xml.sax.saxutils import unescape as xml_unescape
+                    pads_data = json.loads(xml_unescape(pads_elem.text))
+                    
+                    if isinstance(pads_data, dict) and "pads" in pads_data:
+                        pads = pads_data["pads"]
+                        for pad_key, pad_data in pads.items():
+                            if isinstance(pad_data, dict):
+                                root_note = pad_data.get("rootNote")
+                                if root_note is not None:
+                                    sample_notes.append(int(root_note))
+                except:
+                    pass
+            
+            # Check legacy format (Layer elements)
+            for layer in root.findall(".//Layer"):
+                root_note_elem = layer.find("RootNote")
+                if root_note_elem is not None and root_note_elem.text:
+                    sample_notes.append(int(root_note_elem.text))
+            
+            # Check instrument key ranges
+            for instrument in root.findall(".//Instrument"):
+                low_note_elem = instrument.find("LowNote")
+                high_note_elem = instrument.find("HighNote")
+                if low_note_elem is not None and high_note_elem is not None:
+                    if low_note_elem.text and high_note_elem.text:
+                        low = int(low_note_elem.text)
+                        high = int(high_note_elem.text)
+                        key_ranges.append((low, high))
+            
+            # Calculate analysis
+            analysis = {
+                "current_transpose": current_transpose,
+                "sample_notes": sample_notes,
+                "key_ranges": key_ranges,
+                "min_note": min(sample_notes) if sample_notes else 60,
+                "max_note": max(sample_notes) if sample_notes else 60,
+                "avg_note": sum(sample_notes) / len(sample_notes) if sample_notes else 60,
+            }
+            
+            # Calculate optimal transpose for C0-C8 (0-96) playability
+            optimal_transpose = self.calculate_optimal_transpose(analysis)
+            
+            analysis["recommended_transpose"] = optimal_transpose
+            analysis["issue_detected"] = abs(current_transpose - optimal_transpose) > 1.0
+            
+            return analysis
+            
+        except Exception as e:
+            logging.error(f"Error analyzing {xpm_path}: {e}")
+            return {
+                "current_transpose": 0.0,
+                "sample_notes": [],
+                "key_ranges": [],
+                "min_note": 60,
+                "max_note": 60,
+                "avg_note": 60,
+                "recommended_transpose": 0.0,
+                "issue_detected": False,
+                "error": str(e)
+            }
+    
+    def calculate_optimal_transpose(self, analysis):
+        """Calculate optimal transpose value for maximum keyboard playability."""
+        sample_notes = analysis["sample_notes"]
+        current_transpose = analysis["current_transpose"]
+        
+        # If we have sample data, use it
+        if sample_notes and any(note > 0 for note in sample_notes):
+            min_note = analysis["min_note"]
+            max_note = analysis["max_note"]
+            avg_note = analysis["avg_note"]
+            
+            # Calculate effective range with current transpose
+            effective_min = min_note + current_transpose
+            effective_max = max_note + current_transpose
+            
+            # Special cases for common issues:
+            # 1. If instrument is playing 2+ octaves too high (common issue)
+            if effective_min > 72:  # Everything above C5
+                return -24.0  # Down 2 octaves
+                
+            # 2. If instrument is playing 1+ octave too high  
+            elif effective_min > 60:  # Everything above C4
+                return -12.0  # Down 1 octave
+                
+            # 3. If instrument is too low
+            elif effective_max < 24:  # Everything below C2
+                return 12.0   # Up 1 octave
+                
+            # 4. Center on a reasonable range
+            else:
+                # Target center around C3-C4 (48-60)
+                target_center = 54  # F#3
+                current_center = (effective_min + effective_max) / 2
+                adjustment = target_center - (min_note + max_note) / 2
+                return max(-48, min(48, adjustment))
+        
         else:
-            return transpose_amount
+            # No sample data found - make intelligent guess based on current transpose
+            # This handles the case where XPM is a template without loaded samples
+            
+            # If current transpose is very high positive, it's likely too high
+            if current_transpose > 12:
+                return -24.0  # Bring it down significantly
+            elif current_transpose > 0:
+                return -12.0  # Bring it down moderately
+            
+            # If current transpose is very low negative, samples might be too low
+            elif current_transpose < -36:
+                return -24.0  # Still too low, but not as extreme
+            elif current_transpose < -12:
+                return -24.0  # Probably the right range for fixing C2->C4 issue
+                
+            # If transpose is in reasonable range, minimal adjustment
+            else:
+                # For the specific issue: C2 plays as C4 = need -24 semitones
+                # This is the most common case for user's problem
+                return -24.0
+        
+        # Fallback
+        return -24.0
+
+    def calculate_new_transpose(self, current_value, xpm_path=None):
+        """Calculate new transpose value based on mode."""
+        if self.intelligent_mode.get() and xpm_path:
+            # Use intelligent analysis to determine optimal transpose
+            analysis = self.analyze_xpm_pitch_issues(xpm_path)
+            return analysis["recommended_transpose"]
+        else:
+            # Use manual transpose amount
+            transpose_amount = self.transpose_amount.get()
+            if self.relative_mode.get():
+                return current_value + transpose_amount
+            else:
+                return transpose_amount
 
     def update_file_list(self):
         """Update the file list with current and new transpose values."""
         for xpm_path in self.xpm_files:
             rel_path = os.path.relpath(xpm_path, self.folder_path.get())
             current_transpose = self.get_current_transpose(xpm_path)
-            new_transpose = self.calculate_new_transpose(current_transpose)
+            
+            # Get analysis information if in intelligent mode
+            analysis_text = ""
+            if self.intelligent_mode.get():
+                analysis = self.analyze_xpm_pitch_issues(xpm_path)
+                if analysis.get("issue_detected", False):
+                    sample_notes = analysis.get("sample_notes", [])
+                    if sample_notes:
+                        min_note = min(sample_notes)
+                        max_note = max(sample_notes)
+                        if min_note > 72:
+                            analysis_text = "Too high (>C5)"
+                        elif min_note > 60:
+                            analysis_text = "High (>C4)"
+                        elif max_note < 24:
+                            analysis_text = "Too low (<C2)"
+                        elif current_transpose > 12:
+                            analysis_text = f"High transpose (+{current_transpose:.1f})"
+                        elif current_transpose < -12:
+                            analysis_text = f"Low transpose ({current_transpose:.1f})"
+                        else:
+                            analysis_text = "Needs adjustment"
+                    else:
+                        analysis_text = "No samples found"
+                else:
+                    analysis_text = "OK"
+                    
+                if "error" in analysis:
+                    analysis_text = "Parse error"
+            
+            new_transpose = self.calculate_new_transpose(current_transpose, xpm_path)
             
             self.tree.insert("", "end", values=(
                 rel_path,
                 f"{current_transpose:.1f}",
-                f"{new_transpose:.1f}"
+                f"{new_transpose:.1f}",
+                analysis_text
             ))
 
     def update_preview(self, *args):
         """Update the preview when transpose amount or mode changes."""
         if hasattr(self, 'tree') and self.xpm_files:
-            for item in self.tree.get_children():
-                values = self.tree.item(item)["values"]
-                if len(values) >= 3:
-                    current_transpose = float(values[1])
-                    new_transpose = self.calculate_new_transpose(current_transpose)
-                    
-                    # Update the "New" column
-                    self.tree.set(item, "New", f"{new_transpose:.1f}")
+            for i, item in enumerate(self.tree.get_children()):
+                if i < len(self.xpm_files):
+                    values = self.tree.item(item)["values"]
+                    if len(values) >= 3:
+                        current_transpose = float(values[1])
+                        xpm_path = self.xpm_files[i]
+                        new_transpose = self.calculate_new_transpose(current_transpose, xpm_path)
+                        
+                        # Update analysis if in intelligent mode
+                        analysis_text = ""
+                        if self.intelligent_mode.get():
+                            analysis = self.analyze_xpm_pitch_issues(xpm_path)
+                            if analysis.get("issue_detected", False):
+                                analysis_text = "Needs adjustment"
+                            else:
+                                analysis_text = "OK"
+                        
+                        # Update the columns
+                        self.tree.set(item, "New", f"{new_transpose:.1f}")
+                        if len(self.tree.item(item)["values"]) >= 4:
+                            self.tree.set(item, "Analysis", analysis_text)
 
     def preview_changes(self):
         """Show a preview of what changes will be made."""
@@ -1665,8 +1867,12 @@ class BatchTransposeWindow(tk.Toplevel):
             return
 
         preview_text = f"Transpose Settings:\n"
-        preview_text += f"• Amount: {self.transpose_amount.get()} semitones\n"
-        preview_text += f"• Mode: {'Relative (add to existing)' if self.relative_mode.get() else 'Absolute (set value)'}\n"
+        if self.intelligent_mode.get():
+            preview_text += f"• Mode: 🧠 Intelligent (auto-calculated per file)\n"
+            preview_text += f"• Manual Amount: {self.transpose_amount.get()} semitones (ignored in intelligent mode)\n"
+        else:
+            preview_text += f"• Amount: {self.transpose_amount.get()} semitones\n"
+            preview_text += f"• Mode: {'Relative (add to existing)' if self.relative_mode.get() else 'Absolute (set value)'}\n"
         preview_text += f"• Backups: {'Yes' if self.create_backups.get() else 'No'}\n"
         preview_text += f"• Files to process: {len(self.xpm_files)}\n\n"
         
@@ -1690,14 +1896,19 @@ class BatchTransposeWindow(tk.Toplevel):
             return
 
         # Confirm with user
-        if not messagebox.askyesno(
-            "Confirm Transpose",
-            f"This will modify {len(self.xpm_files)} XPM file(s) with transpose amount {self.transpose_amount.get()} semitones.\n\n"
-            f"Mode: {'Relative (add to existing)' if self.relative_mode.get() else 'Absolute (set value)'}\n"
-            f"Backups: {'Yes' if self.create_backups.get() else 'No'}\n\n"
-            "This operation cannot be undone (except from backups). Continue?",
-            parent=self
-        ):
+        if self.intelligent_mode.get():
+            confirm_msg = (f"This will intelligently analyze and transpose {len(self.xpm_files)} XPM file(s) "
+                          f"to optimize playability across C0-C8.\n\n"
+                          f"Each file will be analyzed individually and transposed as needed.\n"
+                          f"Backups: {'Yes' if self.create_backups.get() else 'No'}\n\n"
+                          "This operation cannot be undone (except from backups). Continue?")
+        else:
+            confirm_msg = (f"This will modify {len(self.xpm_files)} XPM file(s) with transpose amount {self.transpose_amount.get()} semitones.\n\n"
+                          f"Mode: {'Relative (add to existing)' if self.relative_mode.get() else 'Absolute (set value)'}\n"
+                          f"Backups: {'Yes' if self.create_backups.get() else 'No'}\n\n"
+                          "This operation cannot be undone (except from backups). Continue?")
+        
+        if not messagebox.askyesno("Confirm Transpose", confirm_msg, parent=self):
             return
 
         # Apply changes
@@ -1717,7 +1928,7 @@ class BatchTransposeWindow(tk.Toplevel):
                 
                 # Calculate new transpose value
                 current_transpose = self.get_current_transpose(xpm_path)
-                new_transpose = self.calculate_new_transpose(current_transpose)
+                new_transpose = self.calculate_new_transpose(current_transpose, xpm_path)
                 
                 # Parse and modify XPM
                 tree = ET.parse(xpm_path)
