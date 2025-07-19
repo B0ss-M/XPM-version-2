@@ -1457,6 +1457,307 @@ class SCWToolWindow(tk.Toplevel):
         self.destroy()
 
 
+class BatchTransposeWindow(tk.Toplevel):
+    def __init__(self, master):
+        super().__init__(master.root)
+        self.title("Batch Transpose XPM Files")
+        self.geometry("650x500")
+        self.master = master
+        self.folder_path = tk.StringVar()
+        self.transpose_amount = tk.DoubleVar(value=-24.0)
+        self.relative_mode = tk.BooleanVar(value=False)
+        self.recursive_search = tk.BooleanVar(value=True)
+        self.create_backups = tk.BooleanVar(value=True)
+        self.status_var = tk.StringVar(value="Ready")
+        self.xpm_files = []
+        self.create_widgets()
+
+    def create_widgets(self):
+        main_frame = ttk.Frame(self, padding="10")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_rowconfigure(2, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+
+        # Folder selection
+        folder_frame = ttk.LabelFrame(main_frame, text="Select Folder", padding="10")
+        folder_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        folder_frame.grid_columnconfigure(1, weight=1)
+        
+        ttk.Label(folder_frame, text="XPM Folder:").grid(row=0, column=0, sticky="w", padx=(0, 5))
+        ttk.Entry(folder_frame, textvariable=self.folder_path).grid(row=0, column=1, sticky="ew", padx=(0, 5))
+        ttk.Button(folder_frame, text="Browse...", command=self.browse_folder).grid(row=0, column=2)
+        
+        ttk.Button(folder_frame, text="Scan Folder", command=self.scan_folder).grid(row=0, column=3, padx=(5, 0))
+
+        # Transpose settings
+        settings_frame = ttk.LabelFrame(main_frame, text="Transpose Settings", padding="10")
+        settings_frame.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        settings_frame.grid_columnconfigure(1, weight=1)
+
+        ttk.Label(settings_frame, text="Transpose Amount (semitones):").grid(row=0, column=0, sticky="w", pady=2)
+        transpose_entry = ttk.Entry(settings_frame, textvariable=self.transpose_amount, width=10)
+        transpose_entry.grid(row=0, column=1, sticky="w", padx=(5, 0), pady=2)
+        
+        # Quick preset buttons
+        preset_frame = ttk.Frame(settings_frame)
+        preset_frame.grid(row=0, column=2, sticky="e", padx=(10, 0))
+        
+        ttk.Button(preset_frame, text="-24 (Down 2 oct)", width=15,
+                   command=lambda: self.transpose_amount.set(-24)).pack(side="left", padx=2)
+        ttk.Button(preset_frame, text="-12 (Down 1 oct)", width=15,
+                   command=lambda: self.transpose_amount.set(-12)).pack(side="left", padx=2)
+        ttk.Button(preset_frame, text="+12 (Up 1 oct)", width=15,
+                   command=lambda: self.transpose_amount.set(12)).pack(side="left", padx=2)
+        
+        ttk.Label(settings_frame, text="Mode:").grid(row=1, column=0, sticky="w", pady=(10, 2))
+        mode_frame = ttk.Frame(settings_frame)
+        mode_frame.grid(row=1, column=1, columnspan=2, sticky="w", padx=(5, 0), pady=(10, 2))
+        
+        ttk.Radiobutton(mode_frame, text="Set absolute value", 
+                        variable=self.relative_mode, value=False).pack(side="left", padx=(0, 10))
+        ttk.Radiobutton(mode_frame, text="Add to existing transpose",
+                        variable=self.relative_mode, value=True).pack(side="left")
+
+        # Options
+        options_frame = ttk.Frame(settings_frame)
+        options_frame.grid(row=2, column=0, columnspan=3, sticky="w", pady=(10, 0))
+        
+        ttk.Checkbutton(options_frame, text="Search subfolders recursively", 
+                        variable=self.recursive_search).pack(side="left", padx=(0, 20))
+        ttk.Checkbutton(options_frame, text="Create backup files (.backup)", 
+                        variable=self.create_backups).pack(side="left")
+
+        # File list
+        list_frame = ttk.LabelFrame(main_frame, text="XPM Files Found", padding="10")
+        list_frame.grid(row=2, column=0, sticky="nsew", pady=(0, 10))
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+
+        # Create treeview for file list
+        self.tree = ttk.Treeview(list_frame, columns=("Path", "Current", "New"), show="headings")
+        self.tree.heading("Path", text="File Path")
+        self.tree.heading("Current", text="Current Transpose")
+        self.tree.heading("New", text="New Transpose")
+        self.tree.column("Path", width=300)
+        self.tree.column("Current", width=120, anchor="center")
+        self.tree.column("New", width=120, anchor="center")
+        self.tree.grid(row=0, column=0, sticky="nsew")
+
+        tree_scroll = ttk.Scrollbar(list_frame, orient="vertical", command=self.tree.yview)
+        tree_scroll.grid(row=0, column=1, sticky="ns")
+        self.tree.config(yscrollcommand=tree_scroll.set)
+
+        # Action buttons and status
+        bottom_frame = ttk.Frame(main_frame)
+        bottom_frame.grid(row=3, column=0, sticky="ew")
+        bottom_frame.grid_columnconfigure(0, weight=1)
+
+        # Status
+        status_frame = ttk.Frame(bottom_frame)
+        status_frame.grid(row=0, column=0, sticky="ew", pady=(0, 5))
+        status_frame.grid_columnconfigure(0, weight=1)
+        ttk.Label(status_frame, textvariable=self.status_var).grid(row=0, column=0, sticky="w")
+
+        # Buttons
+        button_frame = ttk.Frame(bottom_frame)
+        button_frame.grid(row=1, column=0, sticky="e")
+        
+        ttk.Button(button_frame, text="Preview Changes", command=self.preview_changes).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Apply Transpose", command=self.apply_transpose, 
+                   style="Accent.TButton").pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Close", command=self.destroy).pack(side="left", padx=5)
+
+        # Bind transpose amount change to update preview
+        self.transpose_amount.trace_add("write", self.update_preview)
+        self.relative_mode.trace_add("write", self.update_preview)
+
+    def browse_folder(self):
+        folder = filedialog.askdirectory(
+            parent=self,
+            title="Select Folder Containing XPM Files",
+            initialdir=self.master.last_browse_path
+        )
+        if folder:
+            self.folder_path.set(folder)
+            self.master.last_browse_path = folder
+            self.scan_folder()
+
+    def scan_folder(self):
+        folder = self.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "Please select a valid folder first.", parent=self)
+            return
+
+        self.status_var.set("Scanning for XPM files...")
+        self.tree.delete(*self.tree.get_children())
+        self.xpm_files = []
+
+        try:
+            if self.recursive_search.get():
+                pattern = os.path.join(folder, "**", "*.xpm")
+                files = glob.glob(pattern, recursive=True)
+            else:
+                pattern = os.path.join(folder, "*.xpm")
+                files = glob.glob(pattern)
+
+            self.xpm_files = files
+            self.update_file_list()
+            
+            if files:
+                self.status_var.set(f"Found {len(files)} XPM file(s)")
+            else:
+                self.status_var.set("No XPM files found")
+                
+        except Exception as e:
+            self.status_var.set(f"Error scanning folder: {e}")
+            messagebox.showerror("Error", f"Error scanning folder: {e}", parent=self)
+
+    def get_current_transpose(self, xpm_path):
+        """Get current transpose value from XPM file."""
+        try:
+            tree = ET.parse(xpm_path)
+            root = tree.getroot()
+            transpose_elem = root.find(".//KeygroupMasterTranspose")
+            if transpose_elem is not None and transpose_elem.text:
+                return float(transpose_elem.text)
+            return 0.0
+        except Exception as e:
+            logging.warning(f"Could not read transpose from {xpm_path}: {e}")
+            return 0.0
+
+    def calculate_new_transpose(self, current_value):
+        """Calculate new transpose value based on mode."""
+        transpose_amount = self.transpose_amount.get()
+        if self.relative_mode.get():
+            return current_value + transpose_amount
+        else:
+            return transpose_amount
+
+    def update_file_list(self):
+        """Update the file list with current and new transpose values."""
+        for xpm_path in self.xpm_files:
+            rel_path = os.path.relpath(xpm_path, self.folder_path.get())
+            current_transpose = self.get_current_transpose(xpm_path)
+            new_transpose = self.calculate_new_transpose(current_transpose)
+            
+            self.tree.insert("", "end", values=(
+                rel_path,
+                f"{current_transpose:.1f}",
+                f"{new_transpose:.1f}"
+            ))
+
+    def update_preview(self, *args):
+        """Update the preview when transpose amount or mode changes."""
+        if hasattr(self, 'tree') and self.xpm_files:
+            for item in self.tree.get_children():
+                values = self.tree.item(item)["values"]
+                if len(values) >= 3:
+                    current_transpose = float(values[1])
+                    new_transpose = self.calculate_new_transpose(current_transpose)
+                    
+                    # Update the "New" column
+                    self.tree.set(item, "New", f"{new_transpose:.1f}")
+
+    def preview_changes(self):
+        """Show a preview of what changes will be made."""
+        if not self.xpm_files:
+            messagebox.showwarning("No Files", "Please scan for XPM files first.", parent=self)
+            return
+
+        preview_text = f"Transpose Settings:\n"
+        preview_text += f"• Amount: {self.transpose_amount.get()} semitones\n"
+        preview_text += f"• Mode: {'Relative (add to existing)' if self.relative_mode.get() else 'Absolute (set value)'}\n"
+        preview_text += f"• Backups: {'Yes' if self.create_backups.get() else 'No'}\n"
+        preview_text += f"• Files to process: {len(self.xpm_files)}\n\n"
+        
+        preview_text += "Sample changes:\n"
+        count = 0
+        for item in self.tree.get_children():
+            if count >= 5:  # Show max 5 examples
+                preview_text += f"... and {len(self.xpm_files) - count} more files\n"
+                break
+                
+            values = self.tree.item(item)["values"]
+            preview_text += f"• {values[0]}: {values[1]} → {values[2]} semitones\n"
+            count += 1
+
+        messagebox.showinfo("Preview Changes", preview_text, parent=self)
+
+    def apply_transpose(self):
+        """Apply the transpose changes to all XPM files."""
+        if not self.xpm_files:
+            messagebox.showwarning("No Files", "Please scan for XPM files first.", parent=self)
+            return
+
+        # Confirm with user
+        if not messagebox.askyesno(
+            "Confirm Transpose",
+            f"This will modify {len(self.xpm_files)} XPM file(s) with transpose amount {self.transpose_amount.get()} semitones.\n\n"
+            f"Mode: {'Relative (add to existing)' if self.relative_mode.get() else 'Absolute (set value)'}\n"
+            f"Backups: {'Yes' if self.create_backups.get() else 'No'}\n\n"
+            "This operation cannot be undone (except from backups). Continue?",
+            parent=self
+        ):
+            return
+
+        # Apply changes
+        successful = 0
+        errors = []
+        
+        for i, xpm_path in enumerate(self.xpm_files):
+            try:
+                self.status_var.set(f"Processing {i+1}/{len(self.xpm_files)}: {os.path.basename(xpm_path)}")
+                self.update()  # Update GUI
+                
+                # Create backup if requested
+                if self.create_backups.get():
+                    backup_path = xpm_path + ".backup"
+                    if not os.path.exists(backup_path):
+                        shutil.copy2(xpm_path, backup_path)
+                
+                # Calculate new transpose value
+                current_transpose = self.get_current_transpose(xpm_path)
+                new_transpose = self.calculate_new_transpose(current_transpose)
+                
+                # Parse and modify XPM
+                tree = ET.parse(xpm_path)
+                root = tree.getroot()
+                
+                # Find or create KeygroupMasterTranspose element
+                transpose_elem = root.find(".//KeygroupMasterTranspose")
+                if transpose_elem is None:
+                    program_elem = root.find(".//Program")
+                    if program_elem is not None:
+                        transpose_elem = ET.SubElement(program_elem, "KeygroupMasterTranspose")
+                    else:
+                        errors.append(f"{os.path.basename(xpm_path)}: Could not find Program element")
+                        continue
+                
+                # Set new value
+                transpose_elem.text = f"{new_transpose:.6f}"
+                
+                # Save file
+                tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                successful += 1
+                
+            except Exception as e:
+                errors.append(f"{os.path.basename(xpm_path)}: {str(e)}")
+
+        # Show results
+        self.status_var.set(f"Complete: {successful}/{len(self.xpm_files)} files processed")
+        
+        result_msg = f"Successfully processed {successful} out of {len(self.xpm_files)} files."
+        if errors:
+            result_msg += f"\n\nErrors ({len(errors)}):\n" + "\n".join(errors[:10])
+            if len(errors) > 10:
+                result_msg += f"\n... and {len(errors) - 10} more errors"
+        
+        messagebox.showinfo("Transpose Complete", result_msg, parent=self)
+        
+        # Refresh the file list to show new values
+        self.scan_folder()
+
+
 class BatchProgramEditorWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root)
@@ -3573,11 +3874,14 @@ class App(tk.Tk):
             frame, text="Smart Split...", command=self.open_smart_split_window
         ).grid(row=1, column=1, sticky="ew", padx=2, pady=2)
         ttk.Button(
+            frame, text="Batch Transpose", command=self.open_batch_transpose
+        ).grid(row=1, column=2, sticky="ew", padx=2, pady=2)
+        ttk.Button(
             frame,
             text="Package Expansion (.zip)",
             command=self.package_expansion,
             style="Accent.TButton",
-        ).grid(row=1, column=2, columnspan=3, sticky="ew", padx=2, pady=2)
+        ).grid(row=1, column=3, columnspan=2, sticky="ew", padx=2, pady=2)
 
     def create_log_viewer(self, parent):
         log_frame = ttk.LabelFrame(parent, text="Log", padding=5)
@@ -3725,6 +4029,9 @@ class App(tk.Tk):
 
     def open_smart_split_window(self):
         self.open_window(SmartSplitWindow)
+
+    def open_batch_transpose(self):
+        self.open_window(BatchTransposeWindow)
 
     def open_creative_config(self):
         self.open_window(CreativeModeConfigWindow, self.creative_mode_var.get())
