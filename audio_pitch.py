@@ -79,11 +79,14 @@ def detect_fundamental_pitch(path: str) -> Optional[int]:
 
         # 1. pYIN algorithm
         try:
+            # Increased frame_length to 4096 and adjusted fmin to 43.066 Hz (slightly higher than C1)
+            # This addresses the warning about inaccurate pitch detection due to insufficient periods
             f0, voiced_flag, voiced_prob = librosa.pyin(
                 y,
-                fmin=librosa.note_to_hz('C1'),
+                fmin=43.066,  # Slightly higher than C1 (32.7 Hz) to ensure accurate detection
                 fmax=librosa.note_to_hz('C7'),
-                sr=sr
+                sr=sr,
+                frame_length=4096  # Increased from default 2048 to allow for more periods of low frequencies
             )
             
             voiced_f0 = f0[voiced_flag]
@@ -131,7 +134,7 @@ def detect_fundamental_pitch(path: str) -> Optional[int]:
         # 3. Chroma Feature Analysis
         try:
             # Compute chromagram using CQT
-            C = np.abs(librosa.cqt(y, sr=sr, hop_length=512, fmin=librosa.note_to_hz('C1')))
+            C = np.abs(librosa.cqt(y, sr=sr, hop_length=512, fmin=43.066))
             chroma = librosa.feature.chroma_cqt(C=C, sr=sr)
             
             # Find the strongest pitch class
