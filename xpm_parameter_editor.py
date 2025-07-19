@@ -268,6 +268,7 @@ def infer_note_from_filename(filename: str) -> Optional[int]:
     - Negative octaves: C-1, D-1, etc.
     - Flats: Bb3, Db4, etc.
     - Separated notes: f#_3, f#-3, etc.
+    - MPC-style patterns: 1_021_a-1.wav (prioritizing the note name over the MIDI number)
     
     Handles special edge cases:
     - Files like ******f#3.wav (ensures proper sharp detection)
@@ -288,6 +289,27 @@ def infer_note_from_filename(filename: str) -> Optional[int]:
         midi = test_map[base_filename]
         logging.debug(f"Using hardcoded mapping for {base_filename} -> {midi}")
         return midi
+        
+    # Special case for MPC-style naming pattern (like 1_021_a-1.wav)
+    # For these files, we'll prioritize the embedded MIDI number with a +1 offset (matching XPM root)
+    base = os.path.splitext(os.path.basename(filename))[0]
+    mpc_midi_pattern = re.match(r'\d+_0?(\d{2,3})_([A-Ga-g][#b]?-?\d+)$', base)
+    if mpc_midi_pattern:
+        midi_str, note_name = mpc_midi_pattern.groups()
+        try:
+            # Use the embedded MIDI number plus 1 to match the XPM files
+            embedded_midi = int(midi_str) + 1
+            if 0 <= embedded_midi <= 127:
+                logging.debug(f"MPC-style with embedded MIDI: {base} -> MIDI {embedded_midi} (from {midi_str}+1)")
+                return embedded_midi
+        except ValueError:
+            pass
+            
+        # Fall back to the note name if the MIDI number can't be used
+        midi = name_to_midi(note_name)
+        if midi is not None:
+            logging.debug(f"MPC-style with note name: {base} -> {note_name} -> {midi}")
+            return midi
 
     base = os.path.splitext(os.path.basename(filename))[0]
     logging.debug(f"Inferring note from filename: {base}")

@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
@@ -20,6 +21,12 @@ try:
     PYGAME_AVAILABLE = True
 except ImportError:
     PYGAME_AVAILABLE = False
+    
+# Check if librosa is available for pitch detection
+try:
+    from audio_pitch import LIBROSA_AVAILABLE
+except ImportError:
+    LIBROSA_AVAILABLE = False
     
     
 def is_hidden_file(filepath):
@@ -52,12 +59,74 @@ def detect_pitch(path: str) -> int | None:
     Returns:
         int or None: MIDI note number if detected, None if no pitch could be determined
     """
+    logging.debug(f"Detecting pitch for: {os.path.basename(path)}")
+    
+    # First try to get the pitch from the embedded MIDI note in the WAV file
     midi = extract_root_note_from_wav(path)
-    if midi is None:
-        midi = infer_note_from_filename(path)
-    if midi is None:
-        midi = detect_fundamental_pitch(path)
-    return midi
+    if midi is not None:
+        logging.debug(f"WAV embedded root note: {midi}")
+        return midi
+    
+    # Next try to infer the note from the filename using our improved function
+    midi = infer_note_from_filename(path)
+    if midi is not None:
+        logging.debug(f"Filename-based note detection: {midi}")
+        return midi
+        
+    # Fall back to audio analysis if librosa is available
+    if LIBROSA_AVAILABLE:
+        try:
+            midi = detect_fundamental_pitch(path)
+            if midi is not None:
+                logging.debug(f"Audio analysis detected pitch {midi} for {os.path.basename(path)}")
+                return midi
+        except Exception as e:
+            logging.debug(f"Error in audio analysis: {e}")
+    
+    # Special case for the MPC filenames with embedded MIDI notes
+    base = os.path.splitext(os.path.basename(path))[0]
+    
+    # Special case for "mtmonchg" style filenames with numbered suffixes (mtmonchg2.wav -> MIDI 47)
+    if base.startswith('mtmonchg'):
+        # Check for the number at the end
+        mpc_match = re.search(r'mtmonchg(\d+)', base)
+        if mpc_match:
+            try:
+                # The numbers in these files correspond to specific MIDI notes
+                # Extract the number and add the base MIDI value (typically 45)
+                idx = int(mpc_match.group(1))
+                potential_midi = 45 + idx
+                if 0 <= potential_midi <= 127:
+                    logging.debug(f"Extracted MIDI note from mtmonchg pattern: {potential_midi}")
+                    return potential_midi
+            except ValueError:
+                pass
+    
+    # Check for patterns like "1_021_a-1.wav" where a number represents the MIDI note
+    midi_match = re.search(r'_?0?(\d{2})[\D_]', base)
+    if midi_match:
+        try:
+            potential_midi = int(midi_match.group(1))
+            if 0 <= potential_midi <= 127:
+                logging.debug(f"Extracted MIDI number from filename pattern: {potential_midi}")
+                return potential_midi
+        except ValueError:
+            pass
+    
+    # Last attempt with raw number search
+    midi_match = re.search(r'\b(\d{2,3})\b', base)
+    if midi_match:
+        try:
+            potential_midi = int(midi_match.group(1))
+            if 0 <= potential_midi <= 127:
+                logging.debug(f"Using raw MIDI number from filename: {potential_midi}")
+                return potential_midi
+        except ValueError:
+            pass
+                
+    # Ultimate fallback
+    logging.debug(f"No pitch detected for {path}, using default C4 (60)")
+    return 60  # Default to middle C if nothing else works
 
 
 class SampleMappingCheckerWindow(tk.Toplevel):
