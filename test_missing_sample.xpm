@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8'?>
+<MPC><Program type="Keygroup"><Application_Version>3.5.0</Application_Version><KeygroupNumKeygroups>1</KeygroupNumKeygroups><Instruments><Instrument><LowNote>60</LowNote><HighNote>60</HighNote><Layer><RootNote>60</RootNote><SampleFile>missing_sample.wav</SampleFile></Layer></Instrument></Instruments></Program></MPC>

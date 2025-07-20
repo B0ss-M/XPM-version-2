@@ -516,17 +516,17 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
         self.tree = Treeview(
             tree_frame,
-            columns=("XPM", "Version", "Valid", "Missing Samples"),
+            columns=("XPM", "Version", "Valid", "Issues"),
             show="headings",
         )
         self.tree.heading("XPM", text="XPM File")
         self.tree.heading("Version", text="Version")
         self.tree.heading("Valid", text="Valid")
-        self.tree.heading("Missing Samples", text="Missing Samples")
+        self.tree.heading("Issues", text="Issues Detected")
         self.tree.column("XPM", width=250)
         self.tree.column("Version", width=80, anchor="center")
         self.tree.column("Valid", width=60, anchor="center")
-        self.tree.column("Missing Samples", width=320)
+        self.tree.column("Issues", width=350)
 
         vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
@@ -535,6 +535,9 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
+        
+        # Add double-click event to show detailed issue information
+        self.tree.bind("<Double-1>", self.show_detailed_issues)
 
         option_frame = ttk.Frame(frame)
         option_frame.grid(row=2, column=0, sticky="ew", pady=(5, 0))
@@ -557,11 +560,35 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
         btn_frame = ttk.Frame(frame)
         btn_frame.grid(row=3, column=0, sticky="ew", pady=(5, 0))
+        
+        # Row 1: Main fix buttons
         ttk.Button(
-            btn_frame, text="Relink Samples...", command=self.relink_samples
+            btn_frame, text="🔧 Batch Fix All Issues", command=self.batch_fix_all_issues, 
+            style="Accent.TButton"
         ).pack(side="left", padx=5)
-        options = ttk.Frame(btn_frame)
-        options.pack(side="left", padx=5)
+        ttk.Button(
+            btn_frame, text="🔢 Fix Keygroup Counts", command=self.fix_keygroup_counts
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            btn_frame, text="🎹 Fix Key Ranges", command=self.fix_key_ranges
+        ).pack(side="left", padx=5)
+        
+        # Row 2: Specific fix buttons  
+        btn_frame2 = ttk.Frame(frame)
+        btn_frame2.grid(row=4, column=0, sticky="ew", pady=(5, 0))
+        ttk.Button(
+            btn_frame2, text="🔗 Relink Samples...", command=self.relink_samples
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            btn_frame2, text="📋 Fix Pad Mappings", command=self.fix_pad_mappings
+        ).pack(side="left", padx=5)
+        ttk.Button(btn_frame2, text="Fix Keygroups", command=self.fix_keygroups).pack(
+            side="left", padx=5
+        )
+        
+        # Row 3: Version and control buttons
+        options = ttk.Frame(btn_frame2)
+        options.pack(side="left", padx=10)
         ttk.Label(options, text="Format:").pack(side="left")
         ttk.Combobox(
             options,
@@ -570,16 +597,13 @@ class ExpansionDoctorWindow(tk.Toplevel):
             state="readonly",
             width=9,
         ).pack(side="left")
-        ttk.Button(btn_frame, text="Fix Keygroups", command=self.fix_keygroups).pack(
+        ttk.Button(btn_frame2, text="Rewrite Versions", command=self.fix_versions).pack(
             side="left", padx=5
         )
-        ttk.Button(btn_frame, text="Rewrite Versions", command=self.fix_versions).pack(
+        ttk.Button(btn_frame2, text="📊 Rescan", command=self.scan_broken_links).pack(
             side="left", padx=5
         )
-        ttk.Button(btn_frame, text="Rescan", command=self.scan_broken_links).pack(
-            side="left", padx=5
-        )
-        ttk.Button(btn_frame, text="Close", command=self.destroy).pack(
+        ttk.Button(btn_frame2, text="Close", command=self.destroy).pack(
             side="right", padx=5
         )
 
@@ -761,6 +785,120 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
         return changed
 
+    def analyze_xpm_issues(self, xpm_path):
+        """Comprehensive analysis of XPM file issues."""
+        issues = []
+        fixes = []
+        
+        try:
+            tree = ET.parse(xpm_path)
+            root = tree.getroot()
+            
+            # Issue 1: Check KeygroupNumKeygroups vs actual instrument count
+            kg_count_elem = root.find(".//KeygroupNumKeygroups")
+            instruments = root.findall(".//Instrument")
+            actual_kg_count = len(instruments)
+            declared_kg_count = 0
+            
+            if kg_count_elem is not None and kg_count_elem.text:
+                declared_kg_count = int(kg_count_elem.text)
+                if declared_kg_count != actual_kg_count:
+                    issues.append(f"KeygroupNumKeygroups mismatch: declared {declared_kg_count}, found {actual_kg_count}")
+                    fixes.append("fix_keygroup_count")
+            else:
+                issues.append("Missing KeygroupNumKeygroups element")
+                fixes.append("fix_keygroup_count")
+            
+            # Issue 2: Check LowNote/HighNote ranges in keygroups
+            keygroup_issues = []
+            for i, instrument in enumerate(instruments):
+                low_note_elem = instrument.find("LowNote")
+                high_note_elem = instrument.find("HighNote")
+                
+                if low_note_elem is None or high_note_elem is None:
+                    keygroup_issues.append(f"KG{i+1}: Missing LowNote/HighNote")
+                    if "fix_keygroup_ranges" not in fixes:
+                        fixes.append("fix_keygroup_ranges")
+                else:
+                    try:
+                        low_note = int(low_note_elem.text) if low_note_elem.text else 0
+                        high_note = int(high_note_elem.text) if high_note_elem.text else 127
+                        
+                        if low_note > high_note:
+                            keygroup_issues.append(f"KG{i+1}: LowNote ({low_note}) > HighNote ({high_note})")
+                            if "fix_keygroup_ranges" not in fixes:
+                                fixes.append("fix_keygroup_ranges")
+                        elif low_note == high_note == 0:
+                            keygroup_issues.append(f"KG{i+1}: Both notes set to 0")
+                            if "fix_keygroup_ranges" not in fixes:
+                                fixes.append("fix_keygroup_ranges")
+                        elif low_note < 0 or high_note > 127:
+                            keygroup_issues.append(f"KG{i+1}: Notes out of MIDI range (0-127)")
+                            if "fix_keygroup_ranges" not in fixes:
+                                fixes.append("fix_keygroup_ranges")
+                    except (ValueError, TypeError):
+                        keygroup_issues.append(f"KG{i+1}: Invalid note values")
+                        if "fix_keygroup_ranges" not in fixes:
+                            fixes.append("fix_keygroup_ranges")
+            
+            if keygroup_issues:
+                issues.extend(keygroup_issues)
+            
+            # Issue 3: Check for missing sample files
+            missing_samples = set()
+            for elem in root.findall(".//SampleFile"):
+                if elem is not None and elem.text:
+                    normalized_rel_path = elem.text.replace("/", os.sep)
+                    sample_abs_path = os.path.normpath(
+                        os.path.join(os.path.dirname(xpm_path), normalized_rel_path)
+                    )
+                    if not os.path.exists(sample_abs_path):
+                        missing_samples.add(os.path.basename(elem.text))
+            
+            if missing_samples:
+                issues.append(f"Missing samples: {', '.join(sorted(missing_samples))}")
+                fixes.append("fix_missing_samples")
+            
+            # Issue 4: Check ProgramPads consistency (modern format)
+            pads_elem = root.find(".//ProgramPads-v2.10") or root.find(".//ProgramPads")
+            if pads_elem is not None and pads_elem.text:
+                try:
+                    pads_data = json.loads(xml_unescape(pads_elem.text))
+                    if isinstance(pads_data, dict):
+                        # Check padToInstrument mapping
+                        pad_to_inst = pads_data.get("padToInstrument", {})
+                        if len(pad_to_inst) != actual_kg_count:
+                            issues.append(f"PadToInstrument mapping mismatch: {len(pad_to_inst)} entries for {actual_kg_count} keygroups")
+                            fixes.append("fix_pad_mapping")
+                except (json.JSONDecodeError, TypeError):
+                    issues.append("Corrupted ProgramPads JSON data")
+                    fixes.append("fix_pad_mapping")
+            
+            # Issue 5: Check version consistency
+            version = get_xpm_version(xpm_path)
+            if version == "Unknown":
+                issues.append("Missing or invalid version information")
+                fixes.append("fix_version")
+            
+            return {
+                "issues": issues,
+                "fixes": fixes,
+                "keygroup_count": actual_kg_count,
+                "declared_count": declared_kg_count,
+                "missing_samples": sorted(list(missing_samples)),
+                "version": version
+            }
+            
+        except Exception as e:
+            return {
+                "issues": [f"Parse error: {str(e)}"],
+                "fixes": [],
+                "keygroup_count": 0,
+                "declared_count": 0,
+                "missing_samples": [],
+                "version": "Unknown"
+            }
+
     def scan_broken_links(self):
         for i in self.tree.get_children():
             self.tree.delete(i)
@@ -773,59 +911,471 @@ class ExpansionDoctorWindow(tk.Toplevel):
 
         xpms = glob.glob(os.path.join(folder, "**", "*.xpm"), recursive=True)
         total = len(xpms)
+        issues_found = 0
 
         for xpm_path in xpms:
-            try:
-                tree = ET.parse(xpm_path)
-                root = tree.getroot()
-            except Exception as e:
-                rel = os.path.relpath(xpm_path, folder)
-                logging.error(f"Error scanning {xpm_path}: {e}")
-                self.tree.insert(
-                    "",
-                    "end",
-                    values=(rel, "Unknown", "No", "Invalid XPM"),
-                )
-                self.file_info[xpm_path] = {
-                    "version": "Unknown",
-                    "valid": False,
-                    "missing": [],
-                }
-                continue
-
-            missing = set()
-            for elem in root.findall(".//SampleFile"):
-                if elem is not None and elem.text:
-                    normalized_rel_path = elem.text.replace("/", os.sep)
-                    sample_abs_path = os.path.normpath(
-                        os.path.join(os.path.dirname(xpm_path), normalized_rel_path)
-                    )
-                    if not os.path.exists(sample_abs_path):
-                        missing.add(os.path.basename(elem.text))
-
-            missing_list = sorted(list(missing))
-            version = get_xpm_version(xpm_path)
-            valid = is_valid_xpm(xpm_path)
+            # Use comprehensive analysis
+            analysis = self.analyze_xpm_issues(xpm_path)
+            
+            # Create summary of issues for display
+            issue_summary = []
+            if analysis["issues"]:
+                issues_found += 1
+                # Prioritize display of most critical issues
+                critical_issues = []
+                for issue in analysis["issues"][:3]:  # Show max 3 issues
+                    if "KeygroupNumKeygroups" in issue:
+                        critical_issues.append("KG Count")
+                    elif "LowNote" in issue or "HighNote" in issue:
+                        critical_issues.append("Key Range")
+                    elif "Missing samples" in issue:
+                        critical_issues.append("Missing Samples")
+                    elif "PadToInstrument" in issue:
+                        critical_issues.append("Pad Mapping")
+                    elif "version" in issue.lower():
+                        critical_issues.append("Version")
+                    else:
+                        critical_issues.append("Other")
+                
+                if len(analysis["issues"]) > 3:
+                    critical_issues.append(f"+{len(analysis['issues'])-3} more")
+                issue_summary = critical_issues
+            
+            # Display in tree
             self.tree.insert(
                 "",
                 "end",
                 values=(
                     os.path.relpath(xpm_path, folder),
-                    version,
-                    "Yes" if valid else "No",
-                    ", ".join(missing_list),
+                    analysis["version"],
+                    "No" if analysis["issues"] else "Yes",
+                    ", ".join(issue_summary) if issue_summary else "OK",
                 ),
+                tags=("issue",) if analysis["issues"] else ("ok",)
             )
-            self.file_info[xpm_path] = {
-                "version": version,
-                "valid": valid,
-                "missing": missing_list,
-            }
-            if missing_list:
-                self.broken_links[xpm_path] = missing_list
+            
+            # Store detailed info
+            self.file_info[xpm_path] = analysis
+            if analysis["missing_samples"]:
+                self.broken_links[xpm_path] = analysis["missing_samples"]
 
-        broken = len(self.broken_links)
-        self.status.set(f"Scanned {total} XPM(s). {broken} with missing samples.")
+        # Configure colors for different issue types
+        self.tree.tag_configure("issue", foreground="red")
+        self.tree.tag_configure("ok", foreground="green")
+
+        self.status.set(f"Scanned {total} XPM(s). {issues_found} with issues, {len(self.broken_links)} with missing samples.")
+
+    def show_detailed_issues(self, event):
+        """Show detailed issue information for selected XPM."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        
+        item = selection[0]
+        values = self.tree.item(item)["values"]
+        if not values:
+            return
+            
+        xmp_rel_path = values[0]
+        folder = self.master.folder_path.get()
+        xmp_path = os.path.join(folder, xmp_rel_path)
+        
+        if xmp_path not in self.file_info:
+            return
+        
+        analysis = self.file_info[xmp_path]
+        
+        # Create detailed info window
+        detail_window = tk.Toplevel(self)
+        detail_window.title(f"Detailed Issues - {os.path.basename(xmp_path)}")
+        detail_window.geometry("600x400")
+        
+        frame = ttk.Frame(detail_window, padding="10")
+        frame.pack(fill="both", expand=True)
+        
+        # File info
+        info_text = f"File: {xmp_rel_path}\\n"
+        info_text += f"Version: {analysis.get('version', 'Unknown')}\\n"
+        info_text += f"Keygroups: {analysis.get('keygroup_count', 0)} (declared: {analysis.get('declared_count', 0)})\\n\\n"
+        
+        # Issues
+        issues = analysis.get('issues', [])
+        if issues:
+            info_text += f"Issues Found ({len(issues)}):\\n"
+            for i, issue in enumerate(issues, 1):
+                info_text += f"{i}. {issue}\\n"
+        else:
+            info_text += "No issues detected.\\n"
+        
+        # Missing samples
+        missing = analysis.get('missing_samples', [])
+        if missing:
+            info_text += f"\\nMissing Samples ({len(missing)}):\\n"
+            for sample in missing:
+                info_text += f"• {sample}\\n"
+        
+        # Recommended fixes
+        fixes = analysis.get('fixes', [])
+        if fixes:
+            info_text += f"\\nRecommended Fixes:\\n"
+            fix_descriptions = {
+                "fix_keygroup_count": "Fix KeygroupNumKeygroups count",
+                "fix_keygroup_ranges": "Fix LowNote/HighNote ranges", 
+                "fix_pad_mapping": "Fix ProgramPads mapping",
+                "fix_missing_samples": "Relink missing samples",
+                "fix_version": "Update version information"
+            }
+            for fix in fixes:
+                desc = fix_descriptions.get(fix, fix)
+                info_text += f"• {desc}\\n"
+        
+        # Create scrollable text widget
+        text_frame = ttk.Frame(frame)
+        text_frame.pack(fill="both", expand=True)
+        
+        text_widget = tk.Text(text_frame, wrap="word", height=20, width=70)
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=text_widget.yview)
+        text_widget.configure(yscrollcommand=scrollbar.set)
+        
+        text_widget.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        text_widget.insert("1.0", info_text)
+        text_widget.config(state="disabled")
+        
+        # Buttons
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill="x", pady=(10, 0))
+        
+        if fixes:
+            ttk.Button(btn_frame, text="Fix This File", 
+                      command=lambda: self.fix_single_file(xmp_path, detail_window)).pack(side="left")
+        
+        ttk.Button(btn_frame, text="Close", command=detail_window.destroy).pack(side="right")
+
+    def fix_single_file(self, xmp_path, parent_window):
+        """Fix issues in a single XPM file."""
+        if xmp_path not in self.file_info:
+            return
+        
+        analysis = self.file_info[xmp_path]
+        fixes = analysis.get("fixes", [])
+        
+        if not fixes:
+            messagebox.showinfo("No Fixes", "No fixes available for this file.", parent=parent_window)
+            return
+        
+        # Create backup
+        backup_path = xmp_path + ".backup"
+        if not os.path.exists(backup_path):
+            shutil.copy2(xmp_path, backup_path)
+        
+        fixed_issues = []
+        
+        try:
+            for fix_type in fixes:
+                if fix_type == "fix_keygroup_count":
+                    if self.fix_single_keygroup_count(xmp_path):
+                        fixed_issues.append("keygroup count")
+                elif fix_type == "fix_keygroup_ranges":
+                    if self.fix_single_key_ranges(xmp_path):
+                        fixed_issues.append("key ranges")
+                elif fix_type == "fix_pad_mapping":
+                    if self.fix_single_pad_mapping(xmp_path):
+                        fixed_issues.append("pad mapping")
+                elif fix_type == "fix_version":
+                    if self.fix_single_version(xmp_path):
+                        fixed_issues.append("version")
+            
+            if fixed_issues:
+                messagebox.showinfo("Fix Complete", 
+                                   f"Successfully fixed: {', '.join(fixed_issues)}", 
+                                   parent=parent_window)
+                parent_window.destroy()
+                self.scan_broken_links()
+            else:
+                messagebox.showwarning("No Changes", "No changes were made.", parent=parent_window)
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Error fixing file: {e}", parent=parent_window)
+
+    def batch_fix_all_issues(self):
+        """Fix all detected issues in batch."""
+        if not self.file_info:
+            messagebox.showwarning("No Data", "Please run a scan first.", parent=self)
+            return
+        
+        files_with_issues = [path for path, info in self.file_info.items() if info.get("issues")]
+        if not files_with_issues:
+            messagebox.showinfo("No Issues", "No issues found to fix.", parent=self)
+            return
+        
+        confirm_msg = (f"This will attempt to fix all detected issues in {len(files_with_issues)} XPM file(s).\n\n"
+                      "The following fixes will be applied:\n"
+                      "• Keygroup count corrections\n"
+                      "• Key range fixes (LowNote/HighNote)\n"
+                      "• ProgramPads mapping corrections\n"
+                      "• Version updates\n\n"
+                      "Backup files (.backup) will be created. Continue?")
+        
+        if not messagebox.askyesno("Batch Fix All Issues", confirm_msg, parent=self):
+            return
+        
+        fixed_count = 0
+        errors = []
+        
+        for i, xmp_path in enumerate(files_with_issues):
+            try:
+                self.status.set(f"Fixing {i+1}/{len(files_with_issues)}: {os.path.basename(xmp_path)}")
+                self.update()
+                
+                # Create backup
+                backup_path = xmp_path + ".backup"
+                if not os.path.exists(backup_path):
+                    shutil.copy2(xmp_path, backup_path)
+                
+                analysis = self.file_info[xmp_path]
+                fixed_issues = []
+                
+                # Apply individual fixes based on detected issues
+                for fix_type in analysis.get("fixes", []):
+                    if fix_type == "fix_keygroup_count":
+                        if self.fix_single_keygroup_count(xmp_path):
+                            fixed_issues.append("keygroup count")
+                    elif fix_type == "fix_keygroup_ranges":
+                        if self.fix_single_key_ranges(xmp_path):
+                            fixed_issues.append("key ranges")
+                    elif fix_type == "fix_pad_mapping":
+                        if self.fix_single_pad_mapping(xmp_path):
+                            fixed_issues.append("pad mapping")
+                    elif fix_type == "fix_version":
+                        if self.fix_single_version(xmp_path):
+                            fixed_issues.append("version")
+                
+                if fixed_issues:
+                    fixed_count += 1
+                    logging.info(f"Fixed {', '.join(fixed_issues)} in {os.path.basename(xmp_path)}")
+                
+            except Exception as e:
+                errors.append(f"{os.path.basename(xmp_path)}: {str(e)}")
+                logging.error(f"Error fixing {xmp_path}: {e}")
+        
+        # Show results
+        result_msg = f"Successfully fixed issues in {fixed_count} out of {len(files_with_issues)} files."
+        if errors:
+            result_msg += f"\n\nErrors ({len(errors)}):\n" + "\n".join(errors[:5])
+            if len(errors) > 5:
+                result_msg += f"\n... and {len(errors) - 5} more errors"
+        
+        messagebox.showinfo("Batch Fix Complete", result_msg, parent=self)
+        self.status.set("Batch fix complete. Rescanning...")
+        self.scan_broken_links()
+
+    def fix_keygroup_counts(self):
+        """Fix KeygroupNumKeygroups values in batch."""
+        files_to_fix = []
+        for path, info in self.file_info.items():
+            if "fix_keygroup_count" in info.get("fixes", []):
+                files_to_fix.append(path)
+        
+        if not files_to_fix:
+            messagebox.showinfo("No Issues", "No keygroup count issues found.", parent=self)
+            return
+        
+        if not messagebox.askyesno("Fix Keygroup Counts", 
+                                   f"Fix keygroup count mismatches in {len(files_to_fix)} file(s)?", parent=self):
+            return
+        
+        fixed = 0
+        for xmp_path in files_to_fix:
+            if self.fix_single_keygroup_count(xmp_path):
+                fixed += 1
+        
+        messagebox.showinfo("Keygroup Counts Fixed", f"Fixed {fixed} file(s).", parent=self)
+        self.scan_broken_links()
+
+    def fix_key_ranges(self):
+        """Fix LowNote/HighNote ranges in batch."""
+        files_to_fix = []
+        for path, info in self.file_info.items():
+            if "fix_keygroup_ranges" in info.get("fixes", []):
+                files_to_fix.append(path)
+        
+        if not files_to_fix:
+            messagebox.showinfo("No Issues", "No key range issues found.", parent=self)
+            return
+        
+        if not messagebox.askyesno("Fix Key Ranges", 
+                                   f"Fix key range issues in {len(files_to_fix)} file(s)?", parent=self):
+            return
+        
+        fixed = 0
+        for xmp_path in files_to_fix:
+            if self.fix_single_key_ranges(xmp_path):
+                fixed += 1
+        
+        messagebox.showinfo("Key Ranges Fixed", f"Fixed {fixed} file(s).", parent=self)
+        self.scan_broken_links()
+
+    def fix_pad_mappings(self):
+        """Fix ProgramPads mappings in batch."""
+        files_to_fix = []
+        for path, info in self.file_info.items():
+            if "fix_pad_mapping" in info.get("fixes", []):
+                files_to_fix.append(path)
+        
+        if not files_to_fix:
+            messagebox.showinfo("No Issues", "No pad mapping issues found.", parent=self)
+            return
+        
+        if not messagebox.askyesno("Fix Pad Mappings", 
+                                   f"Fix pad mapping issues in {len(files_to_fix)} file(s)?", parent=self):
+            return
+        
+        fixed = 0
+        for xmp_path in files_to_fix:
+            if self.fix_single_pad_mapping(xmp_path):
+                fixed += 1
+        
+        messagebox.showinfo("Pad Mappings Fixed", f"Fixed {fixed} file(s).", parent=self)
+        self.scan_broken_links()
+
+    def fix_single_keygroup_count(self, xmp_path):
+        """Fix KeygroupNumKeygroups for a single file."""
+        try:
+            tree = ET.parse(xmp_path)
+            root = tree.getroot()
+            
+            kg_count_elem = root.find(".//KeygroupNumKeygroups")
+            instruments = root.findall(".//Instrument")
+            actual_count = len(instruments)
+            
+            if kg_count_elem is None:
+                # Create element if it doesn't exist
+                program_elem = root.find(".//Program")
+                if program_elem is not None:
+                    kg_count_elem = ET.SubElement(program_elem, "KeygroupNumKeygroups")
+                else:
+                    return False
+            
+            kg_count_elem.text = str(actual_count)
+            
+            tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error fixing keygroup count in {xmp_path}: {e}")
+            return False
+
+    def fix_single_key_ranges(self, xmp_path):
+        """Fix LowNote/HighNote ranges for a single file."""
+        try:
+            tree = ET.parse(xmp_path)
+            root = tree.getroot()
+            instruments = root.findall(".//Instrument")
+            fixed = False
+            
+            for i, instrument in enumerate(instruments):
+                low_note_elem = instrument.find("LowNote")
+                high_note_elem = instrument.find("HighNote")
+                
+                # Get root note from associated layer for intelligent range setting
+                layer = instrument.find("Layer")
+                root_note = 60  # Default to C4
+                if layer is not None:
+                    root_note_elem = layer.find("RootNote")
+                    if root_note_elem is not None and root_note_elem.text:
+                        root_note = int(root_note_elem.text)
+                
+                # Create missing elements
+                if low_note_elem is None:
+                    low_note_elem = ET.SubElement(instrument, "LowNote")
+                if high_note_elem is None:
+                    high_note_elem = ET.SubElement(instrument, "HighNote")
+                
+                # Fix invalid values
+                try:
+                    low_note = int(low_note_elem.text) if low_note_elem.text else 0
+                    high_note = int(high_note_elem.text) if high_note_elem.text else 127
+                except (ValueError, TypeError):
+                    low_note = 0
+                    high_note = 127
+                
+                # Apply intelligent fixes
+                if low_note > high_note or low_note == high_note == 0 or low_note < 0 or high_note > 127:
+                    # Set to single-note keygroup centered on root note
+                    low_note_elem.text = str(root_note)
+                    high_note_elem.text = str(root_note)
+                    fixed = True
+            
+            if fixed:
+                tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+            
+            return fixed
+            
+        except Exception as e:
+            logging.error(f"Error fixing key ranges in {xmp_path}: {e}")
+            return False
+
+    def fix_single_pad_mapping(self, xmp_path):
+        """Fix ProgramPads mapping for a single file."""
+        try:
+            tree = ET.parse(xmp_path)
+            root = tree.getroot()
+            instruments = root.findall(".//Instrument")
+            actual_count = len(instruments)
+            
+            pads_elem = root.find(".//ProgramPads-v2.10") or root.find(".//ProgramPads")
+            if pads_elem is None or not pads_elem.text:
+                return False
+            
+            pads_data = json.loads(xml_unescape(pads_elem.text))
+            if not isinstance(pads_data, dict):
+                return False
+            
+            # Fix padToInstrument mapping
+            pad_to_inst = pads_data.get("padToInstrument", {})
+            if len(pad_to_inst) != actual_count:
+                # Rebuild mapping - first N pads map to N instruments
+                new_mapping = {}
+                for i in range(actual_count):
+                    new_mapping[str(i)] = i
+                pads_data["padToInstrument"] = new_mapping
+                
+                # Update the element
+                pads_elem.text = xml_escape(json.dumps(pads_data, indent=4))
+                tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logging.error(f"Error fixing pad mapping in {xmp_path}: {e}")
+            return False
+
+    def fix_single_version(self, xmp_path):
+        """Fix version information for a single file."""
+        try:
+            tree = ET.parse(xmp_path)
+            root = tree.getroot()
+            
+            version_elem = root.find(".//Application_Version")
+            target_version = self.version_var.get()
+            
+            if version_elem is None:
+                # Create version element
+                version_elem = ET.SubElement(root, "Application_Version")
+            
+            if version_elem.text != target_version:
+                version_elem.text = target_version
+                tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logging.error(f"Error fixing version in {xmp_path}: {e}")
+            return False
 
 
 class ExpansionBuilderWindow(tk.Toplevel):
