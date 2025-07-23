@@ -2706,6 +2706,528 @@ class BatchTransposeWindow(tk.Toplevel):
         messagebox.showinfo("Key Range Fix Complete", result_msg, parent=self)
         self.status_var.set(f"Fixed key ranges in {fixed_count} files.")
 
+    def open_advanced_xpm_doctor(self):
+        """Open the Advanced XPM Doctor window."""
+        try:
+            if not self.xpm_files:
+                messagebox.showwarning("No Files", "Please scan for XPM files first before using Advanced XPM Doctor.", parent=self)
+                return
+            AdvancedXpmDoctorWindow(self, self.xpm_files)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open Advanced XPM Doctor: {e}", parent=self)
+
+
+class AdvancedXpmDoctorWindow(tk.Toplevel):
+    """Advanced XPM Doctor - Comprehensive analysis and fixing of XPM file issues."""
+    
+    def __init__(self, parent, xpm_files):
+        super().__init__(parent)
+        self.title("🩺 Advanced XPM Doctor - Comprehensive File Analysis")
+        self.geometry("900x700")
+        self.parent = parent
+        self.xpm_files = xpm_files
+        self.analysis_results = []
+        self.create_widgets()
+        self.analyze_all_files()
+    
+    def create_widgets(self):
+        main_frame = ttk.Frame(self, padding="10")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        # Header
+        header_frame = ttk.Frame(main_frame)
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        header_frame.grid_columnconfigure(1, weight=1)
+        
+        ttk.Label(header_frame, text="🩺 Advanced XPM Doctor", 
+                  font=("Arial", 14, "bold")).grid(row=0, column=0, sticky="w")
+        
+        self.status_var = tk.StringVar(value="Analyzing files...")
+        ttk.Label(header_frame, textvariable=self.status_var).grid(row=0, column=1, sticky="e")
+        
+        # Analysis results tree
+        tree_frame = ttk.LabelFrame(main_frame, text="File Analysis Results", padding="10")
+        tree_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 10))
+        tree_frame.grid_rowconfigure(0, weight=1)
+        tree_frame.grid_columnconfigure(0, weight=1)
+        
+        # Create treeview with detailed columns
+        self.tree = ttk.Treeview(tree_frame, columns=("Status", "Issues", "Keygroups", "Ranges", "Fixes"), show="headings")
+        self.tree.heading("#0", text="File")
+        self.tree.heading("Status", text="Status")
+        self.tree.heading("Issues", text="Critical Issues")
+        self.tree.heading("Keygroups", text="Keygroups")
+        self.tree.heading("Ranges", text="Range Issues")
+        self.tree.heading("Fixes", text="Recommended Fixes")
+        
+        self.tree.column("Status", width=100, anchor="center")
+        self.tree.column("Issues", width=150)
+        self.tree.column("Keygroups", width=100, anchor="center")
+        self.tree.column("Ranges", width=150)
+        self.tree.column("Fixes", width=200)
+        
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        
+        tree_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        tree_scroll.grid(row=0, column=1, sticky="ns")
+        self.tree.config(yscrollcommand=tree_scroll.set)
+        
+        # Bind double-click to show detailed analysis
+        self.tree.bind("<Double-1>", self.show_detailed_analysis)
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=2, column=0, sticky="ew")
+        button_frame.grid_columnconfigure(0, weight=1)
+        
+        left_buttons = ttk.Frame(button_frame)
+        left_buttons.grid(row=0, column=0, sticky="w")
+        
+        ttk.Button(left_buttons, text="🔍 Re-Analyze", command=self.analyze_all_files).pack(side="left", padx=5)
+        ttk.Button(left_buttons, text="📋 Export Report", command=self.export_report).pack(side="left", padx=5)
+        
+        right_buttons = ttk.Frame(button_frame)
+        right_buttons.grid(row=0, column=1, sticky="e")
+        
+        ttk.Button(right_buttons, text="🔧 Fix Selected Issues", command=self.fix_selected_issues).pack(side="left", padx=5)
+        ttk.Button(right_buttons, text="🩹 Fix All Issues", command=self.fix_all_issues, 
+                   style="Accent.TButton").pack(side="left", padx=5)
+        ttk.Button(right_buttons, text="Close", command=self.destroy).pack(side="left", padx=5)
+    
+    def analyze_xpm_file(self, xpm_path):
+        """Comprehensive analysis of an XPM file."""
+        try:
+            tree = ET.parse(xpm_path)
+            root = tree.getroot()
+            
+            analysis = {
+                'file_path': xpm_path,
+                'file_name': os.path.basename(xpm_path),
+                'issues': [],
+                'critical_issues': [],
+                'warnings': [],
+                'fix_suggestions': []
+            }
+            
+            # Check format
+            analysis['format'] = 'MPC-V (Advanced)' if root.tag == 'MPCVObject' else 'Legacy MPC'
+            
+            # Analyze KeygroupMasterTranspose
+            transpose_elem = root.find(".//KeygroupMasterTranspose")
+            if transpose_elem is not None:
+                try:
+                    transpose_value = float(transpose_elem.text) if transpose_elem.text else 0.0
+                    analysis['master_transpose'] = transpose_value
+                except ValueError:
+                    analysis['issues'].append("Invalid transpose value")
+                    analysis['master_transpose'] = 0.0
+            else:
+                analysis['master_transpose'] = 0.0
+            
+            # Analyze keygroup count
+            keygroup_count_elem = root.find(".//KeygroupNumKeygroups")
+            declared_count = 0
+            if keygroup_count_elem is not None:
+                try:
+                    declared_count = int(keygroup_count_elem.text) if keygroup_count_elem.text else 0
+                except ValueError:
+                    analysis['issues'].append("Invalid keygroup count")
+            
+            # Count actual active keygroups and analyze ranges
+            keygroups = root.findall('.//Keygroup')
+            active_keygroups = 0
+            range_issues = []
+            keygroup_ranges = []
+            
+            for i, kg in enumerate(keygroups):
+                # Check if keygroup has meaningful content
+                sample_elem = kg.find('.//KeygroupSampleName')
+                if sample_elem is not None and sample_elem.text and sample_elem.text.strip():
+                    active_keygroups += 1
+                    
+                    # Analyze ranges
+                    low_note_elem = kg.find('.//KeygroupLowNote')
+                    high_note_elem = kg.find('.//KeygroupHighNote')
+                    
+                    if low_note_elem is not None and high_note_elem is not None:
+                        try:
+                            low_note = int(low_note_elem.text) if low_note_elem.text else 60
+                            high_note = int(high_note_elem.text) if high_note_elem.text else 60
+                            
+                            keygroup_ranges.append({
+                                'kg': i + 1,
+                                'low': low_note,
+                                'high': high_note
+                            })
+                            
+                            # Check for range issues
+                            if low_note == high_note:
+                                range_issues.append(f"KG{i+1}: Single-note ({low_note})")
+                            elif low_note > high_note:
+                                analysis['critical_issues'].append(f"KG{i+1}: Invalid range ({low_note}>{high_note})")
+                            elif high_note < 72:  # Less than C5
+                                range_issues.append(f"KG{i+1}: Limited to {high_note} (C5+ blocked)")
+                            elif high_note < 84:  # Less than C6
+                                range_issues.append(f"KG{i+1}: Range {low_note}-{high_note} (C6+ limited)")
+                        except ValueError:
+                            analysis['critical_issues'].append(f"KG{i+1}: Invalid range values")
+            
+            analysis['declared_keygroup_count'] = declared_count
+            analysis['actual_keygroup_count'] = active_keygroups
+            analysis['keygroup_ranges'] = keygroup_ranges
+            analysis['range_issues'] = range_issues
+            
+            # Check keygroup count mismatch
+            if declared_count != active_keygroups:
+                if active_keygroups == 0:
+                    analysis['critical_issues'].append(f"Empty file: Declared {declared_count} KGs, found 0")
+                else:
+                    analysis['issues'].append(f"Count mismatch: Declared {declared_count}, actual {active_keygroups}")
+            
+            # Generate fix suggestions
+            if declared_count != active_keygroups:
+                analysis['fix_suggestions'].append(f"Update keygroup count to {active_keygroups}")
+            
+            if range_issues:
+                analysis['fix_suggestions'].append("Expand keygroup ranges for full keyboard access")
+            
+            if any("Single-note" in issue for issue in range_issues):
+                analysis['fix_suggestions'].append("Convert single-note keygroups to full range")
+            
+            # Determine overall status
+            if analysis['critical_issues']:
+                analysis['status'] = 'CRITICAL'
+            elif analysis['issues'] or range_issues:
+                analysis['status'] = 'NEEDS_FIXING'
+            elif analysis['warnings']:
+                analysis['status'] = 'WARNINGS'
+            else:
+                analysis['status'] = 'OK'
+            
+            return analysis
+            
+        except Exception as e:
+            return {
+                'file_path': xpm_path,
+                'file_name': os.path.basename(xpm_path),
+                'error': str(e),
+                'status': 'ERROR',
+                'issues': [f"Parse error: {e}"],
+                'critical_issues': [],
+                'warnings': [],
+                'fix_suggestions': []
+            }
+    
+    def analyze_all_files(self):
+        """Analyze all XPM files and populate the tree."""
+        self.status_var.set("Analyzing files...")
+        self.tree.delete(*self.tree.get_children())
+        self.analysis_results = []
+        
+        for i, xpm_path in enumerate(self.xpm_files):
+            self.status_var.set(f"Analyzing {i+1}/{len(self.xpm_files)}: {os.path.basename(xpm_path)}")
+            self.update()
+            
+            analysis = self.analyze_xpm_file(xpm_path)
+            self.analysis_results.append(analysis)
+            
+            # Determine status icon
+            status_icon = {
+                'CRITICAL': '🚨 CRITICAL',
+                'NEEDS_FIXING': '⚠️ ISSUES',
+                'WARNINGS': '⚠️ WARNINGS', 
+                'OK': '✅ OK',
+                'ERROR': '❌ ERROR'
+            }.get(analysis['status'], '❓ UNKNOWN')
+            
+            # Format issues for display
+            critical_issues = "; ".join(analysis['critical_issues'][:2])
+            if len(analysis['critical_issues']) > 2:
+                critical_issues += f" (+{len(analysis['critical_issues'])-2} more)"
+            
+            range_issues_str = "; ".join(analysis.get('range_issues', [])[:2])
+            if len(analysis.get('range_issues', [])) > 2:
+                range_issues_str += f" (+{len(analysis.get('range_issues', []))-2} more)"
+            
+            keygroups_str = f"{analysis.get('actual_keygroup_count', 0)}/{analysis.get('declared_keygroup_count', 0)}"
+            
+            fixes_str = "; ".join(analysis['fix_suggestions'][:2])
+            if len(analysis['fix_suggestions']) > 2:
+                fixes_str += f" (+{len(analysis['fix_suggestions'])-2} more)"
+            
+            # Insert into tree
+            self.tree.insert("", "end", text=analysis['file_name'], values=(
+                status_icon,
+                critical_issues,
+                keygroups_str,
+                range_issues_str,
+                fixes_str
+            ))
+        
+        # Summary
+        critical_count = sum(1 for r in self.analysis_results if r['status'] == 'CRITICAL')
+        issues_count = sum(1 for r in self.analysis_results if r['status'] == 'NEEDS_FIXING')
+        ok_count = sum(1 for r in self.analysis_results if r['status'] == 'OK')
+        
+        self.status_var.set(f"Analysis complete: {critical_count} critical, {issues_count} with issues, {ok_count} OK")
+    
+    def show_detailed_analysis(self, event):
+        """Show detailed analysis for selected file."""
+        selection = self.tree.selection()
+        if not selection:
+            return
+        
+        item = selection[0]
+        index = self.tree.index(item)
+        if index < len(self.analysis_results):
+            analysis = self.analysis_results[index]
+            DetailedAnalysisWindow(self, analysis)
+    
+    def fix_selected_issues(self):
+        """Fix issues in selected files."""
+        selection = self.tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select files to fix.", parent=self)
+            return
+        
+        selected_indices = [self.tree.index(item) for item in selection]
+        selected_analyses = [self.analysis_results[i] for i in selected_indices]
+        
+        self.apply_fixes(selected_analyses)
+    
+    def fix_all_issues(self):
+        """Fix issues in all files that need fixing."""
+        analyses_to_fix = [a for a in self.analysis_results if a['status'] in ['CRITICAL', 'NEEDS_FIXING']]
+        
+        if not analyses_to_fix:
+            messagebox.showinfo("No Issues", "No files need fixing!", parent=self)
+            return
+        
+        confirm_msg = (f"This will attempt to fix issues in {len(analyses_to_fix)} XPM file(s).\n\n"
+                      "Fixes include:\n"
+                      "• Updating keygroup counts\n"
+                      "• Expanding keygroup ranges for full keyboard access\n"
+                      "• Fixing range validation issues\n\n"
+                      f"Backups: {'Yes' if hasattr(self.parent, 'create_backups') and self.parent.create_backups.get() else 'Recommended'}\n\n"
+                      "Continue?")
+        
+        if messagebox.askyesno("Fix All Issues", confirm_msg, parent=self):
+            self.apply_fixes(analyses_to_fix)
+    
+    def apply_fixes(self, analyses_to_fix):
+        """Apply fixes to the specified analyses."""
+        fixed_count = 0
+        errors = []
+        
+        for i, analysis in enumerate(analyses_to_fix):
+            try:
+                self.status_var.set(f"Fixing {i+1}/{len(analyses_to_fix)}: {analysis['file_name']}")
+                self.update()
+                
+                xpm_path = analysis['file_path']
+                
+                # Create backup if parent has the option
+                if hasattr(self.parent, 'create_backups') and self.parent.create_backups.get():
+                    backup_path = xpm_path + ".doctor.backup"
+                    if not os.path.exists(backup_path):
+                        shutil.copy2(xpm_path, backup_path)
+                
+                # Parse and modify XPM
+                tree = ET.parse(xpm_path)
+                root = tree.getroot()
+                
+                # Fix 1: Update keygroup count
+                if analysis.get('declared_keygroup_count', 0) != analysis.get('actual_keygroup_count', 0):
+                    keygroup_count_elem = root.find(".//KeygroupNumKeygroups")
+                    if keygroup_count_elem is not None:
+                        keygroup_count_elem.text = str(analysis['actual_keygroup_count'])
+                
+                # Fix 2: Expand keygroup ranges for full keyboard access
+                keygroups = root.findall('.//Keygroup')
+                for kg_range in analysis.get('keygroup_ranges', []):
+                    if kg_range['kg'] <= len(keygroups):
+                        kg = keygroups[kg_range['kg'] - 1]  # Convert to 0-based index
+                        
+                        low_note_elem = kg.find('.//KeygroupLowNote')
+                        high_note_elem = kg.find('.//KeygroupHighNote')
+                        
+                        if low_note_elem is not None and high_note_elem is not None:
+                            # Apply aggressive range expansion for full keyboard access
+                            if kg_range['high'] < 84 or kg_range['low'] == kg_range['high']:
+                                low_note_elem.text = "0"    # C0
+                                high_note_elem.text = "127" # G9
+                
+                # Save file
+                tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                fixed_count += 1
+                
+            except Exception as e:
+                errors.append(f"{analysis['file_name']}: {str(e)}")
+        
+        # Show results
+        result_msg = f"Successfully fixed {fixed_count} out of {len(analyses_to_fix)} files."
+        if errors:
+            result_msg += f"\n\nErrors ({len(errors)}):\n" + "\n".join(errors[:5])
+            if len(errors) > 5:
+                result_msg += f"\n... and {len(errors) - 5} more errors"
+        
+        messagebox.showinfo("Fix Complete", result_msg, parent=self)
+        
+        # Re-analyze to show updated results
+        self.analyze_all_files()
+    
+    def export_report(self):
+        """Export analysis report to a text file."""
+        try:
+            report_path = filedialog.asksaveasfilename(
+                parent=self,
+                title="Export Analysis Report",
+                defaultextension=".txt",
+                filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
+            )
+            
+            if report_path:
+                with open(report_path, 'w', encoding='utf-8') as f:
+                    f.write("🩺 ADVANCED XPM DOCTOR - ANALYSIS REPORT\n")
+                    f.write("=" * 60 + "\n\n")
+                    
+                    for analysis in self.analysis_results:
+                        f.write(f"📁 FILE: {analysis['file_name']}\n")
+                        f.write("-" * 40 + "\n")
+                        f.write(f"Status: {analysis['status']}\n")
+                        f.write(f"Format: {analysis.get('format', 'Unknown')}\n")
+                        f.write(f"Master Transpose: {analysis.get('master_transpose', 0):.1f} semitones\n")
+                        f.write(f"Keygroups: {analysis.get('actual_keygroup_count', 0)} active "
+                               f"(declared: {analysis.get('declared_keygroup_count', 0)})\n")
+                        
+                        if analysis['critical_issues']:
+                            f.write(f"\nCRITICAL ISSUES:\n")
+                            for issue in analysis['critical_issues']:
+                                f.write(f"  • {issue}\n")
+                        
+                        if analysis['issues']:
+                            f.write(f"\nISSUES:\n")
+                            for issue in analysis['issues']:
+                                f.write(f"  • {issue}\n")
+                        
+                        if analysis.get('range_issues'):
+                            f.write(f"\nRANGE ISSUES:\n")
+                            for issue in analysis['range_issues']:
+                                f.write(f"  • {issue}\n")
+                        
+                        if analysis['fix_suggestions']:
+                            f.write(f"\nRECOMMENDED FIXES:\n")
+                            for fix in analysis['fix_suggestions']:
+                                f.write(f"  • {fix}\n")
+                        
+                        f.write("\n" + "=" * 60 + "\n\n")
+                
+                messagebox.showinfo("Export Complete", f"Report exported to: {report_path}", parent=self)
+                
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export report: {e}", parent=self)
+
+
+class DetailedAnalysisWindow(tk.Toplevel):
+    """Show detailed analysis for a single XPM file."""
+    
+    def __init__(self, parent, analysis):
+        super().__init__(parent)
+        self.title(f"📋 Detailed Analysis - {analysis['file_name']}")
+        self.geometry("600x500")
+        self.analysis = analysis
+        self.create_widgets()
+    
+    def create_widgets(self):
+        main_frame = ttk.Frame(self, padding="15")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        # Header
+        header_frame = ttk.Frame(main_frame)
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+        
+        ttk.Label(header_frame, text=f"📁 {self.analysis['file_name']}", 
+                  font=("Arial", 12, "bold")).pack(anchor="w")
+        ttk.Label(header_frame, text=f"Status: {self.analysis['status']} | "
+                                     f"Format: {self.analysis.get('format', 'Unknown')}").pack(anchor="w")
+        
+        # Details in scrollable text
+        text_frame = ttk.Frame(main_frame)
+        text_frame.grid(row=1, column=0, sticky="nsew", pady=(0, 15))
+        text_frame.grid_rowconfigure(0, weight=1)
+        text_frame.grid_columnconfigure(0, weight=1)
+        
+        self.text_widget = tk.Text(text_frame, wrap="word", font=("Consolas", 10))
+        self.text_widget.grid(row=0, column=0, sticky="nsew")
+        
+        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=self.text_widget.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        self.text_widget.config(yscrollcommand=scrollbar.set)
+        
+        # Populate details
+        self.populate_details()
+        
+        # Close button
+        ttk.Button(main_frame, text="Close", command=self.destroy).grid(row=2, column=0)
+    
+    def populate_details(self):
+        """Populate the text widget with detailed analysis."""
+        details = "🩺 DETAILED ANALYSIS REPORT\n"
+        details += "=" * 50 + "\n\n"
+        details += "📋 BASIC INFORMATION:\n"
+        details += f"• File: {self.analysis['file_name']}\n"
+        details += f"• Status: {self.analysis['status']}\n"
+        details += f"• Format: {self.analysis.get('format', 'Unknown')}\n"
+        details += f"• Master Transpose: {self.analysis.get('master_transpose', 0):.1f} semitones\n\n"
+        details += "🔢 KEYGROUP ANALYSIS:\n"
+        details += f"• Declared Keygroups: {self.analysis.get('declared_keygroup_count', 0)}\n"
+        details += f"• Active Keygroups: {self.analysis.get('actual_keygroup_count', 0)}\n\n"
+        details += "📊 KEYGROUP RANGES:\n"
+
+        if self.analysis.get('keygroup_ranges'):
+            for kg_range in self.analysis['keygroup_ranges']:
+                details += f"• KG{kg_range['kg']}: {kg_range['low']}-{kg_range['high']}\n"
+        else:
+            details += "• No active keygroups found\n"
+
+        if self.analysis.get('critical_issues'):
+            details += "\n🚨 CRITICAL ISSUES:\n"
+            for issue in self.analysis['critical_issues']:
+                details += f"• {issue}\n"
+
+        if self.analysis.get('issues'):
+            details += "\n⚠️ ISSUES:\n"
+            for issue in self.analysis['issues']:
+                details += f"• {issue}\n"
+
+        if self.analysis.get('range_issues'):
+            details += "\n📏 RANGE ISSUES:\n"
+            for issue in self.analysis['range_issues']:
+                details += f"• {issue}\n"
+
+        if self.analysis.get('warnings'):
+            details += "\n⚠️ WARNINGS:\n"
+            for warning in self.analysis['warnings']:
+                details += f"• {warning}\n"
+
+        if self.analysis.get('fix_suggestions'):
+            details += "\n🔧 RECOMMENDED FIXES:\n"
+            for fix in self.analysis['fix_suggestions']:
+                details += f"• {fix}\n"
+
+        if 'error' in self.analysis:
+            details += f"\n❌ ERROR:\n• {self.analysis['error']}\n"
+
+        details += "\n" + "=" * 50 + "\n"
+        details += "🩺 Advanced XPM Doctor Analysis Complete\n"
+
+        self.text_widget.insert("1.0", details)
+        self.text_widget.config(state="disabled")
+
 
 class BatchProgramEditorWindow(tk.Toplevel):
     def __init__(self, master):
