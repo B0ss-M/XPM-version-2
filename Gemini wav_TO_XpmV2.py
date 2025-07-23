@@ -2811,8 +2811,13 @@ class AdvancedXpmDoctorWindow(tk.Toplevel):
                 'fix_suggestions': []
             }
             
-            # Check format
-            analysis['format'] = 'MPC-V (Advanced)' if root.tag == 'MPCVObject' else 'Legacy MPC'
+            # Check format - Look for KeygroupLegacyMode to determine format type
+            legacy_mode_elem = root.find(".//KeygroupLegacyMode")
+            if legacy_mode_elem is not None:
+                is_legacy = legacy_mode_elem.text == "True"
+                analysis['format'] = 'Legacy MPC' if is_legacy else 'MPC-V (Advanced)'
+            else:
+                analysis['format'] = 'Legacy MPC'  # Default for older files
             
             # Analyze KeygroupMasterTranspose
             transpose_elem = root.find(".//KeygroupMasterTranspose")
@@ -2826,7 +2831,8 @@ class AdvancedXpmDoctorWindow(tk.Toplevel):
             else:
                 analysis['master_transpose'] = 0.0
             
-            # Analyze keygroup count
+            # CRITICAL FIX: Count keygroups correctly based on MPC structure
+            # The declared count comes from KeygroupNumKeygroups
             keygroup_count_elem = root.find(".//KeygroupNumKeygroups")
             declared_count = 0
             if keygroup_count_elem is not None:
@@ -2835,44 +2841,106 @@ class AdvancedXpmDoctorWindow(tk.Toplevel):
                 except ValueError:
                     analysis['issues'].append("Invalid keygroup count")
             
-            # Count actual active keygroups and analyze ranges
-            keygroups = root.findall('.//Keygroup')
+            # CORRECT METHOD: Count actual active keygroups
+            # MPC uses the ProgramPads JSON to determine active keygroups, not <Keygroup> elements
             active_keygroups = 0
-            range_issues = []
             keygroup_ranges = []
             
-            for i, kg in enumerate(keygroups):
-                # Check if keygroup has meaningful content
-                sample_elem = kg.find('.//KeygroupSampleName')
-                if sample_elem is not None and sample_elem.text and sample_elem.text.strip():
-                    active_keygroups += 1
+            # Try to parse ProgramPads JSON for accurate keygroup count
+            pads_elem = root.find(".//ProgramPads-v2.10")
+            if pads_elem is not None and pads_elem.text:
+                try:
+                    # Unescape XML entities
+                    from xml.sax.saxutils import unescape as xml_unescape
+                    json_text = xml_unescape(pads_elem.text)
+                    import json
+                    pads_data = json.loads(json_text)
                     
-                    # Analyze ranges
-                    low_note_elem = kg.find('.//KeygroupLowNote')
-                    high_note_elem = kg.find('.//KeygroupHighNote')
+                    # Extract keygroup information from JSON
+                    if isinstance(pads_data, dict):
+                        # Look for pads data structure
+                        if "ProgramPads-v2.10" in pads_data:
+                            pads_content = pads_data["ProgramPads-v2.10"]
+                            if "pads" in pads_content:
+                                pads = pads_content["pads"]
+                                # Count active pads/keygroups
+                                for pad_key, pad_data in pads.items():
+                                    if isinstance(pad_data, dict) and pad_data.get("sampleName"):
+                                        active_keygroups += 1
+                                        
+                                        # Extract range information
+                                        low_note = pad_data.get("lowNote", 0)
+                                        high_note = pad_data.get("highNote", 127)
+                                        if low_note is not None and high_note is not None:
+                                            keygroup_ranges.append({
+                                                'kg': active_keygroups,
+                                                'low': int(low_note),
+                                                'high': int(high_note)
+                                            })
+                                            
+                except (json.JSONDecodeError, KeyError, AttributeError) as e:
+                    # Fallback: JSON parsing failed, count non-empty Instrument elements
+                    analysis['warnings'].append(f"Could not parse ProgramPads JSON: {e}")
+                    instruments = root.findall(".//Instrument")
+                    for i, instrument in enumerate(instruments):
+                        # Check if instrument has layers with samples
+                        layers = instrument.findall(".//Layer")
+                        has_samples = False
+                        for layer in layers:
+                            sample_name_elem = layer.find("SampleName")
+                            if sample_name_elem is not None and sample_name_elem.text:
+                                has_samples = True
+                                break
+                        
+                        if has_samples:
+                            active_keygroups += 1
+                            
+                            # Get range from instrument
+                            low_note_elem = instrument.find("LowNote")
+                            high_note_elem = instrument.find("HighNote")
+                            if low_note_elem is not None and high_note_elem is not None:
+                                try:
+                                    low_note = int(low_note_elem.text) if low_note_elem.text else 0
+                                    high_note = int(high_note_elem.text) if high_note_elem.text else 127
+                                    keygroup_ranges.append({
+                                        'kg': i + 1,
+                                        'low': low_note,
+                                        'high': high_note
+                                    })
+                                except ValueError:
+                                    pass
+            else:
+                # No ProgramPads JSON - likely a template or broken file
+                analysis['warnings'].append("No ProgramPads-v2.10 data found")
+                # Count non-empty Instrument elements as fallback
+                instruments = root.findall(".//Instrument")
+                for i, instrument in enumerate(instruments):
+                    layers = instrument.findall(".//Layer")
+                    has_samples = False
+                    for layer in layers:
+                        sample_name_elem = layer.find("SampleName") 
+                        if sample_name_elem is not None and sample_name_elem.text:
+                            has_samples = True
+                            break
                     
-                    if low_note_elem is not None and high_note_elem is not None:
-                        try:
-                            low_note = int(low_note_elem.text) if low_note_elem.text else 60
-                            high_note = int(high_note_elem.text) if high_note_elem.text else 60
-                            
-                            keygroup_ranges.append({
-                                'kg': i + 1,
-                                'low': low_note,
-                                'high': high_note
-                            })
-                            
-                            # Check for range issues
-                            if low_note == high_note:
-                                range_issues.append(f"KG{i+1}: Single-note ({low_note})")
-                            elif low_note > high_note:
-                                analysis['critical_issues'].append(f"KG{i+1}: Invalid range ({low_note}>{high_note})")
-                            elif high_note < 72:  # Less than C5
-                                range_issues.append(f"KG{i+1}: Limited to {high_note} (C5+ blocked)")
-                            elif high_note < 84:  # Less than C6
-                                range_issues.append(f"KG{i+1}: Range {low_note}-{high_note} (C6+ limited)")
-                        except ValueError:
-                            analysis['critical_issues'].append(f"KG{i+1}: Invalid range values")
+                    if has_samples:
+                        active_keygroups += 1
+            
+            # Analyze range issues
+            range_issues = []
+            for kg_range in keygroup_ranges:
+                low_note = kg_range['low']
+                high_note = kg_range['high']
+                
+                # Check for range issues that prevent C5+ playability
+                if low_note == high_note:
+                    range_issues.append(f"KG{kg_range['kg']}: Single-note ({low_note})")
+                elif low_note > high_note:
+                    analysis['critical_issues'].append(f"KG{kg_range['kg']}: Invalid range ({low_note}>{high_note})")
+                elif high_note < 72:  # Less than C5
+                    range_issues.append(f"KG{kg_range['kg']}: Limited to {high_note} (C5+ blocked)")
+                elif high_note < 84:  # Less than C6  
+                    range_issues.append(f"KG{kg_range['kg']}: Range {low_note}-{high_note} (C6+ limited)")
             
             analysis['declared_keygroup_count'] = declared_count
             analysis['actual_keygroup_count'] = active_keygroups
@@ -3038,33 +3106,89 @@ class AdvancedXpmDoctorWindow(tk.Toplevel):
                 tree = ET.parse(xpm_path)
                 root = tree.getroot()
                 
-                # Fix 1: Update keygroup count
+                # Fix 1: Update keygroup count to match actual active keygroups
                 if analysis.get('declared_keygroup_count', 0) != analysis.get('actual_keygroup_count', 0):
                     keygroup_count_elem = root.find(".//KeygroupNumKeygroups")
                     if keygroup_count_elem is not None:
                         keygroup_count_elem.text = str(analysis['actual_keygroup_count'])
+                        logging.info(f"Fixed keygroup count: {analysis['declared_keygroup_count']} → {analysis['actual_keygroup_count']}")
                 
-                # Fix 2: Expand keygroup ranges for full keyboard access
-                keygroups = root.findall('.//Keygroup')
+                # Fix 2: Expand instrument ranges for full keyboard access
+                # Real MPC files use <Instrument> elements with <LowNote>/<HighNote>
+                instruments = root.findall(".//Instrument")
+                ranges_fixed = 0
+                
                 for kg_range in analysis.get('keygroup_ranges', []):
-                    if kg_range['kg'] <= len(keygroups):
-                        kg = keygroups[kg_range['kg'] - 1]  # Convert to 0-based index
+                    kg_index = kg_range['kg'] - 1  # Convert to 0-based index
+                    
+                    if kg_index < len(instruments):
+                        instrument = instruments[kg_index]
                         
-                        low_note_elem = kg.find('.//KeygroupLowNote')
-                        high_note_elem = kg.find('.//KeygroupHighNote')
+                        # Find LowNote and HighNote elements directly in the Instrument
+                        low_note_elem = instrument.find("LowNote")
+                        high_note_elem = instrument.find("HighNote")
                         
-                        if low_note_elem is not None and high_note_elem is not None:
-                            # Apply aggressive range expansion for full keyboard access
-                            if kg_range['high'] < 84 or kg_range['low'] == kg_range['high']:
-                                low_note_elem.text = "0"    # C0
-                                high_note_elem.text = "127" # G9
+                        # If elements don't exist, create them
+                        if low_note_elem is None:
+                            low_note_elem = ET.SubElement(instrument, "LowNote")
+                        if high_note_elem is None:
+                            high_note_elem = ET.SubElement(instrument, "HighNote")
+                        
+                        # Apply aggressive range expansion for full keyboard access
+                        # Expand if: limited range (< C6), single note, or invalid range
+                        if (kg_range['high'] < 84 or 
+                            kg_range['low'] == kg_range['high'] or 
+                            kg_range['low'] > kg_range['high']):
+                            
+                            old_range = f"{kg_range['low']}-{kg_range['high']}"
+                            low_note_elem.text = "0"    # C0
+                            high_note_elem.text = "127" # G9
+                            ranges_fixed += 1
+                            logging.info(f"Expanded KG{kg_range['kg']} range: {old_range} → 0-127")
                 
-                # Save file
+                # Fix 3: Update ProgramPads JSON if ranges were changed
+                # This ensures the MPC recognizes the expanded ranges
+                if ranges_fixed > 0:
+                    pads_elem = root.find(".//ProgramPads-v2.10")
+                    if pads_elem is not None and pads_elem.text:
+                        try:
+                            from xml.sax.saxutils import unescape as xml_unescape, escape as xml_escape
+                            import json
+                            
+                            # Unescape and parse JSON
+                            json_text = xml_unescape(pads_elem.text)
+                            pads_data = json.loads(json_text)
+                            
+                            # Update pad ranges in JSON
+                            if isinstance(pads_data, dict) and "ProgramPads-v2.10" in pads_data:
+                                pads_content = pads_data["ProgramPads-v2.10"]
+                                if "pads" in pads_content:
+                                    pads = pads_content["pads"]
+                                    for pad_key, pad_data in pads.items():
+                                        if isinstance(pad_data, dict) and pad_data.get("sampleName"):
+                                            # Expand pad ranges to 0-127
+                                            if (pad_data.get("highNote", 127) < 84 or 
+                                                pad_data.get("lowNote", 0) == pad_data.get("highNote", 127)):
+                                                pad_data["lowNote"] = 0
+                                                pad_data["highNote"] = 127
+                            
+                            # Re-escape and save JSON
+                            updated_json = json.dumps(pads_data, separators=(',', ':'))
+                            pads_elem.text = xml_escape(updated_json)
+                            logging.info(f"Updated ProgramPads JSON ranges")
+                            
+                        except (json.JSONDecodeError, KeyError) as e:
+                            logging.warning(f"Could not update ProgramPads JSON: {e}")
+                
+                # Save file with proper XML declaration
                 tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
                 fixed_count += 1
+                logging.info(f"Successfully fixed {analysis['file_name']}")
                 
             except Exception as e:
-                errors.append(f"{analysis['file_name']}: {str(e)}")
+                error_msg = f"{analysis['file_name']}: {str(e)}"
+                errors.append(error_msg)
+                logging.error(f"Failed to fix {analysis['file_name']}: {e}")
         
         # Show results
         result_msg = f"Successfully fixed {fixed_count} out of {len(analyses_to_fix)} files."
