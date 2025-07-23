@@ -2123,6 +2123,8 @@ class BatchTransposeWindow(tk.Toplevel):
         button_frame.grid(row=1, column=0, sticky="e")
         
         ttk.Button(button_frame, text="Preview Changes", command=self.preview_changes).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="🔧 Fix Key Ranges", command=self.fix_existing_key_ranges, 
+                   ).pack(side="left", padx=5)
         ttk.Button(button_frame, text="Apply Transpose", command=self.apply_transpose, 
                    style="Accent.TButton").pack(side="left", padx=5)
         ttk.Button(button_frame, text="Close", command=self.destroy).pack(side="left", padx=5)
@@ -2497,6 +2499,10 @@ class BatchTransposeWindow(tk.Toplevel):
                 # Set new value
                 transpose_elem.text = f"{new_transpose:.6f}"
                 
+                # CRITICAL FIX: Update keygroup ranges to ensure full keyboard playability
+                # This prevents issues where notes above certain ranges don't play after transpose
+                self.fix_keygroup_ranges_after_transpose(root, current_transpose, new_transpose)
+                
                 # Save file
                 tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
                 successful += 1
@@ -2517,6 +2523,155 @@ class BatchTransposeWindow(tk.Toplevel):
         
         # Refresh the file list to show new values
         self.scan_folder()
+
+    def fix_keygroup_ranges_after_transpose(self, root, old_transpose, new_transpose):
+        """
+        CRITICAL FIX: Update keygroup LowNote/HighNote ranges after transpose to ensure full playability.
+        
+        Problem: When transposing by -24 semitones, the KeygroupMasterTranspose changes but individual
+        keygroup ranges (LowNote/HighNote) may restrict playability to only the original range.
+        This causes notes C5 (72) and above to not play even though the samples are transposed correctly.
+        
+        Solution: Intelligently expand keygroup ranges based on transpose amount to ensure full keyboard
+        coverage while maintaining musical functionality.
+        """
+        instruments = root.findall(".//Instrument")
+        transpose_change = new_transpose - old_transpose
+        
+        for i, instrument in enumerate(instruments):
+            low_note_elem = instrument.find("LowNote")
+            high_note_elem = instrument.find("HighNote")
+            
+            if low_note_elem is not None and high_note_elem is not None:
+                try:
+                    current_low = int(low_note_elem.text) if low_note_elem.text else 60
+                    current_high = int(high_note_elem.text) if high_note_elem.text else 60
+                    
+                    # Enhanced Strategy: Use the proven algorithm from our tests
+                    # Strategy 1: Single-note keygroups get full range for maximum playability
+                    if current_low == current_high:
+                        new_low = 0    # C0
+                        new_high = 127 # G9 
+                        logging.info(f"KG{i+1}: Expanded single-note {current_low} → full range (0-127)")
+                    
+                    # Strategy 2: Large transpose operations need aggressive expansion
+                    elif abs(transpose_change) >= 12:  # Large transpose (1+ octaves)
+                        # For large transpose operations, expand aggressively to ensure C5+ playability
+                        if transpose_change < 0:  # Transposing down
+                            new_low = max(0, current_low + int(transpose_change * 0.5))  # Extend down moderately
+                            new_high = 127  # Full high range to compensate for pitch drop
+                        else:  # Transposing up
+                            new_low = 0     # Full low range to compensate for pitch rise
+                            new_high = min(127, current_high + int(transpose_change * 0.5))  # Extend up moderately
+                        logging.info(f"KG{i+1}: Expanded for large transpose: {current_low}-{current_high} → {new_low}-{new_high}")
+                    
+                    # Strategy 3: Normal transpose operations - ensure minimum C6 coverage
+                    else:
+                        # Calculate effective range after transpose
+                        effective_low = current_low + transpose_change
+                        effective_high = current_high + transpose_change
+                        
+                        # Ensure the effective high range reaches at least C6 (84)
+                        if effective_high < 84:
+                            # Expand high range to ensure C5+ notes can play
+                            new_low = max(0, min(current_low, current_low + int(transpose_change)))
+                            new_high = max(current_high, 96)  # Ensure coverage up to C7
+                            logging.info(f"KG{i+1}: Extended for C5+ playability: {current_low}-{current_high} → {new_low}-{new_high}")
+                        else:
+                            # Range is adequate, minimal adjustment
+                            new_low = current_low
+                            new_high = max(current_high, 84)  # Ensure at least C6
+                            logging.info(f"KG{i+1}: Minimal adjustment: {current_low}-{current_high} → {new_low}-{new_high}")
+                    
+                    # Apply the new ranges
+                    low_note_elem.text = str(new_low)
+                    high_note_elem.text = str(new_high)
+                    
+                except (ValueError, TypeError) as e:
+                    # If there are invalid values, set to full range as failsafe
+                    logging.warning(f"Invalid note values in keygroup {i+1}, setting to full range: {e}")
+                    if low_note_elem is not None:
+                        low_note_elem.text = "0"
+                    if high_note_elem is not None:
+                        high_note_elem.text = "127"
+
+    def fix_existing_key_ranges(self):
+        """Fix key ranges in existing XPM files that may have playability issues."""
+        if not self.xpm_files:
+            messagebox.showwarning("No Files", "Please scan for XPM files first.", parent=self)
+            return
+        
+        confirm_msg = (f"This will analyze and fix key range issues in {len(self.xpm_files)} XPM file(s).\n\n"
+                      "This addresses the issue where notes C5 and above don't play after transposing.\n"
+                      "Key ranges will be expanded to ensure full keyboard playability.\n\n"
+                      f"Backups: {'Yes' if self.create_backups.get() else 'No'}\n\n"
+                      "Continue?")
+        
+        if not messagebox.askyesno("Fix Key Ranges", confirm_msg, parent=self):
+            return
+        
+        fixed_count = 0
+        errors = []
+        
+        for i, xpm_path in enumerate(self.xpm_files):
+            try:
+                self.status_var.set(f"Fixing {i+1}/{len(self.xpm_files)}: {os.path.basename(xpm_path)}")
+                self.update()
+                
+                # Create backup if requested
+                if self.create_backups.get():
+                    backup_path = xpm_path + ".keyfix.backup"
+                    if not os.path.exists(backup_path):
+                        shutil.copy2(xpm_path, backup_path)
+                
+                # Parse XPM
+                tree = ET.parse(xpm_path)
+                root = tree.getroot()
+                
+                # Check if file needs fixing
+                needs_fix = False
+                instruments = root.findall(".//Instrument")
+                
+                for instrument in instruments:
+                    low_note_elem = instrument.find("LowNote")
+                    high_note_elem = instrument.find("HighNote")
+                    
+                    if low_note_elem is not None and high_note_elem is not None:
+                        try:
+                            low_note = int(low_note_elem.text) if low_note_elem.text else 0
+                            high_note = int(high_note_elem.text) if high_note_elem.text else 127
+                            
+                            # Check for common issues
+                            if (low_note == high_note or  # Single note keygroups
+                                high_note < 84 or         # Limited high range (less than C6)
+                                low_note > high_note):    # Invalid range
+                                needs_fix = True
+                                break
+                        except (ValueError, TypeError):
+                            needs_fix = True
+                            break
+                
+                if needs_fix:
+                    # Apply the same fixing logic as after transpose
+                    current_transpose = self.get_current_transpose(xpm_path)
+                    self.fix_keygroup_ranges_after_transpose(root, current_transpose, current_transpose)
+                    
+                    # Save file
+                    tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                    fixed_count += 1
+                    
+            except Exception as e:
+                errors.append(f"{os.path.basename(xpm_path)}: {str(e)}")
+        
+        # Show results
+        result_msg = f"Analyzed {len(self.xpm_files)} files, fixed key ranges in {fixed_count} files."
+        if errors:
+            result_msg += f"\n\nErrors ({len(errors)}):\n" + "\n".join(errors[:5])
+            if len(errors) > 5:
+                result_msg += f"\n... and {len(errors) - 5} more errors"
+        
+        messagebox.showinfo("Key Range Fix Complete", result_msg, parent=self)
+        self.status_var.set(f"Fixed key ranges in {fixed_count} files.")
 
 
 class BatchProgramEditorWindow(tk.Toplevel):
