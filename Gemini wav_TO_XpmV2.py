@@ -2526,17 +2526,19 @@ class BatchTransposeWindow(tk.Toplevel):
 
     def fix_keygroup_ranges_after_transpose(self, root, old_transpose, new_transpose):
         """
-        CRITICAL FIX: Update keygroup LowNote/HighNote ranges after transpose to ensure full playability.
+        CRITICAL FIX: Update keygroup LowNote/HighNote ranges after transpose to ensure FULL keyboard playability.
         
         Problem: When transposing by -24 semitones, the KeygroupMasterTranspose changes but individual
         keygroup ranges (LowNote/HighNote) may restrict playability to only the original range.
         This causes notes C5 (72) and above to not play even though the samples are transposed correctly.
         
-        Solution: Intelligently expand keygroup ranges based on transpose amount to ensure full keyboard
-        coverage while maintaining musical functionality.
+        Solution: AGGRESSIVELY expand keygroup ranges to ensure COMPLETE keyboard coverage C0-C8 (0-96).
+        The user reported C5 plays but C6, C7, C8 don't - this means we need FULL range expansion.
         """
         instruments = root.findall(".//Instrument")
         transpose_change = new_transpose - old_transpose
+        
+        logging.info(f"🔧 KEYGROUP RANGE FIX: Transpose change = {transpose_change:.1f} semitones")
         
         for i, instrument in enumerate(instruments):
             low_note_elem = instrument.find("LowNote")
@@ -2547,45 +2549,48 @@ class BatchTransposeWindow(tk.Toplevel):
                     current_low = int(low_note_elem.text) if low_note_elem.text else 60
                     current_high = int(high_note_elem.text) if high_note_elem.text else 60
                     
-                    # Enhanced Strategy: Use the proven algorithm from our tests
-                    # Strategy 1: Single-note keygroups get full range for maximum playability
-                    if current_low == current_high:
+                    # 🎯 AGGRESSIVE STRATEGY: ALWAYS ensure full keyboard playability
+                    # The user needs C0-C8 (0-96) to work, not just partial ranges
+                    
+                    # Strategy 1: ANY transpose operation gets FULL keyboard range
+                    # This ensures C6, C7, C8 will ALWAYS play regardless of original range
+                    if abs(transpose_change) >= 6:  # Any significant transpose (half octave+)
+                        new_low = 0    # C0 - Full low range
+                        new_high = 127 # G9 - Full high range (beyond C8 for safety)
+                        logging.info(f"KG{i+1}: FULL EXPANSION for transpose {transpose_change:.1f}: {current_low}-{current_high} → {new_low}-{new_high}")
+                    
+                    # Strategy 2: Small transpose but limited original range - still expand aggressively
+                    elif current_high < 96:  # Original range doesn't reach C7 (96)
+                        new_low = max(0, current_low - 12)  # Extend down 1 octave
+                        new_high = 127  # Full high range to ensure C6, C7, C8 play
+                        logging.info(f"KG{i+1}: AGGRESSIVE EXPANSION for limited range: {current_low}-{current_high} → {new_low}-{new_high}")
+                    
+                    # Strategy 3: Single-note keygroups always get full range
+                    elif current_low == current_high:
                         new_low = 0    # C0
                         new_high = 127 # G9 
-                        logging.info(f"KG{i+1}: Expanded single-note {current_low} → full range (0-127)")
+                        logging.info(f"KG{i+1}: SINGLE-NOTE EXPANSION: {current_low} → full range (0-127)")
                     
-                    # Strategy 2: Large transpose operations need aggressive expansion
-                    elif abs(transpose_change) >= 12:  # Large transpose (1+ octaves)
-                        # For large transpose operations, expand aggressively to ensure C5+ playability
-                        if transpose_change < 0:  # Transposing down
-                            new_low = max(0, current_low + int(transpose_change * 0.5))  # Extend down moderately
-                            new_high = 127  # Full high range to compensate for pitch drop
-                        else:  # Transposing up
-                            new_low = 0     # Full low range to compensate for pitch rise
-                            new_high = min(127, current_high + int(transpose_change * 0.5))  # Extend up moderately
-                        logging.info(f"KG{i+1}: Expanded for large transpose: {current_low}-{current_high} → {new_low}-{new_high}")
-                    
-                    # Strategy 3: Normal transpose operations - ensure minimum C6 coverage
+                    # Strategy 4: Range already adequate but ensure C8 coverage
                     else:
-                        # Calculate effective range after transpose
-                        effective_low = current_low + transpose_change
-                        effective_high = current_high + transpose_change
-                        
-                        # Ensure the effective high range reaches at least C6 (84)
-                        if effective_high < 84:
-                            # Expand high range to ensure C5+ notes can play
-                            new_low = max(0, min(current_low, current_low + int(transpose_change)))
-                            new_high = max(current_high, 96)  # Ensure coverage up to C7
-                            logging.info(f"KG{i+1}: Extended for C5+ playability: {current_low}-{current_high} → {new_low}-{new_high}")
-                        else:
-                            # Range is adequate, minimal adjustment
-                            new_low = current_low
-                            new_high = max(current_high, 84)  # Ensure at least C6
-                            logging.info(f"KG{i+1}: Minimal adjustment: {current_low}-{current_high} → {new_low}-{new_high}")
+                        new_low = max(0, min(current_low, current_low - 6))  # Extend down slightly
+                        new_high = 127  # Always ensure full high range for C6, C7, C8
+                        logging.info(f"KG{i+1}: SAFETY EXPANSION: {current_low}-{current_high} → {new_low}-{new_high}")
+                    
+                    # 🎯 VERIFICATION: Ensure we can play the full keyboard after transpose
+                    effective_low_after = new_low + new_transpose
+                    effective_high_after = new_high + new_transpose
+                    
+                    # Double-check that C6 (84), C7 (96), C8 (108) will be playable
+                    if effective_high_after < 108:  # Less than C8
+                        logging.warning(f"KG{i+1}: Effective high {effective_high_after:.1f} < C8 (108), forcing full range")
+                        new_high = 127  # Force maximum range
                     
                     # Apply the new ranges
                     low_note_elem.text = str(new_low)
                     high_note_elem.text = str(new_high)
+                    
+                    logging.info(f"KG{i+1}: ✅ Final range: {new_low}-{new_high} (effective after transpose: {effective_low_after:.1f}-{effective_high_after:.1f})")
                     
                 except (ValueError, TypeError) as e:
                     # If there are invalid values, set to full range as failsafe
@@ -2652,9 +2657,37 @@ class BatchTransposeWindow(tk.Toplevel):
                             break
                 
                 if needs_fix:
-                    # Apply the same fixing logic as after transpose
+                    # Apply the ENHANCED fixing logic - same as after transpose
+                    # Use aggressive expansion to ensure FULL keyboard coverage (C0-C8)
                     current_transpose = self.get_current_transpose(xpm_path)
-                    self.fix_keygroup_ranges_after_transpose(root, current_transpose, current_transpose)
+                    
+                    # Force aggressive expansion for existing range issues
+                    instruments = root.findall(".//Instrument")
+                    for i, instrument in enumerate(instruments):
+                        low_note_elem = instrument.find("LowNote")
+                        high_note_elem = instrument.find("HighNote")
+                        
+                        if low_note_elem is not None and high_note_elem is not None:
+                            try:
+                                current_low = int(low_note_elem.text) if low_note_elem.text else 60
+                                current_high = int(high_note_elem.text) if high_note_elem.text else 60
+                                
+                                # AGGRESSIVE EXPANSION for existing files with range issues
+                                # These files need full keyboard access immediately
+                                new_low = 0    # C0 - Full low range
+                                new_high = 127 # G9 - Full high range (ensures C6, C7, C8)
+                                
+                                low_note_elem.text = str(new_low)
+                                high_note_elem.text = str(new_high)
+                                
+                                logging.info(f"Fixed KG{i+1}: {current_low}-{current_high} → {new_low}-{new_high} (FULL keyboard access)")
+                                
+                            except (ValueError, TypeError) as e:
+                                logging.warning(f"Invalid note values in keygroup {i+1}, setting to full range: {e}")
+                                if low_note_elem is not None:
+                                    low_note_elem.text = "0"
+                                if high_note_elem is not None:
+                                    high_note_elem.text = "127"
                     
                     # Save file
                     tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
