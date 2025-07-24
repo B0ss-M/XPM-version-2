@@ -809,6 +809,28 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 issues.append("Missing KeygroupNumKeygroups element")
                 fixes.append("fix_keygroup_count")
             
+            # CRITICAL ISSUE: Check for structural bloat (MPC Live 2 compatibility)
+            if actual_kg_count >= 50:  # Suspicious number of instruments
+                instruments_with_samples = 0
+                for instrument in instruments:
+                    has_samples = False
+                    layers = instrument.find("Layers")
+                    if layers is not None:
+                        for layer in layers.findall("Layer"):
+                            sample_name_elem = layer.find("SampleName")
+                            sample_file_elem = layer.find("SampleFile")
+                            if ((sample_name_elem is not None and sample_name_elem.text and sample_name_elem.text.strip()) or
+                                (sample_file_elem is not None and sample_file_elem.text and sample_file_elem.text.strip())):
+                                has_samples = True
+                                break
+                    if has_samples:
+                        instruments_with_samples += 1
+                
+                empty_instruments = actual_kg_count - instruments_with_samples
+                if empty_instruments > 10:
+                    issues.append(f"CRITICAL: Structural bloat detected - {empty_instruments} empty instruments (MPC Live 2 performance issue)")
+                    fixes.append("fix_structural_bloat")
+            
             # Issue 2: Check LowNote/HighNote ranges in keygroups
             keygroup_issues = []
             for i, instrument in enumerate(instruments):
@@ -1086,6 +1108,9 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 elif fix_type == "fix_version":
                     if self.fix_single_version(xmp_path):
                         fixed_issues.append("version")
+                elif fix_type == "fix_structural_bloat":
+                    if self.fix_structural_bloat(xmp_path):
+                        fixed_issues.append("structural bloat")
             
             if fixed_issues:
                 messagebox.showinfo("Fix Complete", 
@@ -1115,7 +1140,9 @@ class ExpansionDoctorWindow(tk.Toplevel):
                       "• Keygroup count corrections\n"
                       "• Key range fixes (LowNote/HighNote)\n"
                       "• ProgramPads mapping corrections\n"
-                      "• Version updates\n\n"
+                      "• Version updates\n"
+                      "• CRITICAL: Remove structural bloat (empty instruments)\n"
+                      "• CRITICAL: Optimize for MPC Live 2 compatibility\n\n"
                       "Backup files (.backup) will be created. Continue?")
         
         if not messagebox.askyesno("Batch Fix All Issues", confirm_msg, parent=self):
@@ -1136,6 +1163,10 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 
                 analysis = self.file_info[xmp_path]
                 fixed_issues = []
+                
+                # CRITICAL FIX: Apply structural bloat removal FIRST
+                if self.fix_structural_bloat(xmp_path):
+                    fixed_issues.append("structural bloat")
                 
                 # Apply individual fixes based on detected issues
                 for fix_type in analysis.get("fixes", []):
@@ -1375,6 +1406,100 @@ class ExpansionDoctorWindow(tk.Toplevel):
             
         except Exception as e:
             logging.error(f"Error fixing version in {xmp_path}: {e}")
+            return False
+
+    def fix_structural_bloat(self, xmp_path):
+        """
+        CRITICAL FIX: Remove structural bloat that causes MPC Live 2 compatibility issues.
+        
+        This addresses the core problem where Expansion Doctor creates 128 <Instrument> elements
+        even when only 10-15 actually contain samples, causing:
+        - Memory overload on MPC Live 2
+        - Slow parsing and loading times
+        - Performance degradation during playback
+        - Voice allocation confusion
+        
+        Solution: Keep only instruments that have actual sample content.
+        """
+        try:
+            tree = ET.parse(xmp_path)
+            root = tree.getroot()
+            
+            instruments_container = root.find(".//Instruments")
+            if instruments_container is None:
+                return False
+            
+            instruments = instruments_container.findall("Instrument")
+            original_count = len(instruments)
+            
+            # Only proceed if we have a suspiciously high number of instruments
+            if original_count < 50:
+                return False  # Probably not bloated
+            
+            instruments_with_samples = []
+            empty_instruments = []
+            
+            for instrument in instruments:
+                has_samples = False
+                
+                # Check for layers with samples
+                layers = instrument.find("Layers")
+                if layers is not None:
+                    for layer in layers.findall("Layer"):
+                        sample_name_elem = layer.find("SampleName")
+                        sample_file_elem = layer.find("SampleFile")
+                        
+                        if ((sample_name_elem is not None and sample_name_elem.text and sample_name_elem.text.strip()) or
+                            (sample_file_elem is not None and sample_file_elem.text and sample_file_elem.text.strip())):
+                            has_samples = True
+                            break
+                
+                if has_samples:
+                    instruments_with_samples.append(instrument)
+                else:
+                    empty_instruments.append(instrument)
+            
+            # If we found significant bloat, remove empty instruments
+            if len(empty_instruments) > 10:  # Significant bloat detected
+                logging.info(f"🔧 STRUCTURAL BLOAT FIX: Removing {len(empty_instruments)} empty instruments from {os.path.basename(xmp_path)}")
+                
+                # Remove empty instruments from the container
+                for empty_instrument in empty_instruments:
+                    instruments_container.remove(empty_instrument)
+                
+                # Update KeygroupNumKeygroups to match actual instrument count
+                kg_count_elem = root.find(".//KeygroupNumKeygroups")
+                if kg_count_elem is not None:
+                    kg_count_elem.text = str(len(instruments_with_samples))
+                
+                # Expand ranges on remaining instruments for full keyboard access
+                for i, instrument in enumerate(instruments_with_samples):
+                    # Ensure full keyboard access (C0-C8 and beyond)
+                    low_note_elem = instrument.find("LowNote")
+                    high_note_elem = instrument.find("HighNote")
+                    
+                    if low_note_elem is None:
+                        low_note_elem = ET.SubElement(instrument, "LowNote")
+                    if high_note_elem is None:
+                        high_note_elem = ET.SubElement(instrument, "HighNote")
+                    
+                    # Set aggressive range expansion for full keyboard playability
+                    low_note_elem.text = "0"    # C0
+                    high_note_elem.text = "127" # G9 (ensures C6, C7, C8 work)
+                    
+                    # Update instrument number to be sequential
+                    instrument.set("number", str(i))
+                
+                # Save the optimized file
+                tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+                
+                logging.info(f"✅ OPTIMIZED: {os.path.basename(xmp_path)} - {original_count} → {len(instruments_with_samples)} instruments")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logging.error(f"Error fixing structural bloat in {xmp_path}: {e}")
             return False
 
 
