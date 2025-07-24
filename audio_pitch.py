@@ -110,8 +110,12 @@ def detect_fundamental_pitch(path: str) -> Optional[int]:
 
         # 2. Harmonic Structure Analysis
         try:
-            S = np.abs(librosa.stft(y))
-            freqs = librosa.fft_frequencies(sr=sr)
+            # Calculate appropriate n_fft for the signal length
+            n_fft = min(2048, len(y))
+            if n_fft < 256:  # Minimum viable n_fft
+                n_fft = 256
+            S = np.abs(librosa.stft(y, n_fft=n_fft))
+            freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
             
             # Find peaks in the magnitude spectrum
             peaks = librosa.util.peak_pick(np.mean(S, axis=1), 3, 3, 3, 5, 0.5, 0.5)
@@ -173,8 +177,12 @@ def detect_fundamental_pitch(path: str) -> Optional[int]:
                     
                     if len(segment) > 512:  # Ensure segment is long enough
                         # Use STFT for frequency analysis
-                        S_segment = np.abs(librosa.stft(segment))
-                        freqs = librosa.fft_frequencies(sr=sr)
+                        # Calculate appropriate n_fft for the segment length
+                        n_fft = min(2048, len(segment))
+                        if n_fft < 256:  # Minimum viable n_fft
+                            n_fft = 256
+                        S_segment = np.abs(librosa.stft(segment, n_fft=n_fft))
+                        freqs = librosa.fft_frequencies(sr=sr, n_fft=n_fft)
                         peak_idx = np.argmax(np.mean(S_segment, axis=1))
                         freq = freqs[peak_idx]
                         

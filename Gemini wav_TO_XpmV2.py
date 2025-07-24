@@ -882,7 +882,9 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 fixes.append("fix_missing_samples")
             
             # Issue 4: Check ProgramPads consistency (modern format)
-            pads_elem = root.find(".//ProgramPads-v2.10") or root.find(".//ProgramPads")
+            pads_elem = root.find(".//ProgramPads-v2.10")
+            if pads_elem is None:
+                pads_elem = root.find(".//ProgramPads")
             if pads_elem is not None and pads_elem.text:
                 try:
                     pads_data = json.loads(xml_unescape(pads_elem.text))
@@ -1299,48 +1301,94 @@ class ExpansionDoctorWindow(tk.Toplevel):
             return False
 
     def fix_single_key_ranges(self, xmp_path):
-        """Fix LowNote/HighNote ranges for a single file."""
+        """Fix LowNote/HighNote ranges for a single file using intelligent range calculation."""
         try:
             tree = ET.parse(xmp_path)
             root = tree.getroot()
             instruments = root.findall(".//Instrument")
             fixed = False
             
+            # Extract sample info from all instruments to calculate intelligent ranges
+            sample_mappings = []
+            instrument_data = []
+            
             for i, instrument in enumerate(instruments):
-                low_note_elem = instrument.find("LowNote")
-                high_note_elem = instrument.find("HighNote")
-                
-                # Get root note from associated layer for intelligent range setting
+                # Extract root note from layer
                 layer = instrument.find("Layer")
                 root_note = 60  # Default to C4
+                sample_path = None
+                
                 if layer is not None:
                     root_note_elem = layer.find("RootNote")
                     if root_note_elem is not None and root_note_elem.text:
-                        root_note = int(root_note_elem.text)
+                        try:
+                            root_note = int(root_note_elem.text)
+                        except (ValueError, TypeError):
+                            root_note = 60
+                    
+                    # Get sample path for additional analysis if needed
+                    sample_file_elem = layer.find("SampleFile")
+                    sample_name_elem = layer.find("SampleName")
+                    if sample_file_elem is not None and sample_file_elem.text:
+                        sample_path = sample_file_elem.text
+                    elif sample_name_elem is not None and sample_name_elem.text:
+                        sample_path = sample_name_elem.text
                 
-                # Create missing elements
-                if low_note_elem is None:
-                    low_note_elem = ET.SubElement(instrument, "LowNote")
-                if high_note_elem is None:
-                    high_note_elem = ET.SubElement(instrument, "HighNote")
+                sample_mappings.append({
+                    "root_note": root_note,
+                    "sample_path": sample_path,
+                    "instrument_index": i
+                })
+                instrument_data.append(instrument)
+            
+            # Calculate intelligent key ranges using the extended algorithm
+            if sample_mappings:
+                calculated_ranges = self._calculate_extended_key_ranges(sample_mappings)
                 
-                # Fix invalid values
-                try:
-                    low_note = int(low_note_elem.text) if low_note_elem.text else 0
-                    high_note = int(high_note_elem.text) if high_note_elem.text else 127
-                except (ValueError, TypeError):
-                    low_note = 0
-                    high_note = 127
-                
-                # Apply intelligent fixes
-                if low_note > high_note or low_note == high_note == 0 or low_note < 0 or high_note > 127:
-                    # Set to single-note keygroup centered on root note
-                    low_note_elem.text = str(root_note)
-                    high_note_elem.text = str(root_note)
-                    fixed = True
+                for mapping in calculated_ranges:
+                    i = mapping["instrument_index"]
+                    instrument = instrument_data[i]
+                    
+                    low_note_elem = instrument.find("LowNote")
+                    high_note_elem = instrument.find("HighNote")
+                    
+                    # Create missing elements
+                    if low_note_elem is None:
+                        low_note_elem = ET.SubElement(instrument, "LowNote")
+                    if high_note_elem is None:
+                        high_note_elem = ET.SubElement(instrument, "HighNote")
+                    
+                    # Get current values
+                    try:
+                        current_low = int(low_note_elem.text) if low_note_elem.text else 0
+                        current_high = int(high_note_elem.text) if high_note_elem.text else 127
+                    except (ValueError, TypeError):
+                        current_low = 0
+                        current_high = 127
+                    
+                    # Apply intelligent range if current values are problematic
+                    needs_fix = (
+                        current_low > current_high or 
+                        current_low == current_high == 0 or 
+                        current_low < 0 or 
+                        current_high > 127 or
+                        current_low == 0 and current_high == 127  # Full range = likely incorrect
+                    )
+                    
+                    if needs_fix:
+                        new_low = mapping["low_note"]
+                        new_high = mapping["high_note"]
+                        
+                        low_note_elem.text = str(new_low)
+                        high_note_elem.text = str(new_high)
+                        fixed = True
+                        
+                        logging.info(f"🎹 Fixed key range for instrument {i+1}: "
+                                   f"Root={mapping['root_note']}, Range={new_low}-{new_high}")
             
             if fixed:
                 tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+                logging.info(f"✅ Intelligently fixed key ranges in {os.path.basename(xmp_path)}")
             
             return fixed
             
@@ -1356,7 +1404,9 @@ class ExpansionDoctorWindow(tk.Toplevel):
             instruments = root.findall(".//Instrument")
             actual_count = len(instruments)
             
-            pads_elem = root.find(".//ProgramPads-v2.10") or root.find(".//ProgramPads")
+            pads_elem = root.find(".//ProgramPads-v2.10")
+            if pads_elem is None:
+                pads_elem = root.find(".//ProgramPads")
             if pads_elem is None or not pads_elem.text:
                 return False
             
@@ -1419,7 +1469,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
         - Performance degradation during playback
         - Voice allocation confusion
         
-        Solution: Keep only instruments that have actual sample content.
+        Solution: Keep only instruments that have actual sample content and apply intelligent range mapping.
         """
         try:
             tree = ET.parse(xmp_path)
@@ -1472,23 +1522,86 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 if kg_count_elem is not None:
                     kg_count_elem.text = str(len(instruments_with_samples))
                 
-                # Expand ranges on remaining instruments for full keyboard access
+                # Apply intelligent range assignment with extended high range
+                sample_mappings = []
                 for i, instrument in enumerate(instruments_with_samples):
-                    # Ensure full keyboard access (C0-C8 and beyond)
-                    low_note_elem = instrument.find("LowNote")
-                    high_note_elem = instrument.find("HighNote")
+                    # Extract root note from layer
+                    layer = instrument.find("Layer")
+                    root_note = 60  # Default to C4
+                    sample_path = None
                     
-                    if low_note_elem is None:
-                        low_note_elem = ET.SubElement(instrument, "LowNote")
-                    if high_note_elem is None:
-                        high_note_elem = ET.SubElement(instrument, "HighNote")
+                    if layer is not None:
+                        root_note_elem = layer.find("RootNote")
+                        if root_note_elem is not None and root_note_elem.text:
+                            try:
+                                root_note = int(root_note_elem.text)
+                            except (ValueError, TypeError):
+                                root_note = 60
+                        
+                        # Get sample path for logging
+                        sample_file_elem = layer.find("SampleFile")
+                        sample_name_elem = layer.find("SampleName")
+                        if sample_file_elem is not None and sample_file_elem.text:
+                            sample_path = sample_file_elem.text
+                        elif sample_name_elem is not None and sample_name_elem.text:
+                            sample_path = sample_name_elem.text
                     
-                    # Set aggressive range expansion for full keyboard playability
-                    low_note_elem.text = "0"    # C0
-                    high_note_elem.text = "127" # G9 (ensures C6, C7, C8 work)
+                    sample_mappings.append({
+                        "root_note": root_note,
+                        "sample_path": sample_path,
+                        "instrument_index": i
+                    })
+                
+                # Calculate intelligent key ranges with extended high range
+                if sample_mappings:
+                    calculated_ranges = self._calculate_extended_key_ranges(sample_mappings)
                     
-                    # Update instrument number to be sequential
-                    instrument.set("number", str(i))
+                    for mapping in calculated_ranges:
+                        i = mapping["instrument_index"]
+                        instrument = instruments_with_samples[i]
+                        
+                        # Set intelligent ranges
+                        low_note_elem = instrument.find("LowNote")
+                        high_note_elem = instrument.find("HighNote")
+                        
+                        if low_note_elem is None:
+                            low_note_elem = ET.SubElement(instrument, "LowNote")
+                        if high_note_elem is None:
+                            high_note_elem = ET.SubElement(instrument, "HighNote")
+                        
+                        low_note_elem.text = str(mapping["low_note"])
+                        high_note_elem.text = str(mapping["high_note"])
+                        
+                        # Update instrument number to be sequential
+                        instrument.set("number", str(i))
+                        
+                        sample_name = os.path.basename(mapping["sample_path"]) if mapping["sample_path"] else f"KG{i+1}"
+                        logging.info(f"🎹 Intelligent range for {sample_name}: "
+                                   f"Root={mapping['root_note']}, Range={mapping['low_note']}-{mapping['high_note']}")
+                else:
+                    # Fallback: if no mappings could be extracted, assign sequential ranges
+                    num_instruments = len(instruments_with_samples)
+                    if num_instruments > 0:
+                        keys_per_instrument = 128 // num_instruments
+                        for i, instrument in enumerate(instruments_with_samples):
+                            low_note_elem = instrument.find("LowNote")
+                            high_note_elem = instrument.find("HighNote")
+                            
+                            if low_note_elem is None:
+                                low_note_elem = ET.SubElement(instrument, "LowNote")
+                            if high_note_elem is None:
+                                high_note_elem = ET.SubElement(instrument, "HighNote")
+                            
+                            low_note = i * keys_per_instrument
+                            high_note = min(127, (i + 1) * keys_per_instrument - 1)
+                            if i == num_instruments - 1:  # Last instrument gets remaining keys
+                                high_note = 127
+                            
+                            low_note_elem.text = str(low_note)
+                            high_note_elem.text = str(high_note)
+                            instrument.set("number", str(i))
+                            
+                            logging.info(f"🎹 Fallback range for KG{i+1}: {low_note}-{high_note}")
                 
                 # Save the optimized file
                 tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
@@ -1501,6 +1614,42 @@ class ExpansionDoctorWindow(tk.Toplevel):
         except Exception as e:
             logging.error(f"Error fixing structural bloat in {xmp_path}: {e}")
             return False
+
+    def _calculate_extended_key_ranges(self, mappings):
+        """
+        Calculate intelligent key ranges with extended high range for the highest sample.
+        
+        This ensures that the highest pitched sample (e.g., C5) can extend up to C8 (note 96)
+        or even higher, giving full keyboard playability as requested by the user.
+        """
+        if not mappings:
+            return []
+
+        sorted_maps = sorted(mappings, key=lambda m: m.get("root_note", 60))
+        
+        for i, current in enumerate(sorted_maps):
+            if i == 0:
+                # First sample starts from C0
+                current["low_note"] = 0
+            else:
+                # Calculate midpoint between previous and current sample
+                prev = sorted_maps[i - 1]
+                midpoint = (prev["root_note"] + current["root_note"]) // 2
+                current["low_note"] = midpoint + 1
+
+            if i == len(sorted_maps) - 1:
+                # CRITICAL: Last (highest) sample extends to full keyboard range
+                # This ensures C5 sample can play C6, C7, C8 and beyond
+                current["high_note"] = 127  # G9 - full keyboard access
+                logging.info(f"🎹 EXTENDED: Highest sample (root={current['root_note']}) "
+                           f"extended to full range: {current['low_note']}-127 for C6,C7,C8 access")
+            else:
+                # Calculate midpoint between current and next sample
+                nxt = sorted_maps[i + 1]
+                midpoint = (current["root_note"] + nxt["root_note"]) // 2
+                current["high_note"] = midpoint
+
+        return sorted_maps
 
 
 class ExpansionBuilderWindow(tk.Toplevel):
@@ -2327,7 +2476,9 @@ class BatchTransposeWindow(tk.Toplevel):
             key_ranges = []
             
             # Check modern format (ProgramPads JSON)
-            pads_elem = root.find(".//ProgramPads-v2.10") or root.find(".//ProgramPads")
+            pads_elem = root.find(".//ProgramPads-v2.10")
+            if pads_elem is None:
+                pads_elem = root.find(".//ProgramPads")
             if pads_elem is not None and pads_elem.text:
                 try:
                     # Parse the JSON data
