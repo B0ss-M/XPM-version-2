@@ -26,6 +26,13 @@ import zipfile
 from typing import Optional
 
 try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    np = None
+
+try:
     from PIL import Image
 
     PIL_AVAILABLE = True
@@ -937,13 +944,12 @@ def is_valid_xpm(xpm_path):
     return validate_xpm_file(xpm_path, sample_count)
 
 
-# --- REVISED: detect_sample_note with improved logging, retry capability, and validation ---
+# --- ENHANCED: detect_sample_note with improved accuracy and validation ---
 @retry_on_failure(max_retries=2, delay=0.5)
 def detect_sample_note(path: str) -> int:
     """
     Return the MIDI note for a sample using metadata, filename, or pitch analysis.
-    Logs the successful detection method for better debugging.
-    Enhanced with retry capability for unreliable audio file operations and input validation.
+    Enhanced with cross-validation and improved accuracy.
     
     Args:
         path: Path to the audio sample file
@@ -959,41 +965,126 @@ def detect_sample_note(path: str) -> int:
     validated_path = validate_file_path(path, must_exist=True)
     filename = os.path.basename(validated_path)
 
+    # Store all detection results for cross-validation
+    detection_results = []
+
     # 1. Try reading from WAV 'smpl' chunk metadata
     try:
+        from xpm_parameter_editor import extract_root_note_from_wav
         midi = extract_root_note_from_wav(validated_path)
         if midi is not None:
             validated_midi = validate_midi_note(midi)
-            logging.info(f"Note for '{filename}' found in WAV metadata: {validated_midi}")
-            return validated_midi
+            detection_results.append(('wav_metadata', validated_midi))
+            logging.debug(f"WAV metadata note for '{filename}': {validated_midi}")
     except Exception as e:
         logging.debug(f"WAV metadata extraction failed for '{filename}': {e}")
 
-    # 2. Try inferring from the filename
+    # 2. Try inferring from the filename (often most reliable for user-named files)
     try:
+        from xpm_parameter_editor import infer_note_from_filename
         midi = infer_note_from_filename(validated_path)
         if midi is not None:
             validated_midi = validate_midi_note(midi)
-            logging.info(f"Note for '{filename}' inferred from filename: {validated_midi}")
-            return validated_midi
+            detection_results.append(('filename', validated_midi))
+            logging.debug(f"Filename inference note for '{filename}': {validated_midi}")
     except Exception as e:
         logging.debug(f"Filename inference failed for '{filename}': {e}")
 
-    # 3. Fallback to audio analysis (Librosa) - most likely to fail
+    # 3. Try audio analysis (fallback)
     try:
         midi = detect_fundamental_pitch(validated_path)
         if midi is not None:
             validated_midi = validate_midi_note(midi)
-            # The detect_fundamental_pitch function already logs its success
-            return validated_midi
+            detection_results.append(('audio_analysis', validated_midi))
+            logging.debug(f"Audio analysis note for '{filename}': {validated_midi}")
     except Exception as e:
         logging.debug(f"Pitch analysis failed for '{filename}': {e}")
 
-    # 4. If all methods fail, use C4 as a default
-    logging.warning(
-        f"All detection methods failed for '{filename}'. Defaulting to C4 (60)."
-    )
-    return 60
+    # 4. Intelligent selection of best result
+    if not detection_results:
+        logging.warning(f"All detection methods failed for '{filename}'. Defaulting to C4 (60).")
+        return 60
+    
+    # If we have multiple results, use intelligent selection
+    if len(detection_results) == 1:
+        method, note = detection_results[0]
+        logging.info(f"Note for '{filename}' detected via {method}: {note}")
+        return note
+    
+    # Multiple results - use cross-validation logic
+    selected_note = _select_best_pitch_detection(detection_results, filename)
+    return selected_note
+
+
+def _select_best_pitch_detection(results, filename):
+    """
+    Intelligently select the best pitch detection result from multiple methods.
+    
+    Args:
+        results: List of (method_name, midi_note) tuples
+        filename: Name of the file for logging
+        
+    Returns:
+        int: Best MIDI note number
+    """
+    if not results:
+        return 60  # Default to C4
+    
+    if len(results) == 1:
+        method, note = results[0]
+        logging.info(f"Note for '{filename}' detected via {method}: {note}")
+        return note
+    
+    # Create a map of methods to notes
+    method_notes = {method: note for method, note in results}
+    
+    # Priority order (most reliable first)
+    priority_order = ['filename', 'audio_analysis', 'wav_metadata']
+    
+    # Check for consensus (notes within 1 semitone of each other)
+    notes = [note for _, note in results]
+    
+    # If filename detection exists and is reasonable, prefer it
+    if 'filename' in method_notes:
+        filename_note = method_notes['filename']
+        
+        # Check if other methods are close to filename detection
+        close_methods = []
+        for method, note in results:
+            if abs(note - filename_note) <= 2:  # Within 2 semitones
+                close_methods.append((method, note))
+        
+        if len(close_methods) >= 2:  # At least filename + one other method agree
+            logging.info(f"Note for '{filename}' - filename detection ({filename_note}) confirmed by other methods")
+            return filename_note
+    
+    # Check for exact consensus
+    if len(set(notes)) == 1:
+        note = notes[0]
+        methods = [method for method, _ in results]
+        logging.info(f"Note for '{filename}' - all methods agree: {note} (methods: {', '.join(methods)})")
+        return note
+    
+    # Check for majority consensus (within 1 semitone)
+    for target_note in set(notes):
+        close_notes = [note for note in notes if abs(note - target_note) <= 1]
+        if len(close_notes) >= len(notes) * 0.6:  # 60% consensus
+            methods = [method for method, note in results if abs(note - target_note) <= 1]
+            logging.info(f"Note for '{filename}' - majority consensus: {target_note} (methods: {', '.join(methods)})")
+            return target_note
+    
+    # No consensus - use priority order
+    for method in priority_order:
+        if method in method_notes:
+            note = method_notes[method]
+            other_methods = [m for m, _ in results if m != method]
+            logging.warning(f"Note for '{filename}' - no consensus, using {method}: {note} (other methods: {other_methods})")
+            return note
+    
+    # Fallback
+    method, note = results[0]
+    logging.warning(f"Note for '{filename}' - fallback to first result ({method}): {note}")
+    return note
 
 
 # REVISED: Stricter unreferenced file finder
@@ -1395,6 +1486,67 @@ Expansion Doctor fixes:
 
         return changed
 
+    def categorize_issue_summary(self, issues_list):
+        """Create an intelligent summary of issues with priorities and counts."""
+        if not issues_list:
+            return []
+            
+        # Count issues by category
+        categories = {
+            "🔥 Critical Bloat": 0,
+            "⚠️ Performance": 0,
+            "KG Count": 0,
+            "Key Range": 0,
+            "Missing Samples": 0,
+            "Pad Mapping": 0,
+            "Version": 0,
+            "Format Error": 0,
+            "Engine": 0,
+            "Note Setup": 0,
+            "Config Issue": 0
+        }
+        
+        # Categorize each issue
+        for issue in issues_list:
+            if "🔥" in issue or "BLOAT" in issue.upper() or "CRITICAL" in issue.upper():
+                categories["🔥 Critical Bloat"] += 1
+            elif "⚠️" in issue or "SEVERE" in issue or "MODERATE" in issue:
+                categories["⚠️ Performance"] += 1
+            elif "KeygroupNumKeygroups" in issue or "Missing KeygroupNumKeygroups" in issue:
+                categories["KG Count"] += 1
+            elif any(x in issue for x in ["LowNote", "HighNote", "KG"]) and any(x in issue for x in ["Missing", "Invalid", "range", "notes"]):
+                categories["Key Range"] += 1
+            elif "Missing samples" in issue:
+                categories["Missing Samples"] += 1
+            elif "PadToInstrument" in issue or "Pad Mapping" in issue:
+                categories["Pad Mapping"] += 1
+            elif "version" in issue.lower():
+                categories["Version"] += 1
+            elif "JSON" in issue or "Corrupted" in issue or "Parse error" in issue:
+                categories["Format Error"] += 1
+            elif "engine" in issue.lower():
+                categories["Engine"] += 1
+            elif any(x in issue for x in ["polyphony", "Polyphony", "root", "Root", "note"]):
+                categories["Note Setup"] += 1
+            else:
+                categories["Config Issue"] += 1
+        
+        # Build summary with counts for categories that have issues
+        summary = []
+        priority_order = ["🔥 Critical Bloat", "⚠️ Performance", "Missing Samples", "KG Count", 
+                         "Key Range", "Pad Mapping", "Format Error", "Version", "Engine", 
+                         "Note Setup", "Config Issue"]
+        
+        for category in priority_order:
+            count = categories[category]
+            if count > 0:
+                if count == 1:
+                    summary.append(category)
+                else:
+                    summary.append(f"{category} ({count})")
+        
+        return summary
+
     def analyze_xpm_issues(self, xpm_path):
         """Comprehensive analysis of XPM file issues."""
         issues = []
@@ -1570,25 +1722,8 @@ Expansion Doctor fixes:
             issue_summary = []
             if analysis["issues"]:
                 issues_found += 1
-                # Prioritize display of most critical issues
-                critical_issues = []
-                for issue in analysis["issues"][:3]:  # Show max 3 issues
-                    if "KeygroupNumKeygroups" in issue:
-                        critical_issues.append("KG Count")
-                    elif "LowNote" in issue or "HighNote" in issue:
-                        critical_issues.append("Key Range")
-                    elif "Missing samples" in issue:
-                        critical_issues.append("Missing Samples")
-                    elif "PadToInstrument" in issue:
-                        critical_issues.append("Pad Mapping")
-                    elif "version" in issue.lower():
-                        critical_issues.append("Version")
-                    else:
-                        critical_issues.append("Other")
-                
-                if len(analysis["issues"]) > 3:
-                    critical_issues.append(f"+{len(analysis['issues'])-3} more")
-                issue_summary = critical_issues
+                # Use the improved categorization function
+                issue_summary = self.categorize_issue_summary(analysis["issues"])
             
             # Display in tree
             self.tree.insert(
@@ -1613,12 +1748,33 @@ Expansion Doctor fixes:
         self.tree.tag_configure("ok", foreground="green")
 
         # Finish operation with detailed summary
-        result_msg = f"Scanned {total} XPM files"
         if issues_found > 0:
-            result_msg += f" - {issues_found} with issues, {len(self.broken_links)} with missing samples"
+            # Count issue types across all files
+            all_issue_categories = []
+            for file_info in self.file_info.values():
+                if file_info["issues"]:
+                    all_issue_categories.extend(self.categorize_issue_summary(file_info["issues"]))
+            
+            # Count unique categories
+            category_counts = {}
+            for category in all_issue_categories:
+                # Remove count suffix for aggregation
+                base_category = category.split(" (")[0] if " (" in category else category
+                category_counts[base_category] = category_counts.get(base_category, 0) + 1
+            
+            # Create a comprehensive status message
+            most_common = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+            issue_types = [f"{cat} ({count})" if count > 1 else cat for cat, count in most_common]
+            
+            result_msg = f"Scanned {total} XPM files - {issues_found} with issues"
+            if len(self.broken_links) > 0:
+                result_msg += f", {len(self.broken_links)} with missing samples"
+            if issue_types:
+                result_msg += f" | Most common: {', '.join(issue_types)}"
+            
             self.status_manager.finish_operation(True, result_msg)
         else:
-            result_msg += " - All files are healthy!"
+            result_msg = f"Scanned {total} XPM files - All files are healthy! ✅"
             self.status_manager.finish_operation(True, result_msg)
 
     def show_detailed_issues(self, event):
@@ -1673,17 +1829,26 @@ Expansion Doctor fixes:
         # Recommended fixes
         fixes = analysis.get('fixes', [])
         if fixes:
-            info_text += f"\\nRecommended Fixes:\\n"
+            info_text += f"\\nRecommended Fixes ({len(fixes)}):\\n"
             fix_descriptions = {
-                "fix_keygroup_count": "Fix KeygroupNumKeygroups count",
-                "fix_keygroup_ranges": "Fix LowNote/HighNote ranges", 
-                "fix_pad_mapping": "Fix ProgramPads mapping",
-                "fix_missing_samples": "Relink missing samples",
-                "fix_version": "Update version information"
+                "fix_keygroup_count": "🔢 Fix KeygroupNumKeygroups count mismatch",
+                "fix_keygroup_ranges": "🎹 Fix LowNote/HighNote ranges", 
+                "fix_pad_mapping": "📋 Fix ProgramPads mapping consistency",
+                "fix_missing_samples": "🔗 Relink missing sample files",
+                "fix_version": "📝 Update version information",
+                "fix_structural_bloat": "🔥 Fix structural bloat (critical for MPC Live 2)"
             }
             for fix in fixes:
-                desc = fix_descriptions.get(fix, fix)
-                info_text += f"• {desc}\\n"
+                desc = fix_descriptions.get(fix, f"• {fix.replace('_', ' ').title()}")
+                info_text += f"{desc}\\n"
+            
+            # Add usage hints
+            info_text += f"\\n💡 Quick Fix Tips:\\n"
+            info_text += f"• Use '🔧 Batch Fix All Issues' to fix everything at once\\n"
+            if "fix_structural_bloat" in fixes:
+                info_text += f"• Structural bloat fix will dramatically improve MPC Live 2 performance\\n"
+            if "fix_keygroup_count" in fixes or "fix_keygroup_ranges" in fixes:
+                info_text += f"• Keygroup fixes will ensure proper C0-C8 keyboard access\\n"
         
         # Create scrollable text widget
         text_frame = ttk.Frame(frame)
@@ -1998,9 +2163,44 @@ Expansion Doctor fixes:
                     })
                     instrument_data.append(instrument)
                 
-                # Calculate intelligent key ranges using the extended algorithm
+                # Calculate intelligent key ranges using a simple algorithm
                 if sample_mappings:
-                    calculated_ranges = self._calculate_extended_key_ranges(sample_mappings)
+                    # Sort samples by root note
+                    sorted_samples = sorted(sample_mappings, key=lambda x: x.get("root_note", 60))
+                    n = len(sorted_samples)
+                    
+                    if n == 1:
+                        # Single sample gets full range
+                        calculated_ranges = [{
+                            "instrument_index": sorted_samples[0]["instrument_index"],
+                            "root_note": sorted_samples[0]["root_note"],
+                            "low_note": 0,
+                            "high_note": 127
+                        }]
+                    else:
+                        # Multiple samples - assign ranges so each covers halfway to the next
+                        calculated_ranges = []
+                        for i, sample in enumerate(sorted_samples):
+                            root = sample.get("root_note", 60)
+                            
+                            if i == 0:
+                                low = 0
+                            else:
+                                prev_root = sorted_samples[i - 1].get("root_note", 60)
+                                low = (prev_root + root) // 2 + 1
+                            
+                            if i == n - 1:
+                                high = 127
+                            else:
+                                next_root = sorted_samples[i + 1].get("root_note", 60)
+                                high = (root + next_root) // 2
+                                
+                            calculated_ranges.append({
+                                "instrument_index": sample["instrument_index"],
+                                "root_note": root,
+                                "low_note": low,
+                                "high_note": high
+                            })
                     
                     for mapping in calculated_ranges:
                         i = mapping["instrument_index"]
@@ -2186,12 +2386,17 @@ Expansion Doctor fixes:
                 for empty_instrument in empty_instruments:
                     instruments_container.remove(empty_instrument)
                 
+                # Renumber remaining instruments to be sequential starting from 1
+                for i, instrument in enumerate(instruments_with_samples):
+                    instrument.set("number", str(i + 1))
+                
                 # Update KeygroupNumKeygroups to match actual instrument count
                 kg_count_elem = root.find(".//KeygroupNumKeygroups")
                 if kg_count_elem is not None:
                     kg_count_elem.text = str(len(instruments_with_samples))
                 
                 # CRITICAL: Update file format to modern version for better MPC compatibility
+                # BUT avoid creating ProgramPads JSON that would collapse multi-sample structure
                 version_elem = root.find(".//File_Version")
                 if version_elem is not None:
                     version_elem.text = "2.1"
@@ -2204,88 +2409,7 @@ Expansion Doctor fixes:
                 if platform_elem is not None:
                     platform_elem.text = "Linux"
                 
-                # Apply intelligent range assignment with extended high range
-                sample_mappings = []
-                for i, instrument in enumerate(instruments_with_samples):
-                    # Extract root note from layer
-                    layer = instrument.find("Layer")
-                    root_note = 60  # Default to C4
-                    sample_path = None
-                    
-                    if layer is not None:
-                        root_note_elem = layer.find("RootNote")
-                        if root_note_elem is not None and root_note_elem.text:
-                            try:
-                                root_note = int(root_note_elem.text)
-                            except (ValueError, TypeError):
-                                root_note = 60
-                        
-                        # Get sample path for logging
-                        sample_file_elem = layer.find("SampleFile")
-                        sample_name_elem = layer.find("SampleName")
-                        if sample_file_elem is not None and sample_file_elem.text:
-                            sample_path = sample_file_elem.text
-                        elif sample_name_elem is not None and sample_name_elem.text:
-                            sample_path = sample_name_elem.text
-                    
-                    sample_mappings.append({
-                        "root_note": root_note,
-                        "sample_path": sample_path,
-                        "instrument_index": i
-                    })
-                
-                # Calculate intelligent key ranges with extended high range
-                if sample_mappings:
-                    calculated_ranges = self._calculate_extended_key_ranges(sample_mappings)
-                    
-                    for mapping in calculated_ranges:
-                        i = mapping["instrument_index"]
-                        instrument = instruments_with_samples[i]
-                        
-                        # Set intelligent ranges
-                        low_note_elem = instrument.find("LowNote")
-                        high_note_elem = instrument.find("HighNote")
-                        
-                        if low_note_elem is None:
-                            low_note_elem = ET.SubElement(instrument, "LowNote")
-                        if high_note_elem is None:
-                            high_note_elem = ET.SubElement(instrument, "HighNote")
-                        
-                        low_note_elem.text = str(mapping["low_note"])
-                        high_note_elem.text = str(mapping["high_note"])
-                        
-                        # Update instrument number to be sequential starting from 1
-                        instrument.set("number", str(i + 1))
-                        
-                        sample_name = os.path.basename(mapping["sample_path"]) if mapping["sample_path"] else f"KG{i+1}"
-                        logging.info(f"🎹 Intelligent range for {sample_name}: "
-                                   f"Root={mapping['root_note']}, Range={mapping['low_note']}-{mapping['high_note']}")
-                else:
-                    # Fallback: if no mappings could be extracted, assign sequential ranges
-                    num_instruments = len(instruments_with_samples)
-                    if num_instruments > 0:
-                        keys_per_instrument = 128 // num_instruments
-                        for i, instrument in enumerate(instruments_with_samples):
-                            low_note_elem = instrument.find("LowNote")
-                            high_note_elem = instrument.find("HighNote")
-                            
-                            if low_note_elem is None:
-                                low_note_elem = ET.SubElement(instrument, "LowNote")
-                            if high_note_elem is None:
-                                high_note_elem = ET.SubElement(instrument, "HighNote")
-                            
-                            low_note = i * keys_per_instrument
-                            high_note = min(127, (i + 1) * keys_per_instrument - 1)
-                            if i == num_instruments - 1:  # Last instrument gets remaining keys
-                                high_note = 127
-                            
-                            low_note_elem.text = str(low_note)
-                            high_note_elem.text = str(high_note)
-                            instrument.set("number", str(i + 1))  # Number starting from 1
-                            
-                            logging.info(f"🎹 Fallback range for KG{i+1}: {low_note}-{high_note}")
-                
-                # Save the optimized file
+                # Save the optimized file (XML-only format, no ProgramPads JSON)
                 tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
                 
                 logging.info(f"✅ OPTIMIZED: {os.path.basename(xmp_path)} - {original_count} → {len(instruments_with_samples)} instruments")
@@ -2296,73 +2420,6 @@ Expansion Doctor fixes:
         except Exception as e:
             logging.error(f"Error fixing structural bloat in {xmp_path}: {e}")
             return False
-
-    def _calculate_extended_key_ranges(self, mappings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """
-        Calculate intelligent key ranges with extended high range for the highest sample.
-        
-        This ensures that the highest pitched sample (e.g., C5) can extend up to C8 (note 96)
-        or even higher, giving full keyboard playability as requested by the user.
-        
-        Args:
-            mappings: List of sample mapping dictionaries
-            
-        Returns:
-            List of validated mappings with calculated key ranges
-            
-        Raises:
-            ValueError: If mappings are invalid
-        """
-        if not mappings:
-            return []
-
-        # Validate input mappings
-        try:
-            validated_mappings = validate_sample_mappings(mappings)
-        except ValueError as e:
-            logging.error(f"Invalid sample mappings: {e}")
-            return mappings  # Return original on validation failure
-
-        sorted_maps = sorted(validated_mappings, key=lambda m: m.get("root_note", 60))
-        
-        for i, current in enumerate(sorted_maps):
-            try:
-                if i == 0:
-                    # First sample starts from C0
-                    current["low_note"] = 0
-                else:
-                    # Calculate midpoint between previous and current sample
-                    prev = sorted_maps[i - 1]
-                    midpoint = (prev["root_note"] + current["root_note"]) // 2
-                    current["low_note"] = max(0, midpoint + 1)  # Ensure >= 0
-
-                if i == len(sorted_maps) - 1:
-                    # CRITICAL: Last (highest) sample extends to full keyboard range
-                    # This ensures C5 sample can play C6, C7, C8 and beyond
-                    current["high_note"] = 127  # G9 - full keyboard access
-                    logging.info(f"🎹 EXTENDED: Highest sample (root={current['root_note']}) "
-                               f"extended to full range: {current['low_note']}-127 for C6,C7,C8 access")
-                else:
-                    # Calculate midpoint between current and next sample
-                    nxt = sorted_maps[i + 1]
-                    midpoint = (current["root_note"] + nxt["root_note"]) // 2
-                    current["high_note"] = min(127, midpoint)  # Ensure <= 127
-                
-                # Final validation of calculated ranges
-                if current["low_note"] > current["high_note"]:
-                    logging.warning(f"Invalid range calculated for sample {i}: "
-                                  f"low={current['low_note']}, high={current['high_note']}. "
-                                  f"Using default range.")
-                    current["low_note"] = current["root_note"]
-                    current["high_note"] = min(127, current["root_note"] + 12)  # One octave
-                    
-            except Exception as e:
-                logging.error(f"Error calculating range for sample {i}: {e}")
-                # Fallback to safe default
-                current["low_note"] = max(0, current.get("root_note", 60) - 6)
-                current["high_note"] = min(127, current.get("root_note", 60) + 6)
-
-        return sorted_maps
 
 
 class ExpansionBuilderWindow(tk.Toplevel):
@@ -2816,9 +2873,8 @@ class FileRenamerWindow(tk.Toplevel):
                             )
                             elem.text = new_rel_path.replace(os.sep, "/")
 
-                            parent_layer = root.find(
-                                f".//Layer[SampleFile='{elem.text}']"
-                            )
+                            # Update SampleName element as well - find parent Layer
+                            parent_layer = elem.getparent()
                             if parent_layer is not None:
                                 sample_name_elem = parent_layer.find("SampleName")
                                 if sample_name_elem is not None:
@@ -2904,20 +2960,48 @@ class CreativeModeConfigWindow(tk.Toplevel):
         )
 
     def save(self):
-        if self.mode == "synth":
-            self.config = {
-                "resonance": self.resonance.get(),
-                "release": self.release.get(),
-            }
-        elif self.mode == "lofi":
-            self.config = {
-                "cutoff": self.cutoff.get(),
-                "pitch_wobble": self.pitch_wobble.get(),
-            }
+        try:
+            if self.mode == "synth":
+                resonance = self.resonance.get()
+                release = self.release.get()
+                
+                # Validate ranges
+                if not (0.0 <= resonance <= 1.0):
+                    messagebox.showerror("Invalid Value", "Resonance must be between 0.0 and 1.0", parent=self)
+                    return
+                if not (0.0 <= release <= 2.0):
+                    messagebox.showerror("Invalid Value", "Release time must be between 0.0 and 2.0", parent=self)
+                    return
+                    
+                self.config = {
+                    "resonance": resonance,
+                    "release": release,
+                }
+            elif self.mode == "lofi":
+                cutoff = self.cutoff.get()
+                pitch_wobble = self.pitch_wobble.get()
+                
+                # Validate ranges
+                if not (0.1 <= cutoff <= 0.8):
+                    messagebox.showerror("Invalid Value", "Filter cutoff must be between 0.1 and 0.8", parent=self)
+                    return
+                if not (0.0 <= pitch_wobble <= 0.5):
+                    messagebox.showerror("Invalid Value", "Pitch wobble must be between 0.0 and 0.5", parent=self)
+                    return
+                    
+                self.config = {
+                    "cutoff": cutoff,
+                    "pitch_wobble": pitch_wobble,
+                }
 
-        self.master.creative_config[self.mode] = self.config
-        logging.info(f"Updated creative config for '{self.mode}': {self.config}")
-        self.destroy()
+            self.master.creative_config[self.mode] = self.config
+            logging.info(f"Updated creative config for '{self.mode}': {self.config}")
+            messagebox.showinfo("Settings Saved", f"Configuration for '{self.mode}' mode has been saved.", parent=self)
+            self.destroy()
+            
+        except Exception as e:
+            logging.error(f"Error saving creative config: {e}")
+            messagebox.showerror("Save Error", f"Failed to save configuration: {e}", parent=self)
 
 
 class SCWToolWindow(tk.Toplevel):
@@ -4160,6 +4244,16 @@ class AdvancedXpmDoctorWindow(tk.Toplevel):
                                                 pad_data.get("lowNote", 0) == pad_data.get("highNote", 127)):
                                                 pad_data["lowNote"] = 0
                                                 pad_data["highNote"] = 127
+                            elif isinstance(pads_data, dict) and "pads" in pads_data:
+                                # Handle direct pads structure
+                                pads = pads_data["pads"]
+                                for pad_key, pad_data in pads.items():
+                                    if isinstance(pad_data, dict) and pad_data.get("sampleName"):
+                                        # Expand pad ranges to 0-127
+                                        if (pad_data.get("highNote", 127) < 84 or 
+                                            pad_data.get("lowNote", 0) == pad_data.get("highNote", 127)):
+                                            pad_data["lowNote"] = 0
+                                            pad_data["highNote"] = 127
                             
                             # Re-escape and save JSON
                             updated_json = json.dumps(pads_data, separators=(',', ':'))
@@ -5082,20 +5176,48 @@ class BatchProgramFixerWindow(tk.Toplevel):
             )
             return
 
+        # Clear existing data
         for i in self.tree.get_children():
             self.tree.delete(i)
         self.check_vars.clear()
         self.xpm_map.clear()
 
-        xpm_files = glob.glob(os.path.join(folder, "**", "*.xpm"), recursive=True)
-        for path in xpm_files:
-            version = get_xpm_version(path)
-            rel_path = os.path.relpath(path, folder)
-            item_id = self.tree.insert(
-                "", "end", values=("No", rel_path, version, "Ready")
-            )
-            self.check_vars[item_id] = tk.BooleanVar(value=False)
-            self.xpm_map[item_id] = path
+        self.update_status("Scanning for XPM files...")
+        
+        try:
+            xpm_files = glob.glob(os.path.join(folder, "**", "*.xpm"), recursive=True)
+            
+            for i, path in enumerate(xpm_files):
+                # Update status periodically
+                if i % 10 == 0:
+                    self.update_status(f"Scanning... {i+1}/{len(xpm_files)} files")
+                    self.update()
+                    
+                version = get_xpm_version(path)
+                rel_path = os.path.relpath(path, folder)
+                
+                # Basic validation
+                status = "Ready"
+                try:
+                    # Quick validation check
+                    tree = ET.parse(path)
+                    root = tree.getroot()
+                    if root.find(".//Program") is None:
+                        status = "Invalid XPM"
+                except Exception:
+                    status = "Parse Error"
+                
+                item_id = self.tree.insert(
+                    "", "end", values=("No", rel_path, version, status)
+                )
+                self.check_vars[item_id] = tk.BooleanVar(value=False)
+                self.xpm_map[item_id] = path
+                
+            self.update_status(f"Found {len(xpm_files)} XPM files")
+            
+        except Exception as e:
+            self.update_status(f"Error scanning folder: {e}")
+            messagebox.showerror("Scan Error", f"Error scanning folder: {e}", parent=self)
 
     def get_selected_items(self):
         selected = []
@@ -5536,9 +5658,16 @@ class InstrumentBuilder:
             if files:
                 instrument_groups = files
             elif mode == "drum-kit":
+                # For drum kits, use the specialized drumkit grouping if available
                 instrument_groups = (
                     group_similar_files(self.folder_path) if IMPORTS_SUCCESSFUL else {}
                 )
+                # If drumkit grouping failed or returned empty, fall back to intelligent grouping
+                if not instrument_groups:
+                    instrument_groups = self._group_samples_intelligently([
+                        f for f in glob.glob(os.path.join(self.folder_path, "**", "*.wav"), recursive=True)
+                        if ".xpm.wav" not in f.lower()
+                    ])
             else:
                 instrument_groups = self.group_wav_files(mode)
 
@@ -6044,7 +6173,7 @@ class InstrumentBuilder:
         self._show_info_safe("Done", f"Generated {preview_count} new audio previews.")
 
     def group_wav_files(self, mode):
-        """Groups WAV files by instrument name for XPM creation."""
+        """Groups WAV files by instrument name for XPM creation with intelligent similarity detection."""
         search_path = (
             os.path.join(self.folder_path, "**", "*.wav")
             if self.options.recursive_scan
@@ -6052,20 +6181,414 @@ class InstrumentBuilder:
         )
         all_wavs = glob.glob(search_path, recursive=self.options.recursive_scan)
 
-        groups = defaultdict(list)
-        for wav_path in all_wavs:
-            if ".xpm.wav" in wav_path.lower():
-                continue
-
-            relative_path = os.path.relpath(wav_path, self.folder_path)
-
-            if mode == "one-shot":
+        if mode == "one-shot":
+            # For one-shot mode, each sample gets its own instrument
+            groups = defaultdict(list)
+            for wav_path in all_wavs:
+                if ".xpm.wav" in wav_path.lower():
+                    continue
+                relative_path = os.path.relpath(wav_path, self.folder_path)
                 instrument_name = os.path.splitext(os.path.basename(wav_path))[0]
                 groups[instrument_name].append(relative_path)
+            return groups
+        else:
+            # For multi-sample mode, use intelligent grouping
+            return self._group_samples_intelligently(all_wavs)
+
+    def _group_samples_intelligently(self, all_wavs):
+        """Advanced sample grouping with similarity detection and pattern recognition."""
+        from difflib import SequenceMatcher
+        
+        # Filter out preview files
+        valid_wavs = [wav for wav in all_wavs if ".xpm.wav" not in wav.lower()]
+        
+        if not valid_wavs:
+            return {}
+        
+        logging.info(f"🎵 Intelligent grouping: Processing {len(valid_wavs)} samples")
+        
+        groups = defaultdict(list)
+        processed_files = set()
+        
+        for wav_path in valid_wavs:
+            if wav_path in processed_files:
+                continue
+                
+            relative_path = os.path.relpath(wav_path, self.folder_path)
+            base_name = os.path.splitext(os.path.basename(wav_path))[0]
+            
+            # Extract core instrument name using multiple strategies
+            group_name = self._extract_instrument_group_name(base_name, wav_path)
+            
+            # Find similar files that should be grouped together
+            similar_files = [relative_path]
+            processed_files.add(wav_path)
+            
+            # Look for files with similar names
+            for other_wav in valid_wavs:
+                if other_wav in processed_files:
+                    continue
+                    
+                other_base = os.path.splitext(os.path.basename(other_wav))[0]
+                other_relative = os.path.relpath(other_wav, self.folder_path)
+                
+                # Check if files should be grouped together
+                if self._should_group_together(base_name, other_base, wav_path, other_wav):
+                    similar_files.append(other_relative)
+                    processed_files.add(other_wav)
+            
+            # Sort files within group for consistent ordering
+            similar_files.sort()
+            groups[group_name].extend(similar_files)
+            
+            # Log grouping results for debugging
+            if len(similar_files) > 1:
+                logging.info(f"📁 Grouped {len(similar_files)} samples under '{group_name}': {[os.path.basename(f) for f in similar_files[:3]]}{'...' if len(similar_files) > 3 else ''}")
+        
+        # Merge groups that are very similar (catch edge cases)
+        original_group_count = len(groups)
+        groups = self._merge_similar_groups(groups)
+        
+        if len(groups) != original_group_count:
+            logging.info(f"🔀 Merged similar groups: {original_group_count} → {len(groups)} groups")
+        
+        # Final summary
+        total_samples = sum(len(files) for files in groups.values())
+        avg_samples_per_group = total_samples / len(groups) if groups else 0
+        logging.info(f"✅ Intelligent grouping complete: {total_samples} samples → {len(groups)} groups (avg {avg_samples_per_group:.1f} samples/group)")
+        
+        return dict(groups)
+
+    def _extract_instrument_group_name(self, base_name, full_path):
+        """Extract the core instrument name from a sample filename using multiple strategies."""
+        # Strategy 1: Remove common suffixes and patterns
+        clean_name = base_name.lower()
+        
+        # Remove note indicators (C4, D#3, etc.)
+        clean_name = re.sub(r'[_\s-]*[a-g][#b]?[0-9]?[_\s-]*', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove velocity indicators (v1, vel1, velocity_01, etc.)
+        clean_name = re.sub(r'[_\s-]*v(el)?(ocity)?[_\s-]?[0-9]+[_\s-]*', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove round-robin indicators (rr1, round1, etc.)
+        clean_name = re.sub(r'[_\s-]*(rr|round)[_\s-]?[0-9]+[_\s-]*', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove generic numbered suffixes (01, 001, _1, etc.)
+        clean_name = re.sub(r'[_\s-]*[0-9]+$', '', clean_name)
+        
+        # Remove common sample descriptors
+        descriptors = ['sample', 'smp', 'wav', 'loop', 'shot', 'hit', 'one', 'multi']
+        for desc in descriptors:
+            clean_name = re.sub(rf'[_\s-]*{desc}[_\s-]*', '', clean_name, flags=re.IGNORECASE)
+        
+        # Strategy 2: Use folder context if name is too generic
+        if len(clean_name.strip()) < 3 or clean_name.strip() in ['', 'a', 'an', 'the']:
+            parent_folder = os.path.basename(os.path.dirname(full_path))
+            if parent_folder and parent_folder.lower() != os.path.basename(self.folder_path).lower():
+                clean_name = parent_folder.lower()
+        
+        # Strategy 3: Look for instrument type keywords
+        instrument_keywords = {
+            'piano': ['piano', 'pno', 'key', 'grand'],
+            'bass': ['bass', 'sub', 'low', 'fundamental'],
+            'lead': ['lead', 'melody', 'main', 'solo'],
+            'pad': ['pad', 'string', 'choir', 'warm', 'soft'],
+            'pluck': ['pluck', 'harp', 'pizz', 'mute'],
+            'bell': ['bell', 'chime', 'glock', 'metal'],
+            'brass': ['brass', 'horn', 'trumpet', 'trombone', 'tuba'],
+            'drum': ['drum', 'kick', 'snare', 'hi-hat', 'hat', 'cymbal', 'tom'],
+            'fx': ['fx', 'effect', 'sweep', 'noise', 'impact', 'riser'],
+            'vocal': ['vocal', 'voice', 'choir', 'ah', 'oh', 'la'],
+            'synth': ['synth', 'synthetic', 'digital', 'electronic']
+        }
+        
+        original_clean = clean_name
+        for category, keywords in instrument_keywords.items():
+            for keyword in keywords:
+                if keyword in base_name.lower() or keyword in original_clean:
+                    # Extract the specific variant if it exists
+                    variant_match = re.search(rf'({keyword}[_\s-]*\w*)', base_name.lower())
+                    if variant_match:
+                        return variant_match.group(1).replace('_', ' ').replace('-', ' ').strip()
+                    else:
+                        return category
+        
+        # Strategy 4: Clean up and return
+        clean_name = re.sub(r'[_\s-]+', ' ', clean_name).strip()
+        if not clean_name:
+            # Last resort: use first few characters of original name
+            clean_name = re.sub(r'[_\s-]+', ' ', base_name[:8].lower()).strip()
+        
+        return clean_name if clean_name else "instrument"
+
+    def _should_group_together(self, name1, name2, path1, path2):
+        """Determine if two samples should be grouped together based on multiple criteria."""
+        from difflib import SequenceMatcher
+        
+        # Criterion 1: High string similarity
+        similarity = SequenceMatcher(None, name1.lower(), name2.lower()).ratio()
+        if similarity > 0.8:
+            return True
+        
+        # Criterion 2: Same core name with different suffixes
+        core1 = self._extract_instrument_group_name(name1, path1)
+        core2 = self._extract_instrument_group_name(name2, path2)
+        if core1 == core2 and core1 != "instrument":
+            return True
+        
+        # Criterion 3: Common prefix with note/velocity/round-robin variations
+        # Remove numbers and common suffixes to find base
+        clean1 = re.sub(r'[_\s-]*[0-9]+[_\s-]*$', '', name1.lower())
+        clean2 = re.sub(r'[_\s-]*[0-9]+[_\s-]*$', '', name2.lower())
+        
+        if clean1 == clean2 and len(clean1) > 3:
+            return True
+        
+        # Criterion 4: Note variations (C4, D4, etc.)
+        note_pattern = r'^(.+?)[_\s-]*[a-g][#b]?[0-9]?[_\s-]*'
+        match1 = re.match(note_pattern, name1.lower())
+        match2 = re.match(note_pattern, name2.lower())
+        
+        if match1 and match2:
+            base1 = match1.group(1).strip('_- ')
+            base2 = match2.group(1).strip('_- ')
+            if base1 == base2 and len(base1) > 2:
+                return True
+        
+        # Criterion 5: Velocity variations (v1, v2, vel01, etc.)
+        vel_pattern = r'^(.+?)[_\s-]*v(el)?(ocity)?[_\s-]*[0-9]+.*$'
+        match1 = re.match(vel_pattern, name1.lower())
+        match2 = re.match(vel_pattern, name2.lower())
+        
+        if match1 and match2:
+            base1 = match1.group(1).strip('_- ')
+            base2 = match2.group(1).strip('_- ')
+            if base1 == base2 and len(base1) > 2:
+                return True
+        
+        # Criterion 6: Same folder and similar length names
+        if os.path.dirname(path1) == os.path.dirname(path2):
+            if abs(len(name1) - len(name2)) <= 2 and similarity > 0.6:
+                return True
+        
+        return False
+
+    def _merge_similar_groups(self, groups):
+        """Merge groups that have very similar names (catch edge cases)."""
+        from difflib import SequenceMatcher
+        
+        group_items = list(groups.items())
+        merged_groups = defaultdict(list)
+        processed_groups = set()
+        
+        for i, (group_name, files) in enumerate(group_items):
+            if group_name in processed_groups:
+                continue
+                
+            # Find groups to merge with this one
+            current_files = files[:]
+            merged_name = group_name
+            processed_groups.add(group_name)
+            
+            for j, (other_name, other_files) in enumerate(group_items[i+1:], i+1):
+                if other_name in processed_groups:
+                    continue
+                    
+                # Check if group names are similar enough to merge
+                similarity = SequenceMatcher(None, group_name.lower(), other_name.lower()).ratio()
+                
+                if similarity > 0.85:  # Very high similarity threshold for group merging
+                    current_files.extend(other_files)
+                    processed_groups.add(other_name)
+                    # Use the shorter, cleaner name
+                    if len(other_name) < len(merged_name) and other_name.strip():
+                        merged_name = other_name
+            
+            if current_files:
+                merged_groups[merged_name] = sorted(list(set(current_files)))
+        
+        return merged_groups
+
+    def preview_sample_grouping(self, mode="multi-sample"):
+        """Preview how samples will be grouped without creating instruments (for debugging)."""
+        if not self.folder_path or not os.path.isdir(self.folder_path):
+            return "No valid folder selected."
+        
+        search_path = (
+            os.path.join(self.folder_path, "**", "*.wav")
+            if self.options.recursive_scan
+            else os.path.join(self.folder_path, "*.wav")
+        )
+        all_wavs = glob.glob(search_path, recursive=self.options.recursive_scan)
+        
+        if mode == "drum-kit":
+            groups = group_similar_files(self.folder_path) if IMPORTS_SUCCESSFUL else {}
+            if not groups:
+                groups = self._group_samples_intelligently(all_wavs)
+        else:
+            groups = self.group_wav_files(mode)
+        
+        if not groups:
+            return "No WAV files found or no groups created."
+        
+        preview_text = f"Sample Grouping Preview ({mode} mode):\n"
+        preview_text += f"Found {sum(len(files) for files in groups.values())} samples in {len(groups)} groups\n\n"
+        
+        for group_name, files in groups.items():
+            preview_text += f"📁 Group: '{group_name}' ({len(files)} samples)\n"
+            for file_path in files[:5]:  # Show first 5 files
+                preview_text += f"   • {os.path.basename(file_path)}\n"
+            if len(files) > 5:
+                preview_text += f"   ... and {len(files) - 5} more files\n"
+            preview_text += "\n"
+        
+        return preview_text
+
+    def test_pitch_detection_accuracy(self, sample_path):
+        """
+        Comprehensive pitch detection test showing results from all available methods.
+        
+        Args:
+            sample_path: Path to the audio sample to test
+            
+        Returns:
+            Detailed analysis report as a string
+        """
+        if not os.path.exists(sample_path):
+            return f"❌ Error: File not found: {sample_path}"
+        
+        if not sample_path.lower().endswith('.wav'):
+            return f"❌ Error: File must be a WAV file: {sample_path}"
+        
+        filename = os.path.basename(sample_path)
+        report = f"🎵 Pitch Detection Test: {filename}\n"
+        report += "=" * 60 + "\n\n"
+        
+        # Test Method 1: WAV Metadata (smpl chunk)
+        try:
+            from firmware_profiles import extract_root_note_from_wav
+            metadata_note = extract_root_note_from_wav(sample_path)
+            if metadata_note is not None:
+                note_name = self._midi_to_note_name(metadata_note)
+                report += f"✅ WAV Metadata (smpl chunk): MIDI {metadata_note} ({note_name})\n"
             else:
-                instrument_name = get_base_instrument_name(wav_path)
-                groups[instrument_name].append(relative_path)
-        return groups
+                report += f"❌ WAV Metadata: No 'smpl' chunk found\n"
+        except Exception as e:
+            report += f"❌ WAV Metadata: Error - {e}\n"
+        
+        # Test Method 2: Filename Inference
+        try:
+            from firmware_profiles import infer_note_from_filename
+            filename_note = infer_note_from_filename(sample_path)
+            if filename_note is not None:
+                note_name = self._midi_to_note_name(filename_note)
+                report += f"✅ Filename Inference: MIDI {filename_note} ({note_name})\n"
+            else:
+                report += f"❌ Filename Inference: No note pattern found in filename\n"
+        except Exception as e:
+            report += f"❌ Filename Inference: Error - {e}\n"
+        
+        # Test Method 3: Audio Analysis (multiple techniques)
+        try:
+            if IMPORTS_SUCCESSFUL:
+                pitch_note = detect_fundamental_pitch(sample_path)
+                if pitch_note is not None:
+                    note_name = self._midi_to_note_name(pitch_note)
+                    report += f"✅ Audio Analysis: MIDI {pitch_note} ({note_name})\n"
+                else:
+                    report += f"❌ Audio Analysis: Detection failed\n"
+            else:
+                report += f"❌ Audio Analysis: Required libraries not available\n"
+        except Exception as e:
+            report += f"❌ Audio Analysis: Error - {e}\n"
+        
+        # Test the main detection function
+        report += "\n" + "-" * 40 + "\n"
+        report += "🎯 Main Detection Function (detect_sample_note):\n"
+        try:
+            main_result = detect_sample_note(sample_path)
+            note_name = self._midi_to_note_name(main_result)
+            report += f"✅ Final Result: MIDI {main_result} ({note_name})\n"
+        except Exception as e:
+            report += f"❌ Main Function: Error - {e}\n"
+        
+        # Add file information
+        report += "\n" + "-" * 40 + "\n"
+        report += "📊 File Information:\n"
+        try:
+            import wave
+            with wave.open(sample_path, 'rb') as wav:
+                frames = wav.getnframes()
+                framerate = wav.getframerate()
+                channels = wav.getnchannels()
+                duration = frames / framerate
+                
+                report += f"Duration: {duration:.2f} seconds\n"
+                report += f"Sample Rate: {framerate} Hz\n"
+                report += f"Channels: {channels}\n"
+                report += f"Frames: {frames:,}\n"
+        except Exception as e:
+            report += f"Could not read file info: {e}\n"
+        
+        # Advanced analysis if librosa is available
+        try:
+            if IMPORTS_SUCCESSFUL and NUMPY_AVAILABLE:
+                report += "\n" + "-" * 40 + "\n"
+                report += "🔬 Advanced Audio Analysis:\n"
+                
+                import librosa
+                y, sr = librosa.load(sample_path, sr=None, mono=True)
+                
+                # Spectral features
+                centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
+                rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)
+                zcr = librosa.feature.zero_crossing_rate(y)
+                
+                report += f"Spectral Centroid: {np.mean(centroid):.2f} Hz\n"
+                report += f"Spectral Rolloff: {np.mean(rolloff):.2f} Hz\n"
+                report += f"Zero Crossing Rate: {np.mean(zcr):.4f}\n"
+                
+                # Estimate if it's harmonic content
+                y_harmonic, y_percussive = librosa.effects.hpss(y)
+                harmonic_energy = np.sum(y_harmonic**2)
+                percussive_energy = np.sum(y_percussive**2)
+                total_energy = harmonic_energy + percussive_energy
+                
+                if total_energy > 0:
+                    harmonic_ratio = harmonic_energy / total_energy
+                    report += f"Harmonic Content: {harmonic_ratio:.2%}\n"
+                    
+                    if harmonic_ratio > 0.7:
+                        report += "🎼 High harmonic content - Good for pitch detection\n"
+                    elif harmonic_ratio > 0.3:
+                        report += "🥁 Mixed harmonic/percussive content\n"
+                    else:
+                        report += "🥁 Mostly percussive content - Pitch detection may be unreliable\n"
+            elif not NUMPY_AVAILABLE:
+                report += "\nAdvanced analysis requires numpy (pip install numpy)\n"
+                
+        except Exception as e:
+            report += f"\nAdvanced analysis failed: {e}\n"
+        
+        # Recommendations
+        report += "\n" + "=" * 60 + "\n"
+        report += "💡 Recommendations:\n"
+        report += "• For best results, include note information in filename (e.g., 'Piano_C4.wav')\n"
+        report += "• WAV files with 'smpl' chunks provide the most reliable pitch information\n"
+        report += "• Audio analysis works best with harmonic (tonal) content\n"
+        report += "• Percussive samples may require manual pitch assignment\n"
+        
+        return report
+    
+    def _midi_to_note_name(self, midi_note):
+        """Convert MIDI note number to note name (e.g., 60 -> C4)."""
+        if not isinstance(midi_note, int) or midi_note < 0 or midi_note > 127:
+            return "Invalid"
+        
+        note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+        octave = (midi_note // 12) - 1
+        note = note_names[midi_note % 12]
+        return f"{note}{octave}"
 
     def validate_sample_info(self, sample_path):
         """Validates a WAV file and extracts info. Detects SCWs if enabled."""
@@ -6156,6 +6679,12 @@ class App(tk.Tk):
         except Exception as e:
             print(f"File dialog error: {e}")
             return ""
+
+    def __init__(self):
+        super().__init__()
+        self.root = self
+        
+        if not IMPORTS_SUCCESSFUL:
             self.withdraw()
             messagebox.showerror(
                 "Missing Dependencies",
@@ -6169,7 +6698,7 @@ class App(tk.Tk):
         self.minsize(700, 600)
 
         self.creative_config = {}
-        self.last_browse_path = os.path.expanduser("~")  # NEW: Remember last path
+        self.last_browse_path = os.path.expanduser("~")  # Remember last path
 
         self.setup_retro_theme()
 
@@ -6510,15 +7039,11 @@ class App(tk.Tk):
     # <editor-fold desc="GUI Event Handlers & Window Openers">
     def browse_folder(self):
         try:
-            initial_dir = getattr(self, 'last_browse_path', None)
-            if not initial_dir or not os.path.exists(initial_dir):
-                initial_dir = os.path.expanduser("~")
-            
+            # Use the safe file dialog method
             folder = self._safe_file_dialog(
                 'folder',
                 title="Select Sample Folder",
-                initialdir=initial_dir,
-                mustexist=True
+                initialdir=getattr(self, 'last_browse_path', os.path.expanduser("~"))
             )
             
             if folder and os.path.exists(folder):
@@ -6528,15 +7053,19 @@ class App(tk.Tk):
         except Exception as e:
             logging.error(f"Error in folder browse dialog: {e}")
             # Fallback to basic dialog if the advanced one fails
-            folder = filedialog.askdirectory(
-                parent=self,
-                title="Select Sample Folder"
-            )
-            if folder and os.path.exists(folder):
-                self.folder_path.set(folder)
-                self.last_browse_path = folder
-                logging.info(f"Selected folder (fallback): {folder}")
-            logging.info(f"Selected folder: {folder}")
+            try:
+                folder = filedialog.askdirectory(
+                    parent=self,
+                    title="Select Sample Folder",
+                    initialdir=getattr(self, 'last_browse_path', os.path.expanduser("~"))
+                )
+                if folder and os.path.exists(folder):
+                    self.folder_path.set(folder)
+                    self.last_browse_path = folder
+                    logging.info(f"Selected folder (fallback): {folder}")
+            except Exception as e2:
+                logging.error(f"Both folder dialog methods failed: {e2}")
+                messagebox.showerror("Error", f"Failed to open folder selection dialog: {e2}", parent=self)
 
     def on_creative_mode_change(self, event=None):
         """Enable config button only for configurable modes."""
@@ -6560,11 +7089,11 @@ class App(tk.Tk):
         folder_independent_windows = [
             ExpansionBuilderWindow,
             BatchProgramFixerWindow,
-            CreativeModeConfigWindow,  # Added missing class here
+            CreativeModeConfigWindow,
         ]
         
         # Special case for SampleMappingCheckerWindow - we want to pass the folder but not require it
-        if window_class.__name__ == "SampleMappingCheckerWindow":
+        if hasattr(window_class, '__name__') and window_class.__name__ == "SampleMappingCheckerWindow":
             folder_independent_windows.append(window_class)
             
         if window_class not in folder_independent_windows and (
@@ -6578,15 +7107,16 @@ class App(tk.Tk):
         try:
             # Check if window is already open
             for win in self.winfo_children():
-                if isinstance(win, tk.Toplevel) and isinstance(win, window_class):
+                if isinstance(win, tk.Toplevel) and type(win) == window_class:
                     win.focus()
+                    win.lift()
                     return
                     
             # Create new window
             window = window_class(self, *args)
             
             # Special handling for Sample Mapping Checker - make sure it loads the folder
-            if window_class.__name__ == "SampleMappingCheckerWindow" and hasattr(window, "load_folder"):
+            if hasattr(window_class, '__name__') and window_class.__name__ == "SampleMappingCheckerWindow" and hasattr(window, "load_folder"):
                 folder = self.folder_path.get()
                 if folder and os.path.isdir(folder):
                     logging.info(f"Loading folder {folder} in Sample Mapping Checker")
@@ -6596,7 +7126,7 @@ class App(tk.Tk):
                     
         except Exception as e:
             logging.error(
-                f"Error opening {window_class.__name__}: {e}\n{traceback.format_exc()}"
+                f"Error opening {getattr(window_class, '__name__', str(window_class))}: {e}\n{traceback.format_exc()}"
             )
             messagebox.showerror(
                 "Error", f"Failed to open window.\n{e}", parent=self.root
