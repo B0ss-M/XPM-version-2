@@ -18,6 +18,10 @@ from collections import defaultdict
 import struct
 import re
 import json
+from typing import Optional, Dict, List, Tuple, Any, Union
+from contextlib import contextmanager
+import functools
+import time
 import zipfile
 from typing import Optional
 
@@ -69,6 +73,539 @@ from xpm_utils import (
     indent_tree,
 )
 
+
+# --- User Experience Enhancements ---
+class KeyboardShortcuts:
+    """Manage keyboard shortcuts for the application."""
+    
+    @staticmethod
+    def setup_shortcuts(window, callbacks: Dict[str, callable]):
+        """
+        Set up keyboard shortcuts for a window.
+        
+        Args:
+            window: Tkinter window to bind shortcuts to
+            callbacks: Dictionary mapping shortcut names to callback functions
+        """
+        shortcuts = {
+            '<Control-o>': 'open_file',
+            '<Control-s>': 'save_current',
+            '<F5>': 'refresh',
+            '<Control-z>': 'undo',
+            '<Control-y>': 'redo',
+            '<Escape>': 'cancel_operation',
+            '<Control-q>': 'quit_application',
+            '<Control-a>': 'select_all',
+            '<Delete>': 'delete_selected',
+            '<F1>': 'show_help'
+        }
+        
+        for shortcut, action in shortcuts.items():
+            if action in callbacks:
+                window.bind(shortcut, lambda e, cb=callbacks[action]: cb())
+
+class StatusManager:
+    """Enhanced status management with progress indication and message history."""
+    
+    def __init__(self, status_var: tk.StringVar, max_history: int = 50):
+        self.status_var = status_var
+        self.max_history = max_history
+        self.message_history = []
+        self.current_operation = None
+        self.operation_start_time = None
+    
+    def set_status(self, message: str, level: str = "info"):
+        """
+        Set status message with timestamp and level indication.
+        
+        Args:
+            message: Status message to display
+            level: Message level (info, warning, error, success)
+        """
+        # Add level indicator
+        level_indicators = {
+            "info": "ℹ️",
+            "warning": "⚠️", 
+            "error": "❌",
+            "success": "✅",
+            "progress": "⏳"
+        }
+        
+        indicator = level_indicators.get(level, "ℹ️")
+        formatted_message = f"{indicator} {message}"
+        
+        self.status_var.set(formatted_message)
+        
+        # Add to history with timestamp
+        timestamp = time.strftime("%H:%M:%S")
+        self.message_history.append(f"[{timestamp}] {formatted_message}")
+        
+        # Limit history size
+        if len(self.message_history) > self.max_history:
+            self.message_history.pop(0)
+        
+        # Log the status change
+        logging.info(f"Status: {message}")
+    
+    def start_operation(self, operation_name: str):
+        """Start tracking a long-running operation."""
+        self.current_operation = operation_name
+        self.operation_start_time = time.time()
+        self.set_status(f"Starting {operation_name}...", "progress")
+    
+    def update_operation_progress(self, current: int, total: int, detail: str = None):
+        """Update progress for current operation."""
+        if not self.current_operation:
+            return
+        
+        percentage = (current / max(total, 1)) * 100
+        elapsed = time.time() - (self.operation_start_time or 0)
+        
+        message = f"{self.current_operation}: {current}/{total} ({percentage:.1f}%)"
+        if detail:
+            message += f" - {detail}"
+        if elapsed > 1:  # Show timing for operations > 1 second
+            message += f" | {elapsed:.1f}s"
+        
+        self.set_status(message, "progress")
+    
+    def finish_operation(self, success: bool = True, result_message: str = None):
+        """Finish tracking current operation."""
+        if not self.current_operation:
+            return
+        
+        elapsed = time.time() - (self.operation_start_time or 0)
+        
+        if result_message:
+            message = result_message
+        else:
+            message = f"{self.current_operation} {'completed' if success else 'failed'}"
+        
+        message += f" ({elapsed:.1f}s)"
+        
+        self.set_status(message, "success" if success else "error")
+        self.current_operation = None
+        self.operation_start_time = None
+    
+    def get_history(self) -> List[str]:
+        """Get message history for debugging."""
+        return self.message_history.copy()
+
+def create_tooltip(widget, text: str):
+    """
+    Create a tooltip for a widget with helpful information.
+    
+    Args:
+        widget: Tkinter widget to attach tooltip to
+        text: Tooltip text to display
+    """
+    def show_tooltip(event):
+        tooltip = tk.Toplevel()
+        tooltip.wm_overrideredirect(True)
+        tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
+        
+        label = tk.Label(
+            tooltip, 
+            text=text, 
+            background="lightyellow",
+            relief="solid",
+            borderwidth=1,
+            font=("Arial", 9),
+            justify="left"
+        )
+        label.pack()
+        
+        def hide_tooltip():
+            tooltip.destroy()
+        
+        tooltip.after(3000, hide_tooltip)  # Auto-hide after 3 seconds
+    
+    def on_enter(event):
+        widget.after(500, lambda: show_tooltip(event))  # Delay tooltip
+    
+    widget.bind("<Enter>", on_enter)
+
+# --- Enhanced Logging & Debugging ---
+def setup_detailed_logging(log_level: str = "INFO", log_file: str = None) -> logging.Logger:
+    """
+    Set up enhanced logging with detailed formatting and optional file output.
+    
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
+        log_file: Optional file path for log output
+        
+    Returns:
+        Configured logger instance
+    """
+    # Create detailed formatter
+    detailed_formatter = logging.Formatter(
+        fmt='%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(funcName)s() | %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # Get or create logger
+    logger = logging.getLogger('XPM_Processor')
+    logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
+    
+    # Remove existing handlers to avoid duplicates
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(detailed_formatter)
+    logger.addHandler(console_handler)
+    
+    # File handler (optional)
+    if log_file:
+        try:
+            file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+            file_handler.setFormatter(detailed_formatter)
+            logger.addHandler(file_handler)
+            logger.info(f"Logging to file: {log_file}")
+        except Exception as e:
+            logger.warning(f"Could not set up file logging: {e}")
+    
+    return logger
+
+def log_function_entry_exit(func):
+    """
+    Decorator to log function entry and exit with parameters and timing.
+    Useful for debugging complex operations.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger = logging.getLogger('XPM_Processor')
+        func_name = func.__name__
+        
+        # Log entry with parameters (but limit size for readability)
+        args_str = ', '.join(str(arg)[:50] + '...' if len(str(arg)) > 50 else str(arg) for arg in args)
+        kwargs_str = ', '.join(f"{k}={str(v)[:30]}{'...' if len(str(v)) > 30 else ''}" for k, v in kwargs.items())
+        params = ', '.join(filter(None, [args_str, kwargs_str]))
+        
+        logger.debug(f"→ ENTER {func_name}({params})")
+        start_time = time.time()
+        
+        try:
+            result = func(*args, **kwargs)
+            elapsed = time.time() - start_time
+            logger.debug(f"← EXIT {func_name} | {elapsed:.3f}s | Success")
+            return result
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.debug(f"← EXIT {func_name} | {elapsed:.3f}s | ERROR: {e}")
+            raise
+    
+    return wrapper
+
+def log_xml_operation(operation: str, file_path: str, details: str = None):
+    """
+    Log XML file operations with consistent formatting.
+    
+    Args:
+        operation: Description of the operation (e.g., "parse", "write", "validate")
+        file_path: Path to the XML file
+        details: Optional additional details
+    """
+    logger = logging.getLogger('XPM_Processor')
+    filename = os.path.basename(file_path)
+    message = f"XML {operation}: {filename}"
+    if details:
+        message += f" | {details}"
+    logger.debug(message)
+
+# --- Input Validation & Type Safety ---
+def validate_file_path(file_path: str, must_exist: bool = True) -> str:
+    """
+    Validate file path and return normalized path.
+    
+    Args:
+        file_path: Path to validate
+        must_exist: Whether the file must already exist
+    
+    Returns:
+        Normalized absolute path
+        
+    Raises:
+        FileNotFoundError: If file doesn't exist and must_exist=True
+        ValueError: If path is invalid
+    """
+    if not file_path or not isinstance(file_path, str):
+        raise ValueError("File path must be a non-empty string")
+    
+    normalized_path = os.path.abspath(file_path)
+    
+    if must_exist and not os.path.exists(normalized_path):
+        raise FileNotFoundError(f"File not found: {normalized_path}")
+    
+    return normalized_path
+
+def validate_midi_note(note: Union[int, str]) -> int:
+    """
+    Validate MIDI note number.
+    
+    Args:
+        note: MIDI note number (0-127)
+    
+    Returns:
+        Valid MIDI note number
+        
+    Raises:
+        ValueError: If note is out of range
+    """
+    try:
+        note_int = int(note)
+    except (ValueError, TypeError):
+        raise ValueError(f"MIDI note must be a number, got: {note}")
+    
+    if not 0 <= note_int <= 127:
+        raise ValueError(f"MIDI note must be 0-127, got: {note_int}")
+    
+    return note_int
+
+def validate_sample_mappings(mappings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Validate sample mapping data structure.
+    
+    Args:
+        mappings: List of sample mapping dictionaries
+    
+    Returns:
+        Validated mappings with defaults filled in
+        
+    Raises:
+        ValueError: If mappings are invalid
+    """
+    if not isinstance(mappings, list):
+        raise ValueError("Sample mappings must be a list")
+    
+    validated_mappings = []
+    
+    for i, mapping in enumerate(mappings):
+        if not isinstance(mapping, dict):
+            raise ValueError(f"Mapping {i} must be a dictionary")
+        
+        # Validate required fields
+        if "sample_path" not in mapping:
+            raise ValueError(f"Mapping {i} missing required 'sample_path'")
+        
+        # Validate and normalize fields
+        validated_mapping = {
+            "sample_path": str(mapping["sample_path"]),
+            "root_note": validate_midi_note(mapping.get("root_note", 60)),
+            "low_note": validate_midi_note(mapping.get("low_note", 0)),
+            "high_note": validate_midi_note(mapping.get("high_note", 127)),
+            "velocity_low": max(0, min(127, int(mapping.get("velocity_low", 0)))),
+            "velocity_high": max(0, min(127, int(mapping.get("velocity_high", 127)))),
+        }
+        
+        # Validate range logic
+        if validated_mapping["low_note"] > validated_mapping["high_note"]:
+            raise ValueError(f"Mapping {i}: low_note ({validated_mapping['low_note']}) > high_note ({validated_mapping['high_note']})")
+        
+        if validated_mapping["velocity_low"] > validated_mapping["velocity_high"]:
+            raise ValueError(f"Mapping {i}: velocity_low > velocity_high")
+        
+        validated_mappings.append(validated_mapping)
+    
+    return validated_mappings
+
+def validate_xpm_structure(root: ET.Element) -> bool:
+    """
+    Validate basic XMP file structure.
+    
+    Args:
+        root: XML root element
+    
+    Returns:
+        True if structure is valid
+        
+    Raises:
+        ValueError: If structure is invalid
+    """
+    if root.tag != "MPCVObject":
+        raise ValueError(f"Invalid root element: expected 'MPCVObject', got '{root.tag}'")
+    
+    program = root.find("Program")
+    if program is None:
+        raise ValueError("Missing Program element")
+    
+    program_type = program.get("type")
+    if program_type not in ["Keygroup", "Drum"]:
+        raise ValueError(f"Invalid program type: {program_type}")
+    
+    return True
+
+# --- Enhanced Error Handling & File Safety ---
+class XPMProcessingError(Exception):
+    """Custom exception for XPM processing errors with context."""
+    def __init__(self, message, file_path=None, original_exception=None):
+        self.file_path = file_path
+        self.original_exception = original_exception
+        super().__init__(message)
+
+class FileOperationError(Exception):
+    """Exception for file operation failures."""
+    pass
+
+@dataclass
+class ProcessingStats:
+    """Track processing statistics for performance monitoring."""
+    start_time: float = field(default_factory=time.time)
+    files_processed: int = 0
+    files_failed: int = 0
+    total_size_processed: int = 0
+    errors: list = field(default_factory=list)
+    
+    @property
+    def elapsed_time(self) -> float:
+        return time.time() - self.start_time
+    
+    @property
+    def files_per_second(self) -> float:
+        return self.files_processed / max(self.elapsed_time, 0.001)
+    
+    @property
+    def success_rate(self) -> float:
+        total = self.files_processed + self.files_failed
+        return (self.files_processed / max(total, 1)) * 100
+    
+    def add_error(self, error_msg: str, file_path: str = None):
+        """Add an error to the tracking list."""
+        error_entry = f"{error_msg}"
+        if file_path:
+            error_entry = f"{os.path.basename(file_path)}: {error_msg}"
+        self.errors.append(error_entry)
+        self.files_failed += 1
+    
+    def add_success(self, file_size: int = 0):
+        """Record a successful operation."""
+        self.files_processed += 1
+        self.total_size_processed += file_size
+    
+    def get_summary(self) -> str:
+        """Get a formatted summary of processing statistics."""
+        return (f"Processed {self.files_processed} files in {self.elapsed_time:.1f}s "
+               f"({self.files_per_second:.1f} files/sec, {self.success_rate:.1f}% success)")
+
+class ProgressTracker:
+    """Track and display progress for long-running operations."""
+    
+    def __init__(self, total_items: int, status_callback=None):
+        self.total_items = total_items
+        self.completed_items = 0
+        self.stats = ProcessingStats()
+        self.status_callback = status_callback
+        self.last_update_time = time.time()
+        self.update_interval = 0.5  # Update UI every 0.5 seconds
+    
+    def update_progress(self, increment: int = 1, current_item: str = None):
+        """Update progress and optionally refresh UI."""
+        self.completed_items += increment
+        
+        # Throttle UI updates for performance
+        current_time = time.time()
+        if current_time - self.last_update_time >= self.update_interval:
+            self._update_ui(current_item)
+            self.last_update_time = current_time
+    
+    def _update_ui(self, current_item: str = None):
+        """Update the UI with current progress."""
+        if self.status_callback:
+            progress_percent = (self.completed_items / max(self.total_items, 1)) * 100
+            status_msg = f"Processing {self.completed_items}/{self.total_items} ({progress_percent:.1f}%)"
+            if current_item:
+                status_msg += f" - {current_item}"
+            self.status_callback(status_msg)
+    
+    def finish(self) -> str:
+        """Mark processing as finished and return summary."""
+        if self.status_callback:
+            summary = self.stats.get_summary()
+            self.status_callback(f"Complete: {summary}")
+        return self.stats.get_summary()
+
+@contextmanager
+def safe_xml_operation(file_path, create_backup=True):
+    """
+    Context manager for safe XML operations with automatic backup, rollback, and detailed logging.
+    
+    Args:
+        file_path: Path to the file being modified
+        create_backup: Whether to create a backup before modification
+    """
+    backup_path = None
+    if create_backup:
+        backup_path = f"{file_path}.temp_backup_{int(time.time())}"
+    
+    filename = os.path.basename(file_path)
+    
+    try:
+        # Create backup if requested
+        if create_backup and os.path.exists(file_path):
+            shutil.copy2(file_path, backup_path)
+            log_xml_operation("backup_created", file_path, f"→ {os.path.basename(backup_path)}")
+        
+        log_xml_operation("operation_start", file_path)
+        yield file_path
+        
+        # If we reach here, operation was successful - remove backup
+        if backup_path and os.path.exists(backup_path):
+            os.remove(backup_path)
+            log_xml_operation("operation_complete", file_path, "backup removed")
+        else:
+            log_xml_operation("operation_complete", file_path)
+            
+    except Exception as e:
+        # Operation failed - restore from backup if it exists
+        if backup_path and os.path.exists(backup_path):
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            shutil.move(backup_path, file_path)
+            log_xml_operation("operation_failed", file_path, f"restored from backup: {e}")
+        else:
+            log_xml_operation("operation_failed", file_path, str(e))
+        
+        # Re-raise with enhanced context
+        raise XPMProcessingError(
+            f"Failed to process {filename}: {e}",
+            file_path=file_path,
+            original_exception=e
+        ) from e
+
+def retry_on_failure(max_retries=3, delay=1.0, backoff_factor=2.0):
+    """
+    Decorator for retrying failed operations with exponential backoff.
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+        delay: Initial delay between retries in seconds
+        backoff_factor: Multiplier for delay on each retry
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            current_delay = delay
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    if attempt == max_retries:
+                        logging.error(f"Function {func.__name__} failed after {max_retries} retries: {e}")
+                        break
+                    
+                    logging.warning(f"Function {func.__name__} failed on attempt {attempt + 1}, retrying in {current_delay:.1f}s: {e}")
+                    time.sleep(current_delay)
+                    current_delay *= backoff_factor
+            
+            # All retries exhausted
+            raise last_exception
+        
+        return wrapper
+    return decorator
 
 # --- Application Configuration ---
 APP_VERSION = "24.1"  # Final Stable Release with Pitch Fix
@@ -400,31 +937,57 @@ def is_valid_xpm(xpm_path):
     return validate_xpm_file(xpm_path, sample_count)
 
 
-# --- REVISED: detect_sample_note with improved logging ---
+# --- REVISED: detect_sample_note with improved logging, retry capability, and validation ---
+@retry_on_failure(max_retries=2, delay=0.5)
 def detect_sample_note(path: str) -> int:
     """
     Return the MIDI note for a sample using metadata, filename, or pitch analysis.
     Logs the successful detection method for better debugging.
+    Enhanced with retry capability for unreliable audio file operations and input validation.
+    
+    Args:
+        path: Path to the audio sample file
+        
+    Returns:
+        MIDI note number (0-127)
+        
+    Raises:
+        FileNotFoundError: If sample file doesn't exist
+        ValueError: If path is invalid
     """
-    filename = os.path.basename(path)
+    # Validate input
+    validated_path = validate_file_path(path, must_exist=True)
+    filename = os.path.basename(validated_path)
 
     # 1. Try reading from WAV 'smpl' chunk metadata
-    midi = extract_root_note_from_wav(path)
-    if midi is not None:
-        logging.info(f"Note for '{filename}' found in WAV metadata: {midi}")
-        return midi
+    try:
+        midi = extract_root_note_from_wav(validated_path)
+        if midi is not None:
+            validated_midi = validate_midi_note(midi)
+            logging.info(f"Note for '{filename}' found in WAV metadata: {validated_midi}")
+            return validated_midi
+    except Exception as e:
+        logging.debug(f"WAV metadata extraction failed for '{filename}': {e}")
 
     # 2. Try inferring from the filename
-    midi = infer_note_from_filename(path)
-    if midi is not None:
-        logging.info(f"Note for '{filename}' inferred from filename: {midi}")
-        return midi
+    try:
+        midi = infer_note_from_filename(validated_path)
+        if midi is not None:
+            validated_midi = validate_midi_note(midi)
+            logging.info(f"Note for '{filename}' inferred from filename: {validated_midi}")
+            return validated_midi
+    except Exception as e:
+        logging.debug(f"Filename inference failed for '{filename}': {e}")
 
-    # 3. Fallback to audio analysis (Librosa)
-    midi = detect_fundamental_pitch(path)
-    if midi is not None:
-        # The detect_fundamental_pitch function already logs its success
-        return midi
+    # 3. Fallback to audio analysis (Librosa) - most likely to fail
+    try:
+        midi = detect_fundamental_pitch(validated_path)
+        if midi is not None:
+            validated_midi = validate_midi_note(midi)
+            # The detect_fundamental_pitch function already logs its success
+            return validated_midi
+    except Exception as e:
+        logging.debug(f"Pitch analysis failed for '{filename}': {e}")
 
     # 4. If all methods fail, use C4 as a default
     logging.warning(
@@ -487,7 +1050,7 @@ def find_unreferenced_audio_files(xpm_path, mappings):
 class ExpansionDoctorWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root if hasattr(master, "root") else master)
-        self.title("Expansion Doctor")
+        self.title("Expansion Doctor - Enhanced")
         self.geometry("700x450")
         self.resizable(True, True)
         self.master = master
@@ -497,8 +1060,55 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.format_var = tk.StringVar(value="advanced")
         self.broken_links = {}
         self.file_info = {}
+        
+        # Enhanced status management
+        self.status_manager = StatusManager(self.status)
+        
+        # Set up keyboard shortcuts
+        shortcuts = {
+            'refresh': self.scan_broken_links,
+            'select_all': self.select_all_files,
+            'cancel_operation': self.cancel_current_operation,
+            'show_help': self.show_help
+        }
+        KeyboardShortcuts.setup_shortcuts(self, shortcuts)
+        
         self.create_widgets()
+        self.status_manager.set_status("Expansion Doctor ready", "success")
         self.scan_broken_links()
+    
+    def select_all_files(self):
+        """Select all files in the tree view."""
+        for item in self.tree.get_children():
+            self.tree.selection_add(item)
+        self.status_manager.set_status(f"Selected all {len(self.tree.get_children())} files", "info")
+    
+    def cancel_current_operation(self):
+        """Cancel any running operation."""
+        self.status_manager.set_status("Operation cancelled by user", "warning")
+    
+    def show_help(self):
+        """Show help dialog with keyboard shortcuts."""
+        help_text = """
+Expansion Doctor - Keyboard Shortcuts:
+
+F5 - Refresh/Rescan files
+Ctrl+A - Select all files  
+Esc - Cancel current operation
+F1 - Show this help
+
+Double-click file - Show detailed issues
+Right-click - Context menu (coming soon)
+
+Expansion Doctor fixes:
+• Structural bloat (empty instruments)
+• Keygroup count mismatches
+• Key range issues (C5→C6,C7,C8 access)
+• Missing sample links
+• Version inconsistencies
+• Pad mapping problems
+        """
+        messagebox.showinfo("Expansion Doctor Help", help_text, parent=self)
 
     def create_widgets(self):
         frame = ttk.Frame(self, padding="10")
@@ -828,8 +1438,23 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 
                 empty_instruments = actual_kg_count - instruments_with_samples
                 if empty_instruments > 10:
-                    issues.append(f"CRITICAL: Structural bloat detected - {empty_instruments} empty instruments (MPC Live 2 performance issue)")
+                    # Calculate performance impact
+                    bloat_ratio = (empty_instruments / actual_kg_count) * 100
+                    estimated_size_mb = (actual_kg_count * 20) / 1024  # Rough estimate
+                    
+                    issues.append(f"🔥 CRITICAL BLOAT: {empty_instruments}/{actual_kg_count} empty instruments "
+                                f"({bloat_ratio:.0f}% bloat, ~{estimated_size_mb:.1f}MB wasted)")
                     fixes.append("fix_structural_bloat")
+                    
+                    # Additional context for user understanding
+                    if empty_instruments >= 100:
+                        issues.append("⚠️ SEVERE: This level of bloat causes significant MPC Live 2 performance issues")
+                    elif empty_instruments >= 50:
+                        issues.append("⚠️ MODERATE: Noticeable performance impact on MPC Live 2")
+            elif actual_kg_count == 128 and declared_kg_count < 20:
+                # Special case: exactly 128 instruments with few declared = classic bloat pattern
+                issues.append("🔥 CLASSIC BLOAT PATTERN: 128 instruments created for few keygroups (Expansion Doctor issue)")
+                fixes.append("fix_structural_bloat")
             
             # Issue 2: Check LowNote/HighNote ranges in keygroups
             keygroup_issues = []
@@ -987,7 +1612,14 @@ class ExpansionDoctorWindow(tk.Toplevel):
         self.tree.tag_configure("issue", foreground="red")
         self.tree.tag_configure("ok", foreground="green")
 
-        self.status.set(f"Scanned {total} XPM(s). {issues_found} with issues, {len(self.broken_links)} with missing samples.")
+        # Finish operation with detailed summary
+        result_msg = f"Scanned {total} XPM files"
+        if issues_found > 0:
+            result_msg += f" - {issues_found} with issues, {len(self.broken_links)} with missing samples"
+            self.status_manager.finish_operation(True, result_msg)
+        else:
+            result_msg += " - All files are healthy!"
+            self.status_manager.finish_operation(True, result_msg)
 
     def show_detailed_issues(self, event):
         """Show detailed issue information for selected XPM."""
@@ -1127,7 +1759,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
             messagebox.showerror("Error", f"Error fixing file: {e}", parent=parent_window)
 
     def batch_fix_all_issues(self):
-        """Fix all detected issues in batch."""
+        """Fix all detected issues in batch with enhanced progress tracking."""
         if not self.file_info:
             messagebox.showwarning("No Data", "Please run a scan first.", parent=self)
             return
@@ -1150,13 +1782,21 @@ class ExpansionDoctorWindow(tk.Toplevel):
         if not messagebox.askyesno("Batch Fix All Issues", confirm_msg, parent=self):
             return
         
+        # Initialize progress tracking
+        progress_tracker = ProgressTracker(
+            total_items=len(files_with_issues),
+            status_callback=lambda msg: (self.status.set(msg), self.update())
+        )
+        
         fixed_count = 0
-        errors = []
         
         for i, xmp_path in enumerate(files_with_issues):
+            current_file = os.path.basename(xmp_path)
+            progress_tracker.update_progress(current_item=current_file)
+            
             try:
-                self.status.set(f"Fixing {i+1}/{len(files_with_issues)}: {os.path.basename(xmp_path)}")
-                self.update()
+                # Get file size for statistics
+                file_size = os.path.getsize(xmp_path) if os.path.exists(xmp_path) else 0
                 
                 # Create backup
                 backup_path = xmp_path + ".backup"
@@ -1167,38 +1807,54 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 fixed_issues = []
                 
                 # CRITICAL FIX: Apply structural bloat removal FIRST
-                if self.fix_structural_bloat(xmp_path):
-                    fixed_issues.append("structural bloat")
+                try:
+                    if self.fix_structural_bloat(xmp_path):
+                        fixed_issues.append("structural bloat")
+                except XPMProcessingError as e:
+                    logging.error(f"Structural bloat fix failed for {current_file}: {e}")
+                    progress_tracker.stats.add_error(f"Structural bloat fix failed: {e}", xmp_path)
                 
                 # Apply individual fixes based on detected issues
                 for fix_type in analysis.get("fixes", []):
-                    if fix_type == "fix_keygroup_count":
-                        if self.fix_single_keygroup_count(xmp_path):
-                            fixed_issues.append("keygroup count")
-                    elif fix_type == "fix_keygroup_ranges":
-                        if self.fix_single_key_ranges(xmp_path):
-                            fixed_issues.append("key ranges")
-                    elif fix_type == "fix_pad_mapping":
-                        if self.fix_single_pad_mapping(xmp_path):
-                            fixed_issues.append("pad mapping")
-                    elif fix_type == "fix_version":
-                        if self.fix_single_version(xmp_path):
-                            fixed_issues.append("version")
+                    try:
+                        if fix_type == "fix_keygroup_count":
+                            if self.fix_single_keygroup_count(xmp_path):
+                                fixed_issues.append("keygroup count")
+                        elif fix_type == "fix_keygroup_ranges":
+                            if self.fix_single_key_ranges(xmp_path):
+                                fixed_issues.append("key ranges")
+                        elif fix_type == "fix_pad_mapping":
+                            if self.fix_single_pad_mapping(xmp_path):
+                                fixed_issues.append("pad mapping")
+                        elif fix_type == "fix_version":
+                            if self.fix_single_version(xmp_path):
+                                fixed_issues.append("version")
+                    except Exception as e:
+                        logging.error(f"Fix {fix_type} failed for {current_file}: {e}")
+                        progress_tracker.stats.add_error(f"Fix {fix_type} failed: {e}", xmp_path)
                 
                 if fixed_issues:
                     fixed_count += 1
-                    logging.info(f"Fixed {', '.join(fixed_issues)} in {os.path.basename(xmp_path)}")
+                    progress_tracker.stats.add_success(file_size)
+                    logging.info(f"Fixed {', '.join(fixed_issues)} in {current_file}")
+                else:
+                    progress_tracker.stats.add_success(file_size)
                 
             except Exception as e:
-                errors.append(f"{os.path.basename(xmp_path)}: {str(e)}")
-                logging.error(f"Error fixing {xmp_path}: {e}")
+                progress_tracker.stats.add_error(str(e), xmp_path)
+                logging.error(f"Error fixing {current_file}: {e}")
         
-        # Show results
-        result_msg = f"Successfully fixed issues in {fixed_count} out of {len(files_with_issues)} files."
-        if errors:
-            result_msg += f"\n\nErrors ({len(errors)}):\n" + "\n".join(errors[:5])
-            if len(errors) > 5:
-                result_msg += f"\n... and {len(errors) - 5} more errors"
+        # Show enhanced results with statistics
+        summary = progress_tracker.finish()
+        result_msg = f"Batch Fix Complete!\n\n{summary}\n\n"
+        result_msg += f"Files with fixes applied: {fixed_count}\n"
+        result_msg += f"Total data processed: {progress_tracker.stats.total_size_processed / 1024 / 1024:.1f} MB"
+        
+        if progress_tracker.stats.errors:
+            result_msg += f"\n\nErrors ({len(progress_tracker.stats.errors)}):\n"
+            result_msg += "\n".join(progress_tracker.stats.errors[:5])
+            if len(progress_tracker.stats.errors) > 5:
+                result_msg += f"\n... and {len(progress_tracker.stats.errors) - 5} more errors"
         
         messagebox.showinfo("Batch Fix Complete", result_msg, parent=self)
         self.status.set("Batch fix complete. Rescanning...")
@@ -1303,98 +1959,106 @@ class ExpansionDoctorWindow(tk.Toplevel):
     def fix_single_key_ranges(self, xmp_path):
         """Fix LowNote/HighNote ranges for a single file using intelligent range calculation."""
         try:
-            tree = ET.parse(xmp_path)
-            root = tree.getroot()
-            instruments = root.findall(".//Instrument")
-            fixed = False
-            
-            # Extract sample info from all instruments to calculate intelligent ranges
-            sample_mappings = []
-            instrument_data = []
-            
-            for i, instrument in enumerate(instruments):
-                # Extract root note from layer
-                layer = instrument.find("Layer")
-                root_note = 60  # Default to C4
-                sample_path = None
+            with safe_xml_operation(xmp_path, create_backup=True):
+                tree = ET.parse(xmp_path)
+                root = tree.getroot()
+                instruments = root.findall(".//Instrument")
+                fixed = False
                 
-                if layer is not None:
-                    root_note_elem = layer.find("RootNote")
-                    if root_note_elem is not None and root_note_elem.text:
+                # Extract sample info from all instruments to calculate intelligent ranges
+                sample_mappings = []
+                instrument_data = []
+                
+                for i, instrument in enumerate(instruments):
+                    # Extract root note from layer
+                    layer = instrument.find("Layer")
+                    root_note = 60  # Default to C4
+                    sample_path = None
+                    
+                    if layer is not None:
+                        root_note_elem = layer.find("RootNote")
+                        if root_note_elem is not None and root_note_elem.text:
+                            try:
+                                root_note = int(root_note_elem.text)
+                            except (ValueError, TypeError):
+                                root_note = 60
+                        
+                        # Get sample path for additional analysis if needed
+                        sample_file_elem = layer.find("SampleFile")
+                        sample_name_elem = layer.find("SampleName")
+                        if sample_file_elem is not None and sample_file_elem.text:
+                            sample_path = sample_file_elem.text
+                        elif sample_name_elem is not None and sample_name_elem.text:
+                            sample_path = sample_name_elem.text
+                    
+                    sample_mappings.append({
+                        "root_note": root_note,
+                        "sample_path": sample_path,
+                        "instrument_index": i
+                    })
+                    instrument_data.append(instrument)
+                
+                # Calculate intelligent key ranges using the extended algorithm
+                if sample_mappings:
+                    calculated_ranges = self._calculate_extended_key_ranges(sample_mappings)
+                    
+                    for mapping in calculated_ranges:
+                        i = mapping["instrument_index"]
+                        instrument = instrument_data[i]
+                        
+                        low_note_elem = instrument.find("LowNote")
+                        high_note_elem = instrument.find("HighNote")
+                        
+                        # Create missing elements
+                        if low_note_elem is None:
+                            low_note_elem = ET.SubElement(instrument, "LowNote")
+                        if high_note_elem is None:
+                            high_note_elem = ET.SubElement(instrument, "HighNote")
+                        
+                        # Get current values
                         try:
-                            root_note = int(root_note_elem.text)
+                            current_low = int(low_note_elem.text) if low_note_elem.text else 0
+                            current_high = int(high_note_elem.text) if high_note_elem.text else 127
                         except (ValueError, TypeError):
-                            root_note = 60
-                    
-                    # Get sample path for additional analysis if needed
-                    sample_file_elem = layer.find("SampleFile")
-                    sample_name_elem = layer.find("SampleName")
-                    if sample_file_elem is not None and sample_file_elem.text:
-                        sample_path = sample_file_elem.text
-                    elif sample_name_elem is not None and sample_name_elem.text:
-                        sample_path = sample_name_elem.text
-                
-                sample_mappings.append({
-                    "root_note": root_note,
-                    "sample_path": sample_path,
-                    "instrument_index": i
-                })
-                instrument_data.append(instrument)
-            
-            # Calculate intelligent key ranges using the extended algorithm
-            if sample_mappings:
-                calculated_ranges = self._calculate_extended_key_ranges(sample_mappings)
-                
-                for mapping in calculated_ranges:
-                    i = mapping["instrument_index"]
-                    instrument = instrument_data[i]
-                    
-                    low_note_elem = instrument.find("LowNote")
-                    high_note_elem = instrument.find("HighNote")
-                    
-                    # Create missing elements
-                    if low_note_elem is None:
-                        low_note_elem = ET.SubElement(instrument, "LowNote")
-                    if high_note_elem is None:
-                        high_note_elem = ET.SubElement(instrument, "HighNote")
-                    
-                    # Get current values
-                    try:
-                        current_low = int(low_note_elem.text) if low_note_elem.text else 0
-                        current_high = int(high_note_elem.text) if high_note_elem.text else 127
-                    except (ValueError, TypeError):
-                        current_low = 0
-                        current_high = 127
-                    
-                    # Apply intelligent range if current values are problematic
-                    needs_fix = (
-                        current_low > current_high or 
-                        current_low == current_high == 0 or 
-                        current_low < 0 or 
-                        current_high > 127 or
-                        current_low == 0 and current_high == 127  # Full range = likely incorrect
-                    )
-                    
-                    if needs_fix:
-                        new_low = mapping["low_note"]
-                        new_high = mapping["high_note"]
+                            current_low = 0
+                            current_high = 127
                         
-                        low_note_elem.text = str(new_low)
-                        high_note_elem.text = str(new_high)
-                        fixed = True
+                        # Apply intelligent range if current values are problematic
+                        needs_fix = (
+                            current_low > current_high or 
+                            current_low == current_high == 0 or 
+                            current_low < 0 or 
+                            current_high > 127 or
+                            current_low == 0 and current_high == 127  # Full range = likely incorrect
+                        )
                         
-                        logging.info(f"🎹 Fixed key range for instrument {i+1}: "
-                                   f"Root={mapping['root_note']}, Range={new_low}-{new_high}")
-            
-            if fixed:
-                tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
-                logging.info(f"✅ Intelligently fixed key ranges in {os.path.basename(xmp_path)}")
-            
-            return fixed
-            
+                        if needs_fix:
+                            new_low = mapping["low_note"]
+                            new_high = mapping["high_note"]
+                            
+                            low_note_elem.text = str(new_low)
+                            high_note_elem.text = str(new_high)
+                            fixed = True
+                            
+                            logging.info(f"🎹 Fixed key range for instrument {i+1}: "
+                                       f"Root={mapping['root_note']}, Range={new_low}-{new_high}")
+                
+                if fixed:
+                    tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+                    logging.info(f"✅ Intelligently fixed key ranges in {os.path.basename(xmp_path)}")
+                
+                return fixed
+                
+        except XPMProcessingError:
+            # Re-raise XPMProcessingError as-is (already has context)
+            raise
         except Exception as e:
-            logging.error(f"Error fixing key ranges in {xmp_path}: {e}")
-            return False
+            # Wrap other exceptions
+            raise XPMProcessingError(
+                f"Unexpected error fixing key ranges: {e}",
+                file_path=xmp_path,
+                original_exception=e
+            ) from e
 
     def fix_single_pad_mapping(self, xmp_path):
         """Fix ProgramPads mapping for a single file."""
@@ -1458,6 +2122,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
             logging.error(f"Error fixing version in {xmp_path}: {e}")
             return False
 
+    @log_function_entry_exit
     def fix_structural_bloat(self, xmp_path):
         """
         CRITICAL FIX: Remove structural bloat that causes MPC Live 2 compatibility issues.
@@ -1474,6 +2139,10 @@ class ExpansionDoctorWindow(tk.Toplevel):
         try:
             tree = ET.parse(xmp_path)
             root = tree.getroot()
+            
+            # Validate XMP structure
+            validate_xpm_structure(root)
+            log_xml_operation("structure_validated", xmp_path)
             
             instruments_container = root.find(".//Instruments")
             if instruments_container is None:
@@ -1521,6 +2190,19 @@ class ExpansionDoctorWindow(tk.Toplevel):
                 kg_count_elem = root.find(".//KeygroupNumKeygroups")
                 if kg_count_elem is not None:
                     kg_count_elem.text = str(len(instruments_with_samples))
+                
+                # CRITICAL: Update file format to modern version for better MPC compatibility
+                version_elem = root.find(".//File_Version")
+                if version_elem is not None:
+                    version_elem.text = "2.1"
+                
+                app_version_elem = root.find(".//Application_Version")
+                if app_version_elem is not None:
+                    app_version_elem.text = "3.5.0.54"
+                
+                platform_elem = root.find(".//Platform")
+                if platform_elem is not None:
+                    platform_elem.text = "Linux"
                 
                 # Apply intelligent range assignment with extended high range
                 sample_mappings = []
@@ -1572,8 +2254,8 @@ class ExpansionDoctorWindow(tk.Toplevel):
                         low_note_elem.text = str(mapping["low_note"])
                         high_note_elem.text = str(mapping["high_note"])
                         
-                        # Update instrument number to be sequential
-                        instrument.set("number", str(i))
+                        # Update instrument number to be sequential starting from 1
+                        instrument.set("number", str(i + 1))
                         
                         sample_name = os.path.basename(mapping["sample_path"]) if mapping["sample_path"] else f"KG{i+1}"
                         logging.info(f"🎹 Intelligent range for {sample_name}: "
@@ -1599,7 +2281,7 @@ class ExpansionDoctorWindow(tk.Toplevel):
                             
                             low_note_elem.text = str(low_note)
                             high_note_elem.text = str(high_note)
-                            instrument.set("number", str(i))
+                            instrument.set("number", str(i + 1))  # Number starting from 1
                             
                             logging.info(f"🎹 Fallback range for KG{i+1}: {low_note}-{high_note}")
                 
@@ -1615,39 +2297,70 @@ class ExpansionDoctorWindow(tk.Toplevel):
             logging.error(f"Error fixing structural bloat in {xmp_path}: {e}")
             return False
 
-    def _calculate_extended_key_ranges(self, mappings):
+    def _calculate_extended_key_ranges(self, mappings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Calculate intelligent key ranges with extended high range for the highest sample.
         
         This ensures that the highest pitched sample (e.g., C5) can extend up to C8 (note 96)
         or even higher, giving full keyboard playability as requested by the user.
+        
+        Args:
+            mappings: List of sample mapping dictionaries
+            
+        Returns:
+            List of validated mappings with calculated key ranges
+            
+        Raises:
+            ValueError: If mappings are invalid
         """
         if not mappings:
             return []
 
-        sorted_maps = sorted(mappings, key=lambda m: m.get("root_note", 60))
+        # Validate input mappings
+        try:
+            validated_mappings = validate_sample_mappings(mappings)
+        except ValueError as e:
+            logging.error(f"Invalid sample mappings: {e}")
+            return mappings  # Return original on validation failure
+
+        sorted_maps = sorted(validated_mappings, key=lambda m: m.get("root_note", 60))
         
         for i, current in enumerate(sorted_maps):
-            if i == 0:
-                # First sample starts from C0
-                current["low_note"] = 0
-            else:
-                # Calculate midpoint between previous and current sample
-                prev = sorted_maps[i - 1]
-                midpoint = (prev["root_note"] + current["root_note"]) // 2
-                current["low_note"] = midpoint + 1
+            try:
+                if i == 0:
+                    # First sample starts from C0
+                    current["low_note"] = 0
+                else:
+                    # Calculate midpoint between previous and current sample
+                    prev = sorted_maps[i - 1]
+                    midpoint = (prev["root_note"] + current["root_note"]) // 2
+                    current["low_note"] = max(0, midpoint + 1)  # Ensure >= 0
 
-            if i == len(sorted_maps) - 1:
-                # CRITICAL: Last (highest) sample extends to full keyboard range
-                # This ensures C5 sample can play C6, C7, C8 and beyond
-                current["high_note"] = 127  # G9 - full keyboard access
-                logging.info(f"🎹 EXTENDED: Highest sample (root={current['root_note']}) "
-                           f"extended to full range: {current['low_note']}-127 for C6,C7,C8 access")
-            else:
-                # Calculate midpoint between current and next sample
-                nxt = sorted_maps[i + 1]
-                midpoint = (current["root_note"] + nxt["root_note"]) // 2
-                current["high_note"] = midpoint
+                if i == len(sorted_maps) - 1:
+                    # CRITICAL: Last (highest) sample extends to full keyboard range
+                    # This ensures C5 sample can play C6, C7, C8 and beyond
+                    current["high_note"] = 127  # G9 - full keyboard access
+                    logging.info(f"🎹 EXTENDED: Highest sample (root={current['root_note']}) "
+                               f"extended to full range: {current['low_note']}-127 for C6,C7,C8 access")
+                else:
+                    # Calculate midpoint between current and next sample
+                    nxt = sorted_maps[i + 1]
+                    midpoint = (current["root_note"] + nxt["root_note"]) // 2
+                    current["high_note"] = min(127, midpoint)  # Ensure <= 127
+                
+                # Final validation of calculated ranges
+                if current["low_note"] > current["high_note"]:
+                    logging.warning(f"Invalid range calculated for sample {i}: "
+                                  f"low={current['low_note']}, high={current['high_note']}. "
+                                  f"Using default range.")
+                    current["low_note"] = current["root_note"]
+                    current["high_note"] = min(127, current["root_note"] + 12)  # One octave
+                    
+            except Exception as e:
+                logging.error(f"Error calculating range for sample {i}: {e}")
+                # Fallback to safe default
+                current["low_note"] = max(0, current.get("root_note", 60) - 6)
+                current["high_note"] = min(127, current.get("root_note", 60) + 6)
 
         return sorted_maps
 

@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""
+Direct test of structural bloat fix function
+"""
+
+import xml.etree.ElementTree as ET
+import os
+import sys
+import shutil
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
+def analyze_file(file_path, description):
+    """Analyze an XMP file and report its structure"""
+    print(f"\n=== {description} ===")
+    try:
+        tree = ET.parse(file_path)
+        root = tree.getroot()
+        
+        # Check file version
+        version = root.find('.//File_Version')
+        app_version = root.find('.//Application_Version')
+        print(f"File Version: {version.text if version is not None else 'Not found'}")
+        print(f"Application Version: {app_version.text if app_version is not None else 'Not found'}")
+        
+        # Check instruments
+        instruments = root.findall('.//Instrument')
+        print(f"Total instruments: {len(instruments)}")
+        
+        # Check which instruments have samples
+        instruments_with_samples = 0
+        for i, inst in enumerate(instruments):
+            layers = inst.find("Layers")
+            has_samples = False
+            
+            if layers is not None:
+                for layer in layers.findall("Layer"):
+                    sample_name_elem = layer.find("SampleName")
+                    sample_file_elem = layer.find("SampleFile")
+                    
+                    if ((sample_name_elem is not None and sample_name_elem.text and sample_name_elem.text.strip()) or
+                        (sample_file_elem is not None and sample_file_elem.text and sample_file_elem.text.strip())):
+                        has_samples = True
+                        break
+            
+            if has_samples:
+                instruments_with_samples += 1
+        
+        print(f"Instruments with samples: {instruments_with_samples}")
+        print(f"Empty instruments: {len(instruments) - instruments_with_samples}")
+        
+        # Check KeygroupNumKeygroups
+        kg_count = root.find('.//KeygroupNumKeygroups')
+        if kg_count is not None:
+            print(f"KeygroupNumKeygroups: {kg_count.text}")
+        
+        return {
+            'total_instruments': len(instruments),
+            'instruments_with_samples': instruments_with_samples,
+            'empty_instruments': len(instruments) - instruments_with_samples,
+            'keygroup_count': kg_count.text if kg_count is not None else 'Not found'
+        }
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+def fix_structural_bloat_simple(xmp_path):
+    """
+    Simplified version of the structural bloat fix for testing
+    """
+    try:
+        tree = ET.parse(xmp_path)
+        root = tree.getroot()
+        
+        instruments_container = root.find(".//Instruments")
+        if instruments_container is None:
+            return False
+        
+        instruments = instruments_container.findall("Instrument")
+        original_count = len(instruments)
+        
+        # Only proceed if we have a suspiciously high number of instruments
+        if original_count < 50:
+            return False  # Probably not bloated
+        
+        instruments_with_samples = []
+        empty_instruments = []
+        
+        for instrument in instruments:
+            has_samples = False
+            
+            # Check for layers with samples
+            layers = instrument.find("Layers")
+            if layers is not None:
+                for layer in layers.findall("Layer"):
+                    sample_name_elem = layer.find("SampleName")
+                    sample_file_elem = layer.find("SampleFile")
+                    
+                    if ((sample_name_elem is not None and sample_name_elem.text and sample_name_elem.text.strip()) or
+                        (sample_file_elem is not None and sample_file_elem.text and sample_file_elem.text.strip())):
+                        has_samples = True
+                        break
+            
+            if has_samples:
+                instruments_with_samples.append(instrument)
+            else:
+                empty_instruments.append(instrument)
+        
+        # If we found significant bloat, remove empty instruments
+        if len(empty_instruments) > 10:  # Significant bloat detected
+            logging.info(f"🔧 STRUCTURAL BLOAT FIX: Removing {len(empty_instruments)} empty instruments from {os.path.basename(xmp_path)}")
+            
+            # Remove empty instruments from the container
+            for empty_instrument in empty_instruments:
+                instruments_container.remove(empty_instrument)
+            
+            # Renumber remaining instruments to be sequential starting from 1
+            for i, instrument in enumerate(instruments_with_samples):
+                instrument.set("number", str(i + 1))
+            
+            # Update KeygroupNumKeygroups to match actual instrument count
+            kg_count_elem = root.find(".//KeygroupNumKeygroups")
+            if kg_count_elem is not None:
+                kg_count_elem.text = str(len(instruments_with_samples))
+            
+            # CRITICAL: Update file format to modern version
+            version_elem = root.find(".//File_Version")
+            if version_elem is not None:
+                version_elem.text = "2.1"
+            
+            app_version_elem = root.find(".//Application_Version")
+            if app_version_elem is not None:
+                app_version_elem.text = "3.5.0.54"
+            
+            platform_elem = root.find(".//Platform")
+            if platform_elem is not None:
+                platform_elem.text = "Linux"
+            
+            # Save the optimized file
+            tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+            
+            logging.info(f"✅ OPTIMIZED: {os.path.basename(xmp_path)} - {original_count} → {len(instruments_with_samples)} instruments")
+            return True
+        
+        return False
+        
+    except Exception as e:
+        logging.error(f"Error fixing structural bloat in {xmp_path}: {e}")
+        return False
+
+def test_structural_bloat_fix():
+    """Test the structural bloat fix"""
+    
+    # Source and test files
+    source_file = "/Users/marlsz/Documents/GitHub/XPM-version-2/test_bloated_file.xpm"
+    test_file = "/tmp/test_structure_fix.xpm"
+    
+    # Copy the original file for testing
+    shutil.copy2(source_file, test_file)
+    
+    # Analyze before fix
+    before = analyze_file(test_file, "BEFORE STRUCTURAL BLOAT FIX")
+    
+    # Apply the structural bloat fix
+    print("\n=== APPLYING STRUCTURAL BLOAT FIX ===")
+    result = fix_structural_bloat_simple(test_file)
+    print(f"Fix result: {result}")
+    
+    # Analyze after fix
+    after = analyze_file(test_file, "AFTER STRUCTURAL BLOAT FIX")
+    
+    # Compare results
+    print(f"\n=== COMPARISON ===")
+    if before and after:
+        print(f"Total instruments: {before['total_instruments']} → {after['total_instruments']}")
+        print(f"Instruments with samples: {before['instruments_with_samples']} → {after['instruments_with_samples']}")
+        print(f"Empty instruments: {before['empty_instruments']} → {after['empty_instruments']}")
+        print(f"KeygroupNumKeygroups: {before['keygroup_count']} → {after['keygroup_count']}")
+        
+        # Check if fix preserved sample instruments
+        if before['instruments_with_samples'] == after['instruments_with_samples']:
+            print("✅ SUCCESS: All instruments with samples preserved")
+        else:
+            print("❌ FAILURE: Sample instruments were lost!")
+            
+        # Check if empty instruments were removed
+        if after['empty_instruments'] == 0:
+            print("✅ SUCCESS: All empty instruments removed")
+        else:
+            print(f"⚠️  WARNING: {after['empty_instruments']} empty instruments remain")
+    
+    # Clean up
+    if os.path.exists(test_file):
+        os.remove(test_file)
+
+if __name__ == "__main__":
+    test_structural_bloat_fix()
