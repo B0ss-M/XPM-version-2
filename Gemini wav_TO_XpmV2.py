@@ -59,6 +59,7 @@ try:
     from multi_sample_builder import MultiSampleBuilderWindow, AUDIO_EXTS
     from sample_mapping_editor import SampleMappingEditorWindow
     from sample_mapping_checker import SampleMappingCheckerWindow
+    from keyboard_mapper_window import KeyboardMapperWindow
     from firmware_profiles import (
         get_pad_settings,
         get_program_parameters as fw_program_parameters,
@@ -73,6 +74,7 @@ except ImportError as e:
     SampleMappingEditorWindow = None
     SampleMappingCheckerWindow = None
     MultiSampleBuilderWindow = None
+    KeyboardMapperWindow = None
 from xpm_utils import (
     LAYER_PARAMS_TO_PRESERVE,
     calculate_key_ranges,
@@ -713,7 +715,10 @@ def build_program_pads_json(
     if engine:
         pads_obj["engine"] = engine
     if isinstance(num_instruments, int) and num_instruments > 0:
-        pads_obj["padToInstrument"] = {str(i): i for i in range(num_instruments)}
+        # CRITICAL FIX: Only create pad mappings for actual instruments that exist
+        # This prevents the MPC from trying to access non-existent instruments
+        pads_obj["padToInstrument"] = {str(i): i for i in range(min(num_instruments, len(mappings or [])))}
+        logging.info(f"Created padToInstrument mapping for {min(num_instruments, len(mappings or []))} instruments")
     json_str = json.dumps(pads_obj, indent=4)
     return xml_escape(json_str)
 
@@ -1019,6 +1024,7 @@ def detect_sample_note(path: str) -> int:
 def _select_best_pitch_detection(results, filename):
     """
     Intelligently select the best pitch detection result from multiple methods.
+    Enhanced to prioritize audio analysis for unlabeled samples.
     
     Args:
         results: List of (method_name, midi_note) tuples
@@ -1038,25 +1044,55 @@ def _select_best_pitch_detection(results, filename):
     # Create a map of methods to notes
     method_notes = {method: note for method, note in results}
     
-    # Priority order (most reliable first)
-    priority_order = ['filename', 'audio_analysis', 'wav_metadata']
+    # Analyze filename to determine if it's labeled or unlabeled
+    import re
+    import os
+    base_filename = os.path.splitext(os.path.basename(filename))[0].lower()
+    
+    # Check if filename contains clear note information
+    has_clear_note_info = bool(re.search(r'[a-g][#b]?\d+', base_filename))
+    has_descriptive_name = bool(re.search(r'(piano|guitar|bass|drum|kick|snare|hi.*hat|cymbal|string|brass|lead|pad)', base_filename))
+    
+    # Determine sample type
+    is_labeled_sample = has_clear_note_info
+    is_unlabeled_sample = not has_clear_note_info
+    is_descriptive_only = has_descriptive_name and not has_clear_note_info
+    
+    logging.debug(f"Sample analysis for '{filename}': labeled={is_labeled_sample}, unlabeled={is_unlabeled_sample}, descriptive={is_descriptive_only}")
+    
+    # Enhanced priority order based on sample type
+    if is_unlabeled_sample or is_descriptive_only:
+        # For unlabeled samples, prioritize audio analysis
+        priority_order = ['audio_analysis', 'wav_metadata', 'filename']
+        logging.info(f"Using audio-priority detection for unlabeled sample: {filename}")
+    else:
+        # For labeled samples, trust filename but verify with audio
+        priority_order = ['filename', 'audio_analysis', 'wav_metadata']
+        logging.info(f"Using filename-priority detection for labeled sample: {filename}")
     
     # Check for consensus (notes within 1 semitone of each other)
     notes = [note for _, note in results]
     
-    # If filename detection exists and is reasonable, prefer it
-    if 'filename' in method_notes:
+    # For labeled samples, check if filename is confirmed by audio
+    if is_labeled_sample and 'filename' in method_notes and 'audio_analysis' in method_notes:
         filename_note = method_notes['filename']
+        audio_note = method_notes['audio_analysis']
         
-        # Check if other methods are close to filename detection
-        close_methods = []
-        for method, note in results:
-            if abs(note - filename_note) <= 2:  # Within 2 semitones
-                close_methods.append((method, note))
-        
-        if len(close_methods) >= 2:  # At least filename + one other method agree
-            logging.info(f"Note for '{filename}' - filename detection ({filename_note}) confirmed by other methods")
+        # If audio and filename agree (within 2 semitones), trust filename
+        if abs(audio_note - filename_note) <= 2:
+            logging.info(f"Note for '{filename}' - filename ({filename_note}) confirmed by audio ({audio_note})")
             return filename_note
+        else:
+            # Significant disagreement - log warning and prefer audio for accuracy
+            logging.warning(f"Note for '{filename}' - filename ({filename_note}) vs audio ({audio_note}) disagreement")
+            logging.warning(f"Preferring audio analysis for accuracy: {audio_note}")
+            return audio_note
+    
+    # For unlabeled samples, strongly prefer audio analysis
+    if is_unlabeled_sample and 'audio_analysis' in method_notes:
+        audio_note = method_notes['audio_analysis']
+        logging.info(f"Note for '{filename}' - using audio analysis for unlabeled sample: {audio_note}")
+        return audio_note
     
     # Check for exact consensus
     if len(set(notes)) == 1:
@@ -1073,7 +1109,7 @@ def _select_best_pitch_detection(results, filename):
             logging.info(f"Note for '{filename}' - majority consensus: {target_note} (methods: {', '.join(methods)})")
             return target_note
     
-    # No consensus - use priority order
+    # No consensus - use priority order based on sample type
     for method in priority_order:
         if method in method_notes:
             note = method_notes[method]
@@ -1274,7 +1310,6 @@ Expansion Doctor fixes:
             btn_frame, text="🎹 Fix Key Ranges", command=self.fix_key_ranges
         ).pack(side="left", padx=5)
         
-        # Row 2: Specific fix buttons  
         btn_frame2 = ttk.Frame(frame)
         btn_frame2.grid(row=4, column=0, sticky="ew", pady=(5, 0))
         ttk.Button(
@@ -1286,6 +1321,14 @@ Expansion Doctor fixes:
         ttk.Button(btn_frame2, text="Fix Keygroups", command=self.fix_keygroups).pack(
             side="left", padx=5
         )
+        
+        # NEW: Mapping correction buttons
+        ttk.Button(
+            btn_frame2, text="🎵 Fix Root Notes", command=self.fix_root_note_mapping
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            btn_frame2, text="🔊 Fix Velocity Ranges", command=self.fix_velocity_mapping
+        ).pack(side="left", padx=5)
         
         # Row 3: Version and control buttons
         options = ttk.Frame(btn_frame2)
@@ -1571,24 +1614,68 @@ Expansion Doctor fixes:
                 issues.append("Missing KeygroupNumKeygroups element")
                 fixes.append("fix_keygroup_count")
             
-            # CRITICAL ISSUE: Check for structural bloat (MPC Live 2 compatibility)
-            if actual_kg_count >= 50:  # Suspicious number of instruments
-                instruments_with_samples = 0
-                for instrument in instruments:
-                    has_samples = False
+            # CRITICAL ISSUE: Check for structural bloat AND empty instruments
+            instruments_with_samples = 0
+            completely_empty_instruments = 0
+            instruments_with_empty_samples = 0
+            
+            for instrument in instruments:
+                has_meaningful_samples = False
+                has_any_content = False
+                has_empty_sample_refs = False
+                
+                # Check if instrument has any content at all
+                if len(list(instrument)) > 0:  # Has any child elements
+                    has_any_content = True
+                    
+                    # Check for actual sample content
                     layers = instrument.find("Layers")
                     if layers is not None:
                         for layer in layers.findall("Layer"):
                             sample_name_elem = layer.find("SampleName")
                             sample_file_elem = layer.find("SampleFile")
-                            if ((sample_name_elem is not None and sample_name_elem.text and sample_name_elem.text.strip()) or
-                                (sample_file_elem is not None and sample_file_elem.text and sample_file_elem.text.strip())):
-                                has_samples = True
-                                break
-                    if has_samples:
-                        instruments_with_samples += 1
+                            
+                            # Check for meaningful sample references
+                            has_sample_name = (sample_name_elem is not None and sample_name_elem.text and sample_name_elem.text.strip())
+                            has_sample_file = (sample_file_elem is not None and sample_file_elem.text and sample_file_elem.text.strip())
+                            
+                            if has_sample_name or has_sample_file:
+                                # Verify sample actually exists and isn't just "Unknown"
+                                sample_text = sample_name_elem.text if has_sample_name else sample_file_elem.text
+                                if sample_text.lower() not in ["unknown", "", "none", "null"]:
+                                    has_meaningful_samples = True
+                                    break
+                                else:
+                                    has_empty_sample_refs = True
                 
-                empty_instruments = actual_kg_count - instruments_with_samples
+                if has_meaningful_samples:
+                    instruments_with_samples += 1
+                elif not has_any_content:
+                    completely_empty_instruments += 1
+                elif has_any_content and not has_meaningful_samples:
+                    # Instrument has structure but no meaningful samples
+                    instruments_with_empty_samples += 1
+            
+            # Calculate total problematic instruments
+            total_empty_instruments = completely_empty_instruments + instruments_with_empty_samples
+            
+            # Detect completely empty instruments (like VOCAL STRING.xpm issue)
+            if completely_empty_instruments > 0:
+                issues.append(f"🔥 CRITICAL: {completely_empty_instruments}/{actual_kg_count} instruments are completely empty (no data)")
+                if completely_empty_instruments == actual_kg_count:
+                    issues.append("⚠️ SEVERE: ALL instruments are empty - no samples, ranges, or parameters defined")
+                fixes.append("fix_empty_instruments")
+            
+            # Detect instruments with empty sample references
+            if instruments_with_empty_samples > 0:
+                issues.append(f"⚠️ EMPTY SAMPLES: {instruments_with_empty_samples}/{actual_kg_count} instruments have structure but no valid samples")
+                if "fix_empty_instruments" not in fixes:
+                    fixes.append("fix_empty_instruments")
+            
+            # Check for structural bloat (many instruments pattern)
+            if actual_kg_count >= 50:  # Large-scale bloat detection
+                
+                empty_instruments = total_empty_instruments
                 if empty_instruments > 10:
                     # Calculate performance impact
                     bloat_ratio = (empty_instruments / actual_kg_count) * 100
@@ -1607,6 +1694,76 @@ Expansion Doctor fixes:
                 # Special case: exactly 128 instruments with few declared = classic bloat pattern
                 issues.append("🔥 CLASSIC BLOAT PATTERN: 128 instruments created for few keygroups (Expansion Doctor issue)")
                 fixes.append("fix_structural_bloat")
+            elif actual_kg_count >= 5:  # Small-scale bloat detection for files like VOCAL STRING.xpm
+                # Check if we have a high ratio of empty to populated instruments
+                empty_instruments = total_empty_instruments
+                if empty_instruments > 0 and instruments_with_samples > 0:
+                    empty_ratio = (empty_instruments / actual_kg_count) * 100
+                    
+                    # Detect problematic patterns:
+                    # 1. More than 50% empty instruments
+                    # 2. OR more than 3 empty instruments in small files
+                    if empty_ratio > 50 or (empty_instruments >= 3 and actual_kg_count <= 15):
+                        issues.append(f"🔥 STRUCTURAL BLOAT: {empty_instruments}/{actual_kg_count} instruments are empty "
+                                    f"({empty_ratio:.0f}% empty) - impacts MPC Live 2 performance")
+                        fixes.append("fix_structural_bloat")
+                        
+                        if empty_ratio >= 70:
+                            issues.append("⚠️ HIGH BLOAT: Consider rebuilding this XPM with only sample-containing instruments")
+                        elif empty_ratio >= 50:
+                            issues.append("⚠️ MODERATE BLOAT: Empty instruments cause unnecessary overhead")
+            
+            # NEW: Check for mapping issues (root notes, velocity, ranges)
+            mapping_issues = self._analyze_mapping_issues(instruments)
+            if mapping_issues['root_note_issues']:
+                issues.append(f"🎵 ROOT NOTE MAPPING: {mapping_issues['root_note_issues']} instruments have incorrect root notes (C-1 detected)")
+                fixes.append("fix_root_note_mapping")
+            
+            if mapping_issues['velocity_overlaps']:
+                issues.append(f"🔊 VELOCITY OVERLAPS: {mapping_issues['velocity_overlaps']} instruments use full velocity range (0-127)")
+                fixes.append("fix_velocity_mapping")
+            
+            if mapping_issues['range_problems']:
+                issues.append(f"🎹 RANGE ISSUES: {mapping_issues['range_problems']} instruments use full MIDI range (0-127)")
+                fixes.append("fix_instrument_ranges")
+                
+                empty_instruments = total_empty_instruments
+                if empty_instruments > 10:
+                    # Calculate performance impact
+                    bloat_ratio = (empty_instruments / actual_kg_count) * 100
+                    estimated_size_mb = (actual_kg_count * 20) / 1024  # Rough estimate
+                    
+                    issues.append(f"🔥 CRITICAL BLOAT: {empty_instruments}/{actual_kg_count} empty instruments "
+                                f"({bloat_ratio:.0f}% bloat, ~{estimated_size_mb:.1f}MB wasted)")
+                    fixes.append("fix_structural_bloat")
+                    
+                    # Additional context for user understanding
+                    if empty_instruments >= 100:
+                        issues.append("⚠️ SEVERE: This level of bloat causes significant MPC Live 2 performance issues")
+                    elif empty_instruments >= 50:
+                        issues.append("⚠️ MODERATE: Noticeable performance impact on MPC Live 2")
+            elif actual_kg_count == 128 and declared_kg_count < 20:
+                # Special case: exactly 128 instruments with few declared = classic bloat pattern
+                issues.append("🔥 CLASSIC BLOAT PATTERN: 128 instruments created for few keygroups (Expansion Doctor issue)")
+                fixes.append("fix_structural_bloat")
+            elif actual_kg_count >= 5:  # Small-scale bloat detection for files like VOCAL STRING.xpm
+                # Check if we have a high ratio of empty to populated instruments
+                empty_instruments = total_empty_instruments
+                if empty_instruments > 0 and instruments_with_samples > 0:
+                    empty_ratio = (empty_instruments / actual_kg_count) * 100
+                    
+                    # Detect problematic patterns:
+                    # 1. More than 50% empty instruments
+                    # 2. OR more than 3 empty instruments in small files
+                    if empty_ratio > 50 or (empty_instruments >= 3 and actual_kg_count <= 15):
+                        issues.append(f"🔥 STRUCTURAL BLOAT: {empty_instruments}/{actual_kg_count} instruments are empty "
+                                    f"({empty_ratio:.0f}% empty) - impacts MPC Live 2 performance")
+                        fixes.append("fix_structural_bloat")
+                        
+                        if empty_ratio >= 70:
+                            issues.append("⚠️ HIGH BLOAT: Consider rebuilding this XPM with only sample-containing instruments")
+                        elif empty_ratio >= 50:
+                            issues.append("⚠️ MODERATE BLOAT: Empty instruments cause unnecessary overhead")
             
             # Issue 2: Check LowNote/HighNote ranges in keygroups
             keygroup_issues = []
@@ -1699,6 +1856,48 @@ Expansion Doctor fixes:
                 "missing_samples": [],
                 "version": "Unknown"
             }
+
+    def _analyze_mapping_issues(self, instruments):
+        """Analyze root note, velocity, and range mapping issues"""
+        mapping_issues = {
+            'root_note_issues': 0,
+            'velocity_overlaps': 0,
+            'range_problems': 0
+        }
+        
+        for instrument in instruments:
+            # Check instrument-level ranges (0-127 is problematic)
+            low_note_elem = instrument.find('LowNote')
+            high_note_elem = instrument.find('HighNote')
+            
+            if (low_note_elem is not None and high_note_elem is not None and 
+                low_note_elem.text and high_note_elem.text):
+                low_note = int(low_note_elem.text)
+                high_note = int(high_note_elem.text)
+                if low_note == 0 and high_note == 127:
+                    mapping_issues['range_problems'] += 1
+            
+            # Check layer-level issues
+            layers = instrument.find('Layers')
+            if layers is not None:
+                for layer in layers.findall('Layer'):
+                    # Root note issues (C-1 = MIDI 0 is problematic)
+                    root_note_elem = layer.find('RootNote')
+                    if (root_note_elem is not None and root_note_elem.text and 
+                        int(root_note_elem.text) <= 12):  # C0 or below
+                        mapping_issues['root_note_issues'] += 1
+                    
+                    # Velocity overlap issues (0-127 for all layers is problematic)
+                    vel_low_elem = layer.find('VelocityLow')
+                    vel_high_elem = layer.find('VelocityHigh')
+                    if (vel_low_elem is not None and vel_high_elem is not None and
+                        vel_low_elem.text and vel_high_elem.text):
+                        vel_low = int(vel_low_elem.text)
+                        vel_high = int(vel_high_elem.text)
+                        if vel_low == 0 and vel_high == 127:
+                            mapping_issues['velocity_overlaps'] += 1
+        
+        return mapping_issues
 
     def scan_broken_links(self):
         for i in self.tree.get_children():
@@ -1910,6 +2109,9 @@ Expansion Doctor fixes:
                 elif fix_type == "fix_structural_bloat":
                     if self.fix_structural_bloat(xmp_path):
                         fixed_issues.append("structural bloat")
+                elif fix_type == "fix_empty_instruments":
+                    if self.fix_empty_instruments(xmp_path):
+                        fixed_issues.append("empty instruments")
             
             if fixed_issues:
                 messagebox.showinfo("Fix Complete", 
@@ -2323,7 +2525,7 @@ Expansion Doctor fixes:
             return False
 
     @log_function_entry_exit
-    def fix_structural_bloat(self, xmp_path):
+    def fix_structural_bloat(self, xpm_path):
         """
         CRITICAL FIX: Remove structural bloat that causes MPC Live 2 compatibility issues.
         
@@ -2337,12 +2539,12 @@ Expansion Doctor fixes:
         Solution: Keep only instruments that have actual sample content and apply intelligent range mapping.
         """
         try:
-            tree = ET.parse(xmp_path)
+            tree = ET.parse(xpm_path)
             root = tree.getroot()
             
             # Validate XMP structure
             validate_xpm_structure(root)
-            log_xml_operation("structure_validated", xmp_path)
+            log_xml_operation("structure_validated", xpm_path)
             
             instruments_container = root.find(".//Instruments")
             if instruments_container is None:
@@ -2380,7 +2582,7 @@ Expansion Doctor fixes:
             
             # If we found significant bloat, remove empty instruments
             if len(empty_instruments) > 10:  # Significant bloat detected
-                logging.info(f"🔧 STRUCTURAL BLOAT FIX: Removing {len(empty_instruments)} empty instruments from {os.path.basename(xmp_path)}")
+                logging.info(f"🔧 STRUCTURAL BLOAT FIX: Removing {len(empty_instruments)} empty instruments from {os.path.basename(xpm_path)}")
                 
                 # Remove empty instruments from the container
                 for empty_instrument in empty_instruments:
@@ -2410,16 +2612,312 @@ Expansion Doctor fixes:
                     platform_elem.text = "Linux"
                 
                 # Save the optimized file (XML-only format, no ProgramPads JSON)
-                tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+                tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
                 
-                logging.info(f"✅ OPTIMIZED: {os.path.basename(xmp_path)} - {original_count} → {len(instruments_with_samples)} instruments")
+                logging.info(f"✅ OPTIMIZED: {os.path.basename(xpm_path)} - {original_count} → {len(instruments_with_samples)} instruments")
                 return True
             
             return False
             
         except Exception as e:
-            logging.error(f"Error fixing structural bloat in {xmp_path}: {e}")
+            logging.error(f"Error fixing structural bloat in {xpm_path}: {e}")
             return False
+
+    def fix_empty_instruments(self, xpm_path):
+        """
+        CRITICAL FIX: Populate completely empty instruments with proper structure.
+        
+        This addresses the issue where instruments exist but have no content - no LowNote,
+        HighNote, Layers, or any parameters. This causes the keyboard mapper to show
+        full-range mapping (C-1 to G9) since no actual ranges are defined.
+        """
+        try:
+            tree = ET.parse(xpm_path)
+            root = tree.getroot()
+            
+            instruments_container = root.find(".//Instruments")
+            if instruments_container is None:
+                return False
+            
+            instruments = instruments_container.findall("Instrument")
+            if not instruments:
+                return False
+                
+            logging.info(f"🔧 EMPTY INSTRUMENTS FIX: Processing {len(instruments)} instruments in {os.path.basename(xpm_path)}")
+            
+            fixed_count = 0
+            for i, instrument in enumerate(instruments):
+                # Check if instrument is completely empty
+                if len(list(instrument)) == 0:  # No child elements at all
+                    logging.info(f"Fixing completely empty instrument {i+1}")
+                    
+                    # Add basic required structure for a valid but inactive instrument
+                    ET.SubElement(instrument, "Polyphony").text = "16"
+                    ET.SubElement(instrument, "LowNote").text = "0"
+                    ET.SubElement(instrument, "HighNote").text = "0"  # Inactive range
+                    ET.SubElement(instrument, "Volume").text = "1.0"
+                    ET.SubElement(instrument, "Pan").text = "0.5"
+                    ET.SubElement(instrument, "Tune").text = "0.0"
+                    ET.SubElement(instrument, "MuteGroup").text = "0"
+                    ET.SubElement(instrument, "VoiceOverlap").text = "Poly"
+                    
+                    # Add empty Layers container
+                    ET.SubElement(instrument, "Layers")
+                    
+                    fixed_count += 1
+                    
+                # Check if instrument has minimal structure but no proper ranges
+                elif len(list(instrument)) > 0:
+                    low_note = instrument.find("LowNote")
+                    high_note = instrument.find("HighNote")
+                    
+                    # If missing key range elements, add inactive ranges
+                    if low_note is None:
+                        ET.SubElement(instrument, "LowNote").text = "0"
+                        fixed_count += 1
+                    if high_note is None:
+                        ET.SubElement(instrument, "HighNote").text = "0"
+                        fixed_count += 1
+                        
+                    # Ensure Layers container exists
+                    if instrument.find("Layers") is None:
+                        ET.SubElement(instrument, "Layers")
+                        fixed_count += 1
+            
+            if fixed_count > 0:
+                tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                logging.info(f"✅ EMPTY INSTRUMENTS FIXED: Added structure to {fixed_count} elements in {os.path.basename(xpm_path)}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logging.error(f"Error fixing empty instruments in {xpm_path}: {e}")
+            return False
+
+    def fix_root_note_mapping(self):
+        """Fix root note mapping issues across all XPM files"""
+        folder = self.master.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "No valid folder selected.", parent=self)
+            return
+        
+        confirm_msg = ("This will automatically fix root note mappings by:\n"
+                      "• Detecting correct notes from sample filenames\n"
+                      "• Updating root notes from C-1 to proper values\n"
+                      "• Fixing samples with names like 'C4', 'F#3', etc.\n\n"
+                      "Continue?")
+        
+        if not messagebox.askyesno("Fix Root Note Mapping", confirm_msg, parent=self):
+            return
+        
+        fixed_count = 0
+        total_fixes = 0
+        
+        for xpm_path, info in self.file_info.items():
+            if "fix_root_note_mapping" in info.get("fixes", []):
+                try:
+                    fixes_made = self._fix_single_root_note_mapping(xpm_path)
+                    if fixes_made > 0:
+                        fixed_count += 1
+                        total_fixes += fixes_made
+                except Exception as e:
+                    print(f"Error fixing root notes in {os.path.basename(xpm_path)}: {e}")
+        
+        self.status.set(f"Fixed root notes in {fixed_count} XPM(s) ({total_fixes} total fixes). Rescanning...")
+        self.scan_broken_links()
+    
+    def fix_velocity_mapping(self):
+        """Fix velocity mapping issues across all XPM files"""
+        folder = self.master.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "No valid folder selected.", parent=self)
+            return
+        
+        confirm_msg = ("This will automatically fix velocity mappings by:\n"
+                      "• Splitting velocity ranges for multiple layers\n"
+                      "• Avoiding 0-127 overlaps that cause all samples to play\n"
+                      "• Creating proper velocity layering\n\n"
+                      "Continue?")
+        
+        if not messagebox.askyesno("Fix Velocity Mapping", confirm_msg, parent=self):
+            return
+        
+        fixed_count = 0
+        total_fixes = 0
+        
+        for xpm_path, info in self.file_info.items():
+            if "fix_velocity_mapping" in info.get("fixes", []):
+                try:
+                    fixes_made = self._fix_single_velocity_mapping(xpm_path)
+                    if fixes_made > 0:
+                        fixed_count += 1
+                        total_fixes += fixes_made
+                except Exception as e:
+                    print(f"Error fixing velocity mapping in {os.path.basename(xpm_path)}: {e}")
+        
+        self.status.set(f"Fixed velocity mapping in {fixed_count} XPM(s) ({total_fixes} total fixes). Rescanning...")
+        self.scan_broken_links()
+    
+    def _fix_single_root_note_mapping(self, xpm_path):
+        """Fix root note mapping for a single XPM file"""
+        tree = ET.parse(xpm_path)
+        root = tree.getroot()
+        instruments = root.findall('.//Instrument')
+        
+        fixes_made = 0
+        note_patterns = {
+            r'.*[_\-\s]([A-G][#b]?\d+).*': 'note_octave',  # C4, F#3, etc.
+            r'.*[_\-\s](\d+).*': 'midi_number',            # 60, 64, etc.
+            r'.*[_\-\s]([A-G][#b]?).*': 'note_only',       # C, F#, etc. (assume octave 4)
+        }
+        
+        for instrument in instruments:
+            layers = instrument.find('Layers')
+            if layers is not None:
+                for layer in layers.findall('Layer'):
+                    root_note_elem = layer.find('RootNote')
+                    sample_name_elem = layer.find('SampleName')
+                    
+                    if (root_note_elem is not None and sample_name_elem is not None and
+                        root_note_elem.text and sample_name_elem.text):
+                        
+                        current_root = int(root_note_elem.text)
+                        sample_name = sample_name_elem.text
+                        
+                        # Only fix if current root is problematic (very low)
+                        if current_root <= 12:
+                            detected_note = self._detect_note_from_filename(sample_name, note_patterns)
+                            if detected_note and detected_note != current_root:
+                                root_note_elem.text = str(detected_note)
+                                fixes_made += 1
+                                print(f"Fixed root note: {sample_name} {current_root} → {detected_note}")
+        
+        if fixes_made > 0:
+            # Create backup
+            backup_path = xpm_path + '.root_note_backup'
+            if not os.path.exists(backup_path):
+                import shutil
+                shutil.copy2(xpm_path, backup_path)
+            
+            tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
+        
+        return fixes_made
+    
+    def _fix_single_velocity_mapping(self, xpm_path):
+        """Fix velocity mapping for a single XPM file"""
+        tree = ET.parse(xpm_path)
+        root = tree.getroot()
+        instruments = root.findall('.//Instrument')
+        
+        fixes_made = 0
+        
+        for instrument in instruments:
+            layers = instrument.find('Layers')
+            if layers is not None:
+                layer_list = layers.findall('Layer')
+                num_layers = len(layer_list)
+                
+                # If multiple layers, split velocity ranges
+                if num_layers > 1:
+                    velocity_split = 127 // num_layers
+                    
+                    for i, layer in enumerate(layer_list):
+                        vel_low_elem = layer.find('VelocityLow')
+                        vel_high_elem = layer.find('VelocityHigh')
+                        
+                        if vel_low_elem is None:
+                            vel_low_elem = ET.SubElement(layer, 'VelocityLow')
+                        if vel_high_elem is None:
+                            vel_high_elem = ET.SubElement(layer, 'VelocityHigh')
+                        
+                        # Calculate new velocity range
+                        new_low = i * velocity_split
+                        new_high = min((i + 1) * velocity_split - 1, 127) if i < num_layers - 1 else 127
+                        
+                        current_low = int(vel_low_elem.text) if vel_low_elem.text else 0
+                        current_high = int(vel_high_elem.text) if vel_high_elem.text else 127
+                        
+                        # Only fix if currently using full range
+                        if current_low == 0 and current_high == 127:
+                            vel_low_elem.text = str(new_low)
+                            vel_high_elem.text = str(new_high)
+                            fixes_made += 1
+        
+        if fixes_made > 0:
+            # Create backup
+            backup_path = xpm_path + '.velocity_backup'
+            if not os.path.exists(backup_path):
+                import shutil
+                shutil.copy2(xpm_path, backup_path)
+            
+            tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
+        
+        return fixes_made
+    
+    def _detect_note_from_filename(self, filename, note_patterns):
+        """Detect MIDI note number from filename"""
+        import re
+        
+        if not filename:
+            return None
+            
+        # Try different patterns
+        for pattern, pattern_type in note_patterns.items():
+            match = re.search(pattern, filename, re.IGNORECASE)
+            if match:
+                if pattern_type == 'note_octave':
+                    # Extract note like "C4", "F#3"
+                    note_str = match.group(1).upper()
+                    return self._note_string_to_midi(note_str)
+                elif pattern_type == 'midi_number':
+                    # Direct MIDI number
+                    try:
+                        midi_num = int(match.group(1))
+                        if 0 <= midi_num <= 127:
+                            return midi_num
+                    except ValueError:
+                        continue
+                elif pattern_type == 'note_only':
+                    # Note without octave, assume octave 4
+                    note_str = match.group(1).upper() + '4'
+                    return self._note_string_to_midi(note_str)
+        
+        return None
+    
+    def _note_string_to_midi(self, note_str):
+        """Convert note string like 'C4' to MIDI number"""
+        if len(note_str) < 2:
+            return None
+            
+        # Extract note name and octave
+        if '#' in note_str or 'b' in note_str:
+            note_name = note_str[:2]
+            octave_str = note_str[2:]
+        else:
+            note_name = note_str[0]
+            octave_str = note_str[1:]
+        
+        try:
+            octave = int(octave_str)
+        except ValueError:
+            return None
+        
+        # Convert note name to semitone offset
+        note_name = note_name.replace('b', '#')  # Convert flats to sharps for simplicity
+        
+        note_offsets = {
+            'C': 0, 'C#': 1, 'D': 2, 'D#': 3, 'E': 4, 'F': 5,
+            'F#': 6, 'G': 7, 'G#': 8, 'A': 9, 'A#': 10, 'B': 11
+        }
+        
+        if note_name not in note_offsets:
+            return None
+        
+        # Calculate MIDI number: (octave + 1) * 12 + note_offset
+        midi_number = (octave + 1) * 12 + note_offsets[note_name]
+        
+        return midi_number if 0 <= midi_number <= 127 else None
 
 
 class ExpansionBuilderWindow(tk.Toplevel):
@@ -5835,12 +6333,20 @@ class InstrumentBuilder:
             sample_count = len(sample_infos)
             keygroup_count = len(note_layers)
             
+            # CRITICAL FIX: Ensure we only create instruments for actual keygroups with samples
+            # This prevents the creation of unnecessary empty instruments
+            if keygroup_count == 0:
+                logging.error(f"No valid keygroups found for {program_name}. Cannot create XPM.")
+                return False
+            
             # Log if there's a mismatch between samples and keygroups
             if sample_count != keygroup_count:
-                logging.warning(
+                logging.info(
                     f"Sample count ({sample_count}) differs from keygroup count ({keygroup_count}) for {program_name}. "
-                    f"This may happen when multiple samples share the same key range."
+                    f"This happens when multiple samples share the same key range (velocity layers)."
                 )
+            
+            logging.info(f"Creating XPM with {keygroup_count} instruments for {sample_count} samples")
 
             root = ET.Element("MPCVObject")
             version = ET.SubElement(root, "Version")
@@ -5878,9 +6384,15 @@ class InstrumentBuilder:
             # Build the critical <Instruments> section
             instruments = ET.SubElement(program, "Instruments")
             sorted_keys = sorted(note_layers.keys())
+            
+            # CRITICAL FIX: Only create instruments for actual keygroups with samples
+            # This prevents the creation of empty instruments
+            logging.info(f"Creating {len(sorted_keys)} instruments for keygroups: {sorted_keys}")
+            
             for i, key in enumerate(sorted_keys):
                 low_key, high_key = key
-                inst = self.build_instrument_element(instruments, i, low_key, high_key)
+                logging.debug(f"Creating instrument {i+1}: notes {low_key}-{high_key}")
+                inst = self.build_instrument_element(instruments, i+1, low_key, high_key)  # Use 1-based numbering
                 if instrument_template:
                     for k, v in instrument_template.items():
                         elem = inst.find(k)
@@ -5893,8 +6405,12 @@ class InstrumentBuilder:
                 layers_for_note = sorted(
                     note_layers[key], key=lambda x: x.get("velocity_low", 0)
                 )
-                num_layers = min(len(layers_for_note), 8)
+                num_layers = min(len(layers_for_note), 8)  # Max 8 layers for 3.4+ firmware
+                if len(layers_for_note) > 8:
+                    logging.warning(f"Instrument {i+1} has {len(layers_for_note)} samples, limiting to 8 layers for firmware compatibility")
+                
                 vel_split = 128 // num_layers
+                logging.debug(f"Instrument {i+1}: Creating {num_layers} layers with velocity split {vel_split}")
 
                 for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
                     layer = ET.SubElement(
@@ -5913,6 +6429,12 @@ class InstrumentBuilder:
             indent_tree(tree)
             tree.write(output_path, encoding="utf-8", xml_declaration=True)
 
+            # VERIFICATION: Check that the created XPM has the correct structure
+            if self._verify_xpm_structure(output_path, keygroup_count, sample_count):
+                logging.info(f"✅ Successfully created {program_name}.xpm with {keygroup_count} instruments and {sample_count} samples")
+            else:
+                logging.warning(f"⚠️ XPM structure verification failed for {program_name}.xpm")
+
             if not validate_xpm_file(output_path, len(sample_infos)):
                 logging.warning(
                     f"Post-creation validation failed for {os.path.basename(output_path)}"
@@ -5926,6 +6448,52 @@ class InstrumentBuilder:
             )
             return False
 
+    def _verify_xpm_structure(self, xpm_path, expected_instruments, expected_samples):
+        """Verify that the created XPM has the correct structure without bloat."""
+        try:
+            tree = ET.parse(xpm_path)
+            root = tree.getroot()
+            
+            instruments = root.find('.//Instruments')
+            if instruments is None:
+                logging.error("No Instruments section found in created XPM")
+                return False
+                
+            actual_instruments = len(instruments.findall('Instrument'))
+            
+            # Check for exact match of instrument count
+            if actual_instruments != expected_instruments:
+                logging.error(f"Instrument count mismatch: expected {expected_instruments}, got {actual_instruments}")
+                return False
+            
+            # Verify each instrument has valid key ranges and layers
+            instruments_with_layers = 0
+            for inst in instruments.findall('Instrument'):
+                layers = inst.find('Layers')
+                if layers is not None and len(layers.findall('Layer')) > 0:
+                    instruments_with_layers += 1
+                    
+                    # Check key ranges are valid
+                    low_note = inst.find('LowNote')
+                    high_note = inst.find('HighNote')
+                    if low_note is not None and high_note is not None:
+                        try:
+                            low = int(low_note.text)
+                            high = int(high_note.text)
+                            if low < 0 or low > 127 or high < 0 or high > 127 or low > high:
+                                logging.error(f"Invalid key range in instrument: {low}-{high}")
+                                return False
+                        except ValueError:
+                            logging.error(f"Invalid key range values: {low_note.text}-{high_note.text}")
+                            return False
+            
+            logging.info(f"✅ XPM structure verified: {actual_instruments} instruments, {instruments_with_layers} with layers")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error verifying XPM structure: {e}")
+            return False
+
     def get_program_parameters(self, num_keygroups):
         if not IMPORTS_SUCCESSFUL:
             return {}
@@ -5937,6 +6505,15 @@ class InstrumentBuilder:
         )
 
     def build_instrument_element(self, parent, num, low, high):
+        # VALIDATION: Ensure valid key ranges
+        if low < 0 or low > 127 or high < 0 or high > 127 or low > high:
+            logging.error(f"Invalid key range for instrument {num}: LowNote={low}, HighNote={high}")
+            # Use safe defaults
+            low = max(0, min(127, low))
+            high = max(low, min(127, high))
+            logging.info(f"Corrected to: LowNote={low}, HighNote={high}")
+        
+        logging.debug(f"Building instrument {num} with range {low}-{high}")
         instrument = ET.SubElement(parent, "Instrument", {"number": str(num)})
         if not IMPORTS_SUCCESSFUL:
             # Fallback for missing imports
@@ -6940,7 +7517,12 @@ class App(tk.Tk):
             frame,
             text="Batch Program Fixer...",
             command=lambda: self.open_window(BatchProgramFixerWindow),
-        ).grid(row=1, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+        ).grid(row=1, column=0, sticky="ew", padx=2, pady=2)
+        ttk.Button(
+            frame,
+            text="Keyboard Mapper...",
+            command=lambda: self.open_window(KeyboardMapperWindow),
+        ).grid(row=1, column=1, sticky="ew", padx=2, pady=2)
         ttk.Button(
             frame,
             text="Sample Mapping Checker...",
