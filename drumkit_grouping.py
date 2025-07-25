@@ -5,6 +5,13 @@ from collections import defaultdict
 from difflib import SequenceMatcher
 
 
+# Professional XPM Standards (based on ConvertWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 4 layers per keygroup (MPC hardware limit)
+# 5. Use consecutive key ranges for better playability
+
 def extract_group_name(filename: str) -> str:
     """Return a simplified group name based on underscores, spaces and digits with improved detection."""
     base = os.path.splitext(os.path.basename(filename))[0]

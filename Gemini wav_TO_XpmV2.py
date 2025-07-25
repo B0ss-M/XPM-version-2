@@ -25,6 +25,49 @@ import time
 import zipfile
 from typing import Optional
 
+# Professional XPM Standards (based on ConvertWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 8 layers per keygroup (firmware 3.4+ support)
+# 5. Use consecutive key ranges for better playability
+
+# Supported audio formats for conversion to XPM
+SUPPORTED_AUDIO_FORMATS = {
+    '.wav': 'WAV Audio',
+    '.aiff': 'AIFF Audio', 
+    '.aif': 'AIFF Audio',
+    '.flac': 'FLAC Audio',
+    '.mp3': 'MP3 Audio',
+    '.m4a': 'M4A Audio',
+    '.ogg': 'OGG Audio'
+}
+
+# Supported sampler formats for conversion
+SUPPORTED_SAMPLER_FORMATS = {
+    '.sfz': 'SFZ Sampler Format',
+    '.sf2': 'SoundFont 2',
+    '.exs': 'EXS24 Instrument',
+    '.nki': 'Kontakt Instrument',
+    '.nkm': 'Kontakt Multisample',
+    '.rex': 'REX Loop',
+    '.rx2': 'REX2 Loop',
+    '.rns': 'Reason Song File',
+    '.sxt': 'Reason NN-XT Sampler',
+    '.nnxt': 'Reason NN-XT Patch',
+    '.rfl': 'Reason ReFill',
+    '.akai': 'Akai MPC Program',
+    '.pgm': 'Akai MPC Program'
+}
+
+# Maximum layers supported by firmware versions
+MAX_LAYERS_BY_FIRMWARE = {
+    '2.3.0.0': 4,
+    '2.6.0.17': 4, 
+    '3.4.0': 8,
+    '3.5.0': 8
+}
+
 try:
     import numpy as np
     NUMPY_AVAILABLE = True
@@ -34,10 +77,21 @@ except ImportError:
 
 try:
     from PIL import Image
-
     PIL_AVAILABLE = True
 except Exception:
     PIL_AVAILABLE = False
+
+try:
+    import librosa
+    LIBROSA_AVAILABLE = True
+except ImportError:
+    LIBROSA_AVAILABLE = False
+
+try:
+    import soundfile as sf
+    SOUNDFILE_AVAILABLE = True
+except ImportError:
+    SOUNDFILE_AVAILABLE = False
 
 # Attempt to import optional dependencies, handle if they are not present
 try:
@@ -617,7 +671,7 @@ def retry_on_failure(max_retries=3, delay=1.0, backoff_factor=2.0):
     return decorator
 
 # --- Application Configuration ---
-APP_VERSION = "24.1"  # Final Stable Release with Pitch Fix
+APP_VERSION = "v2.11.6.6"  # ConvertWithMoss professional standard  # Final Stable Release with Pitch Fix
 
 # --- Global Constants ---
 MPC_BEIGE = "#EAE6DA"
@@ -894,10 +948,594 @@ def get_base_instrument_name(filepath, xpm_content=None):
 def get_wav_frames(filepath):
     """Returns the number of frames in a WAV file."""
     try:
-        with wave.open(filepath, "rb") as w:
-            return w.getnframes()
-    except Exception:
+        if filepath.lower().endswith('.wav'):
+            with wave.open(filepath, "rb") as w:
+                return w.getnframes()
+        elif SOUNDFILE_AVAILABLE:
+            # Use soundfile for other formats
+            info = sf.info(filepath)
+            return info.frames
+        else:
+            # Fallback estimation for unsupported formats
+            file_size = os.path.getsize(filepath)
+            return file_size // 4  # Rough estimate for 16-bit stereo
+    except Exception as e:
+        logging.error(f"Could not read frames from {filepath}: {e}")
         return 0
+
+
+def detect_file_format(filepath):
+    """Detect the format of an audio or sampler file."""
+    if not os.path.exists(filepath):
+        return None
+    
+    ext = os.path.splitext(filepath)[1].lower()
+    
+    # Check audio formats first
+    if ext in SUPPORTED_AUDIO_FORMATS:
+        return {
+            'type': 'audio',
+            'format': ext,
+            'description': SUPPORTED_AUDIO_FORMATS[ext]
+        }
+    
+    # Check sampler formats
+    if ext in SUPPORTED_SAMPLER_FORMATS:
+        return {
+            'type': 'sampler',
+            'format': ext,
+            'description': SUPPORTED_SAMPLER_FORMATS[ext]
+        }
+    
+    return None
+
+
+def convert_audio_format_to_wav(input_path, output_path=None):
+    """Convert various audio formats to WAV using soundfile/librosa."""
+    if not SOUNDFILE_AVAILABLE and not LIBROSA_AVAILABLE:
+        logging.warning("Neither soundfile nor librosa available for audio conversion")
+        return None
+    
+    if output_path is None:
+        base_name = os.path.splitext(input_path)[0]
+        output_path = f"{base_name}.wav"
+    
+    try:
+        if SOUNDFILE_AVAILABLE:
+            # Use soundfile for conversion
+            data, samplerate = sf.read(input_path)
+            sf.write(output_path, data, samplerate, subtype='PCM_16')
+        elif LIBROSA_AVAILABLE:
+            # Use librosa as fallback
+            y, sr = librosa.load(input_path, sr=None, mono=False)
+            sf.write(output_path, y.T if y.ndim > 1 else y, sr)
+        
+        logging.info(f"Converted {os.path.basename(input_path)} to WAV format")
+        return output_path
+        
+    except Exception as e:
+        logging.error(f"Failed to convert {input_path} to WAV: {e}")
+        return None
+
+
+def parse_sfz_file(sfz_path):
+    """Parse SFZ file and extract sample mappings."""
+    mappings = []
+    
+    try:
+        with open(sfz_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Parse SFZ regions
+        regions = []
+        current_region = {}
+        
+        for line in content.split('\n'):
+            line = line.strip()
+            
+            # Skip comments and empty lines
+            if not line or line.startswith('//'):
+                continue
+            
+            # New region
+            if line.startswith('<region>'):
+                if current_region:
+                    regions.append(current_region)
+                current_region = {}
+                continue
+            
+            # Parse key=value pairs
+            if '=' in line:
+                key, value = line.split('=', 1)
+                current_region[key.strip()] = value.strip()
+        
+        # Add the last region
+        if current_region:
+            regions.append(current_region)
+        
+        # Convert SFZ regions to XPM mappings
+        base_dir = os.path.dirname(sfz_path)
+        
+        for region in regions:
+            sample_file = region.get('sample', '')
+            if not sample_file:
+                continue
+            
+            # Make sample path absolute
+            if not os.path.isabs(sample_file):
+                sample_file = os.path.join(base_dir, sample_file)
+            
+            # Extract key mapping
+            key = region.get('key')
+            lokey = region.get('lokey', key)
+            hikey = region.get('hikey', key)
+            pitch_keycenter = region.get('pitch_keycenter', key)
+            
+            # Convert note names to MIDI numbers if needed
+            def note_to_midi(note_str):
+                if not note_str:
+                    return 60
+                try:
+                    # Try direct integer conversion first
+                    return int(note_str)
+                except ValueError:
+                    # Convert note name (C4, F#3, Bb2, etc.)
+                    note_str = note_str.strip().upper()
+                    if len(note_str) < 2:
+                        return 60
+                    
+                    # Parse note name
+                    note_name = note_str[0]
+                    rest = note_str[1:]
+                    
+                    # Handle sharp/flat
+                    accidental = 0
+                    if rest.startswith('#'):
+                        accidental = 1
+                        rest = rest[1:]
+                    elif rest.startswith('B'):
+                        accidental = -1
+                        rest = rest[1:]
+                    
+                    # Get octave
+                    try:
+                        octave = int(rest)
+                    except ValueError:
+                        return 60
+                    
+                    # Convert to MIDI note
+                    note_values = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
+                    if note_name in note_values:
+                        midi_note = (octave + 1) * 12 + note_values[note_name] + accidental
+                        return max(0, min(127, midi_note))
+                    
+                    return 60  # Default if conversion fails
+            
+            root_note = note_to_midi(pitch_keycenter or key)
+            low_note = note_to_midi(lokey or key)
+            high_note = note_to_midi(hikey or key)
+            
+            # Extract velocity mapping
+            lovel = int(region.get('lovel', 0))
+            hivel = int(region.get('hivel', 127))
+            
+            # Extract other parameters
+            volume = float(region.get('volume', 0))  # dB
+            pan = float(region.get('pan', 0))  # -100 to 100
+            tune = int(region.get('tune', 0))  # cents
+            
+            mapping = {
+                'sample_path': sample_file,
+                'root_note': root_note,
+                'low_note': low_note,
+                'high_note': high_note,
+                'velocity_low': lovel,
+                'velocity_high': hivel,
+                'volume': volume,
+                'pan': (pan + 100) / 200.0,  # Convert to 0-1 range
+                'tune_cents': tune
+            }
+            
+            mappings.append(mapping)
+        
+        logging.info(f"Parsed {len(mappings)} regions from SFZ file: {os.path.basename(sfz_path)}")
+        return mappings
+        
+    except Exception as e:
+        logging.error(f"Failed to parse SFZ file {sfz_path}: {e}")
+        return []
+
+
+def parse_soundfont_file(sf2_path):
+    """Parse SoundFont file and extract sample mappings (basic implementation)."""
+    # Note: Full SF2 parsing requires complex binary format handling
+    # This is a placeholder for basic SF2 support
+    logging.warning(f"SoundFont parsing not fully implemented yet: {sf2_path}")
+    return []
+
+
+def parse_kontakt_file(nki_path):
+    """Parse Kontakt instrument file (basic implementation)."""
+    # Note: Kontakt format is proprietary and encrypted
+    # This is a placeholder for basic Kontakt support
+    logging.warning(f"Kontakt parsing not fully implemented yet: {nki_path}")
+    return []
+
+
+def parse_rex_file(rex_path):
+    """Parse REX/REX2 file and extract slice mappings."""
+    try:
+        import struct
+        
+        mappings = []
+        
+        with open(rex_path, 'rb') as f:
+            # Read REX header
+            magic = f.read(4)
+            
+            if magic == b'REX2':
+                # REX2 format
+                version = struct.unpack('<I', f.read(4))[0]
+                logging.info(f"Parsing REX2 file version {version}")
+                
+                # Read basic info
+                f.seek(0x40)  # Skip to tempo info
+                tempo = struct.unpack('<f', f.read(4))[0]
+                
+                # Read slice count
+                f.seek(0x50)
+                slice_count = struct.unpack('<I', f.read(4))[0]
+                
+                logging.info(f"REX2: {slice_count} slices at {tempo} BPM")
+                
+                # Create mappings for each slice
+                for i in range(min(slice_count, 128)):  # Limit to MIDI range
+                    note = 36 + i  # Start from C2
+                    if note > 127:
+                        break
+                        
+                    mapping = {
+                        'sample_path': rex_path,  # REX file contains audio data
+                        'root_note': note,
+                        'low_note': note,
+                        'high_note': note,
+                        'velocity_low': 0,
+                        'velocity_high': 127,
+                        'slice_index': i,
+                        'tempo': tempo
+                    }
+                    mappings.append(mapping)
+                    
+            elif magic[:3] == b'REX':
+                # Original REX format
+                logging.info("Parsing original REX file")
+                
+                # Basic REX parsing - extract as drum kit
+                # REX files typically contain tempo-synced slices
+                for i in range(16):  # Standard 16 slices
+                    note = 36 + i  # C2 to D#3
+                    mapping = {
+                        'sample_path': rex_path,
+                        'root_note': note,
+                        'low_note': note,
+                        'high_note': note,
+                        'velocity_low': 0,
+                        'velocity_high': 127,
+                        'slice_index': i
+                    }
+                    mappings.append(mapping)
+                    
+            else:
+                logging.warning(f"Unknown REX format in {rex_path}")
+                return []
+                
+        return mappings
+        
+    except Exception as e:
+        logging.error(f"Error parsing REX file {rex_path}: {e}")
+        return []
+
+
+def parse_reason_nnxt_file(nnxt_path):
+    """Parse Reason NN-XT sampler file and extract sample mappings."""
+    try:
+        mappings = []
+        
+        # NN-XT files are typically XML-based
+        import xml.etree.ElementTree as ET
+        
+        try:
+            tree = ET.parse(nnxt_path)
+            root = tree.getroot()
+            
+            # Look for sample zones in NN-XT format
+            for zone in root.findall('.//SampleZone'):
+                sample_path = zone.get('SampleFile', '')
+                if not sample_path:
+                    continue
+                
+                # Extract zone parameters
+                low_key = int(zone.get('LowKey', '0'))
+                high_key = int(zone.get('HighKey', '127'))
+                root_key = int(zone.get('RootKey', str((low_key + high_key) // 2)))
+                low_vel = int(zone.get('LowVelocity', '0'))
+                high_vel = int(zone.get('HighVelocity', '127'))
+                
+                # Convert relative path to absolute if needed
+                if not os.path.isabs(sample_path):
+                    sample_path = os.path.join(os.path.dirname(nnxt_path), sample_path)
+                
+                mapping = {
+                    'sample_path': sample_path,
+                    'root_note': root_key,
+                    'low_note': low_key,
+                    'high_note': high_key,
+                    'velocity_low': low_vel,
+                    'velocity_high': high_vel,
+                    'tune': float(zone.get('Tune', '0')),
+                    'volume': float(zone.get('Level', '100')) - 100,  # Convert to dB
+                    'pan': float(zone.get('Pan', '0')) / 100.0 + 0.5  # Convert to 0-1
+                }
+                mappings.append(mapping)
+                
+        except ET.ParseError:
+            # Try text-based parsing for older NN-XT formats
+            with open(nnxt_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+                
+            # Look for sample references in text format
+            import re
+            sample_patterns = [
+                r'Sample\s+(\d+):\s+"([^"]+)"',
+                r'SampleFile:\s*"([^"]+)"',
+                r'<SampleFile>([^<]+)</SampleFile>'
+            ]
+            
+            for pattern in sample_patterns:
+                matches = re.findall(pattern, content, re.IGNORECASE)
+                for i, match in enumerate(matches):
+                    if isinstance(match, tuple):
+                        sample_path = match[1] if len(match) > 1 else match[0]
+                    else:
+                        sample_path = match
+                    
+                    # Convert relative path
+                    if not os.path.isabs(sample_path):
+                        sample_path = os.path.join(os.path.dirname(nnxt_path), sample_path)
+                    
+                    note = 60 + i  # Start from C4
+                    if note > 127:
+                        break
+                        
+                    mapping = {
+                        'sample_path': sample_path,
+                        'root_note': note,
+                        'low_note': note,
+                        'high_note': note,
+                        'velocity_low': 0,
+                        'velocity_high': 127
+                    }
+                    mappings.append(mapping)
+                    
+        return mappings
+        
+    except Exception as e:
+        logging.error(f"Error parsing NN-XT file {nnxt_path}: {e}")
+        return []
+
+
+def parse_reason_song_file(rns_path):
+    """Parse Reason Song (.rns) file and extract instrument references."""
+    try:
+        mappings = []
+        
+        # Reason song files are binary format with embedded devices
+        with open(rns_path, 'rb') as f:
+            data = f.read()
+        
+        # Look for embedded samples and instruments
+        # This is a basic implementation - full parsing would require
+        # understanding the complete Reason song format
+        
+        # Search for common sample file extensions in the binary data
+        sample_extensions = [b'.wav', b'.aiff', b'.aif', b'.rex', b'.rx2']
+        
+        for ext in sample_extensions:
+            pos = 0
+            while True:
+                pos = data.find(ext, pos)
+                if pos == -1:
+                    break
+                
+                # Try to extract the full filename
+                start = pos
+                while start > 0 and data[start - 1:start] not in [b'\x00', b'\n', b'\r']:
+                    start -= 1
+                
+                end = pos + len(ext)
+                filename = data[start:end].decode('utf-8', errors='ignore')
+                
+                if filename and len(filename) > 4:
+                    # Create a basic mapping
+                    note = 60 + len(mappings)  # Sequential notes from C4
+                    if note > 127:
+                        break
+                        
+                    mapping = {
+                        'sample_path': filename,  # May need path resolution
+                        'root_note': note,
+                        'low_note': note,
+                        'high_note': note,
+                        'velocity_low': 0,
+                        'velocity_high': 127,
+                        'source': 'reason_song'
+                    }
+                    mappings.append(mapping)
+                
+                pos += 1
+                
+        return mappings
+        
+    except Exception as e:
+        logging.error(f"Error parsing Reason song file {rns_path}: {e}")
+        return []
+
+
+def parse_reason_refill(rfl_path):
+    """Parse Reason ReFill (.rfl) and extract sample mappings."""
+    try:
+        mappings = []
+        
+        # ReFill files are compressed archives containing Reason content
+        # This is a basic implementation
+        logging.info(f"Parsing Reason ReFill: {rfl_path}")
+        
+        # Try to extract as ZIP-like archive
+        try:
+            import zipfile
+            with zipfile.ZipFile(rfl_path, 'r') as rfl:
+                file_list = rfl.namelist()
+                
+                # Look for NN-XT patches and samples
+                for filename in file_list:
+                    if filename.lower().endswith(('.sxt', '.nnxt')):
+                        # Extract and parse NN-XT patch
+                        try:
+                            patch_data = rfl.read(filename)
+                            temp_path = os.path.join(os.path.dirname(rfl_path), f"temp_{os.path.basename(filename)}")
+                            
+                            with open(temp_path, 'wb') as temp_file:
+                                temp_file.write(patch_data)
+                            
+                            patch_mappings = parse_reason_nnxt_file(temp_path)
+                            mappings.extend(patch_mappings)
+                            
+                            # Clean up temp file
+                            try:
+                                os.remove(temp_path)
+                            except:
+                                pass
+                                
+                        except Exception as e:
+                            logging.warning(f"Error parsing patch {filename}: {e}")
+                            
+                    elif filename.lower().endswith(('.wav', '.aiff', '.aif')):
+                        # Direct sample file
+                        note = 60 + len(mappings)
+                        if note <= 127:
+                            mapping = {
+                                'sample_path': filename,
+                                'root_note': note,
+                                'low_note': note,
+                                'high_note': note,
+                                'velocity_low': 0,
+                                'velocity_high': 127,
+                                'source': 'refill'
+                            }
+                            mappings.append(mapping)
+                            
+        except zipfile.BadZipFile:
+            logging.warning(f"ReFill {rfl_path} is not a standard ZIP archive")
+            
+        return mappings
+        
+    except Exception as e:
+        logging.error(f"Error parsing ReFill {rfl_path}: {e}")
+        return []
+    """Parse REX/REX2 file and extract slice mappings."""
+    try:
+        import struct
+        
+        mappings = []
+        
+        with open(rex_path, 'rb') as f:
+            # Read REX header
+            magic = f.read(4)
+            
+            if magic == b'REX2':
+                # REX2 format
+                version = struct.unpack('<I', f.read(4))[0]
+                logging.info(f"Parsing REX2 file version {version}")
+                
+                # Read basic info
+                f.seek(0x40)  # Skip to tempo info
+                tempo = struct.unpack('<f', f.read(4))[0]
+                
+                # Read slice count
+                f.seek(0x50)
+                slice_count = struct.unpack('<I', f.read(4))[0]
+                
+                logging.info(f"REX2: {slice_count} slices at {tempo} BPM")
+                
+                # Create mappings for each slice
+                for i in range(min(slice_count, 128)):  # Limit to MIDI range
+                    note = 36 + i  # Start from C2
+                    if note > 127:
+                        break
+                        
+                    mapping = {
+                        'sample_path': rex_path,  # REX file contains audio data
+                        'root_note': note,
+                        'low_note': note,
+                        'high_note': note,
+                        'velocity_low': 0,
+                        'velocity_high': 127,
+                        'slice_index': i,
+                        'tempo': tempo
+                    }
+                    mappings.append(mapping)
+                    
+            elif magic[:3] == b'REX':
+                # Original REX format
+                logging.info("Parsing original REX file")
+                
+                # Basic REX parsing - extract as drum kit
+                # REX files typically contain tempo-synced slices
+                for i in range(16):  # Standard 16 slices
+                    note = 36 + i  # C2 to D#3
+                    mapping = {
+                        'sample_path': rex_path,
+                        'root_note': note,
+                        'low_note': note,
+                        'high_note': note,
+                        'velocity_low': 0,
+                        'velocity_high': 127,
+                        'slice_index': i
+                    }
+                    mappings.append(mapping)
+                    
+            else:
+                logging.warning(f"Unknown REX format in {rex_path}")
+                return []
+                
+        return mappings
+        
+    except Exception as e:
+        logging.error(f"Error parsing REX file {rex_path}: {e}")
+        return []
+
+
+def parse_sampler_file(filepath):
+    """Parse various sampler formats and return mappings."""
+    ext = os.path.splitext(filepath)[1].lower()
+    
+    if ext == '.sfz':
+        return parse_sfz_file(filepath)
+    elif ext == '.sf2':
+        return parse_soundfont_file(filepath)
+    elif ext in ['.nki', '.nkm']:
+        return parse_kontakt_file(filepath)
+    elif ext in ['.rex', '.rx2']:
+        return parse_rex_file(filepath)
+    elif ext in ['.sxt', '.nnxt']:
+        return parse_reason_nnxt_file(filepath)
+    elif ext == '.rns':
+        return parse_reason_song_file(filepath)
+    elif ext == '.rfl':
+        return parse_reason_refill(filepath)
+    else:
+        logging.warning(f"Unsupported sampler format: {ext}")
+        return []
 
 
 def parse_xpm_samples(xpm_path):
@@ -1330,6 +1968,12 @@ Expansion Doctor fixes:
             btn_frame2, text="🔊 Fix Velocity Ranges", command=self.fix_velocity_mapping
         ).pack(side="left", padx=5)
         
+        # ENHANCED: Dedicated translator fix button
+        ttk.Button(
+            btn_frame2, text="🔧 Fix Translator Issues", command=self.fix_translator_issues,
+            style="Accent.TButton"
+        ).pack(side="left", padx=5)
+        
         # Row 3: Version and control buttons
         options = ttk.Frame(btn_frame2)
         options.pack(side="left", padx=10)
@@ -1674,7 +2318,6 @@ Expansion Doctor fixes:
             
             # Check for structural bloat (many instruments pattern)
             if actual_kg_count >= 50:  # Large-scale bloat detection
-                
                 empty_instruments = total_empty_instruments
                 if empty_instruments > 10:
                     # Calculate performance impact
@@ -1726,44 +2369,6 @@ Expansion Doctor fixes:
             if mapping_issues['range_problems']:
                 issues.append(f"🎹 RANGE ISSUES: {mapping_issues['range_problems']} instruments use full MIDI range (0-127)")
                 fixes.append("fix_instrument_ranges")
-                
-                empty_instruments = total_empty_instruments
-                if empty_instruments > 10:
-                    # Calculate performance impact
-                    bloat_ratio = (empty_instruments / actual_kg_count) * 100
-                    estimated_size_mb = (actual_kg_count * 20) / 1024  # Rough estimate
-                    
-                    issues.append(f"🔥 CRITICAL BLOAT: {empty_instruments}/{actual_kg_count} empty instruments "
-                                f"({bloat_ratio:.0f}% bloat, ~{estimated_size_mb:.1f}MB wasted)")
-                    fixes.append("fix_structural_bloat")
-                    
-                    # Additional context for user understanding
-                    if empty_instruments >= 100:
-                        issues.append("⚠️ SEVERE: This level of bloat causes significant MPC Live 2 performance issues")
-                    elif empty_instruments >= 50:
-                        issues.append("⚠️ MODERATE: Noticeable performance impact on MPC Live 2")
-            elif actual_kg_count == 128 and declared_kg_count < 20:
-                # Special case: exactly 128 instruments with few declared = classic bloat pattern
-                issues.append("🔥 CLASSIC BLOAT PATTERN: 128 instruments created for few keygroups (Expansion Doctor issue)")
-                fixes.append("fix_structural_bloat")
-            elif actual_kg_count >= 5:  # Small-scale bloat detection for files like VOCAL STRING.xpm
-                # Check if we have a high ratio of empty to populated instruments
-                empty_instruments = total_empty_instruments
-                if empty_instruments > 0 and instruments_with_samples > 0:
-                    empty_ratio = (empty_instruments / actual_kg_count) * 100
-                    
-                    # Detect problematic patterns:
-                    # 1. More than 50% empty instruments
-                    # 2. OR more than 3 empty instruments in small files
-                    if empty_ratio > 50 or (empty_instruments >= 3 and actual_kg_count <= 15):
-                        issues.append(f"🔥 STRUCTURAL BLOAT: {empty_instruments}/{actual_kg_count} instruments are empty "
-                                    f"({empty_ratio:.0f}% empty) - impacts MPC Live 2 performance")
-                        fixes.append("fix_structural_bloat")
-                        
-                        if empty_ratio >= 70:
-                            issues.append("⚠️ HIGH BLOAT: Consider rebuilding this XPM with only sample-containing instruments")
-                        elif empty_ratio >= 50:
-                            issues.append("⚠️ MODERATE BLOAT: Empty instruments cause unnecessary overhead")
             
             # Issue 2: Check LowNote/HighNote ranges in keygroups
             keygroup_issues = []
@@ -2107,7 +2712,7 @@ Expansion Doctor fixes:
                     if self.fix_single_version(xmp_path):
                         fixed_issues.append("version")
                 elif fix_type == "fix_structural_bloat":
-                    if self.fix_structural_bloat(xmp_path):
+                    if self.fix_structural_bloat_new(xmp_path):
                         fixed_issues.append("structural bloat")
                 elif fix_type == "fix_empty_instruments":
                     if self.fix_empty_instruments(xmp_path):
@@ -2175,7 +2780,7 @@ Expansion Doctor fixes:
                 
                 # CRITICAL FIX: Apply structural bloat removal FIRST
                 try:
-                    if self.fix_structural_bloat(xmp_path):
+                    if self.fix_structural_bloat_new(xmp_path):
                         fixed_issues.append("structural bloat")
                 except XPMProcessingError as e:
                     logging.error(f"Structural bloat fix failed for {current_file}: {e}")
@@ -2196,6 +2801,17 @@ Expansion Doctor fixes:
                         elif fix_type == "fix_version":
                             if self.fix_single_version(xmp_path):
                                 fixed_issues.append("version")
+                        elif fix_type == "fix_root_note_mapping":
+                            fixes_made = self._fix_single_root_note_mapping(xmp_path)
+                            if fixes_made > 0:
+                                fixed_issues.append(f"root note mapping ({fixes_made} fixes)")
+                        elif fix_type == "fix_velocity_mapping":
+                            fixes_made = self._fix_single_velocity_mapping(xmp_path)
+                            if fixes_made > 0:
+                                fixed_issues.append(f"velocity mapping ({fixes_made} fixes)")
+                        elif fix_type == "fix_instrument_ranges":
+                            # Add this when we implement instrument range fixes
+                            pass
                     except Exception as e:
                         logging.error(f"Fix {fix_type} failed for {current_file}: {e}")
                         progress_tracker.stats.add_error(f"Fix {fix_type} failed: {e}", xmp_path)
@@ -2297,14 +2913,37 @@ Expansion Doctor fixes:
         self.scan_broken_links()
 
     def fix_single_keygroup_count(self, xmp_path):
-        """Fix KeygroupNumKeygroups for a single file."""
+        """Fix KeygroupNumKeygroups for a single file - Enhanced for translator issues."""
         try:
             tree = ET.parse(xmp_path)
             root = tree.getroot()
             
             kg_count_elem = root.find(".//KeygroupNumKeygroups")
             instruments = root.findall(".//Instrument")
-            actual_count = len(instruments)
+            
+            # ENHANCED: Count only instruments that actually have sample content
+            # This fixes translator bugs that set KeygroupNumKeygroups=1 when there are multiple filled instruments
+            instruments_with_samples = 0
+            total_instruments = len(instruments)
+            
+            for instrument in instruments:
+                has_samples = False
+                layers = instrument.find("Layers")
+                if layers is not None:
+                    for layer in layers.findall("Layer"):
+                        sample_name_elem = layer.find("SampleName")
+                        sample_file_elem = layer.find("SampleFile")
+                        
+                        if ((sample_name_elem is not None and sample_name_elem.text and sample_name_elem.text.strip()) or
+                            (sample_file_elem is not None and sample_file_elem.text and sample_file_elem.text.strip())):
+                            has_samples = True
+                            break
+                
+                if has_samples:
+                    instruments_with_samples += 1
+            
+            # Use the count of instruments with samples as the correct keygroup count
+            correct_count = instruments_with_samples
             
             if kg_count_elem is None:
                 # Create element if it doesn't exist
@@ -2314,10 +2953,18 @@ Expansion Doctor fixes:
                 else:
                     return False
             
-            kg_count_elem.text = str(actual_count)
+            current_declared = int(kg_count_elem.text) if kg_count_elem.text else 0
             
-            tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
-            return True
+            # Fix the translator bug: declared count should match filled instruments
+            if current_declared != correct_count:
+                logging.info(f"🔢 TRANSLATOR KEYGROUP BUG: {os.path.basename(xmp_path)} declared={current_declared}, actual filled={correct_count}, total={total_instruments}")
+                kg_count_elem.text = str(correct_count)
+                
+                tree.write(xmp_path, encoding="utf-8", xml_declaration=True)
+                logging.info(f"✅ KEYGROUP COUNT FIXED: {current_declared} → {correct_count}")
+                return True
+            
+            return False
             
         except Exception as e:
             logging.error(f"Error fixing keygroup count in {xmp_path}: {e}")
@@ -2339,16 +2986,16 @@ Expansion Doctor fixes:
                 for i, instrument in enumerate(instruments):
                     # Extract root note from layer
                     layer = instrument.find("Layer")
-                    root_note = 60  # Default to C4
+                    root_note = 60 + 1  # ConvertWithMoss standard offset  # Default to C4
                     sample_path = None
                     
                     if layer is not None:
                         root_note_elem = layer.find("RootNote")
                         if root_note_elem is not None and root_note_elem.text:
                             try:
-                                root_note = int(root_note_elem.text)
+                                root_note = int + 1  # ConvertWithMoss standard offset(root_note_elem.text)
                             except (ValueError, TypeError):
-                                root_note = 60
+                                root_note = 60 + 1  # ConvertWithMoss standard offset
                         
                         # Get sample path for additional analysis if needed
                         sample_file_elem = layer.find("SampleFile")
@@ -2529,99 +3176,24 @@ Expansion Doctor fixes:
         """
         CRITICAL FIX: Remove structural bloat that causes MPC Live 2 compatibility issues.
         
-        This addresses the core problem where Expansion Doctor creates 128 <Instrument> elements
-        even when only 10-15 actually contain samples, causing:
-        - Memory overload on MPC Live 2
-        - Slow parsing and loading times
-        - Performance degradation during playback
-        - Voice allocation confusion
+        🚫 FUNCTION DISABLED: This function was destroying essential MPC mapping data!
         
-        Solution: Keep only instruments that have actual sample content and apply intelligent range mapping.
+        PROBLEM IDENTIFIED:
+        - Removing "empty" instruments also removes PadNoteMap/PadGroupMap elements
+        - Collapsing multi-layer instruments into single layers
+        - Breaking the pad-to-instrument routing that MPC relies on
+        - Destroying the original mapping structure completely
+        
+        ORIGINAL ISSUE: Expansion Doctor creates 128 <Instrument> elements even when only 
+        10-15 actually contain samples, but the "empty" instruments are still needed for 
+        proper MPC pad mapping and routing.
+        
+        SOLUTION NEEDED: Find a way to optimize file size WITHOUT destroying mapping data.
         """
-        try:
-            tree = ET.parse(xpm_path)
-            root = tree.getroot()
-            
-            # Validate XMP structure
-            validate_xpm_structure(root)
-            log_xml_operation("structure_validated", xpm_path)
-            
-            instruments_container = root.find(".//Instruments")
-            if instruments_container is None:
-                return False
-            
-            instruments = instruments_container.findall("Instrument")
-            original_count = len(instruments)
-            
-            # Only proceed if we have a suspiciously high number of instruments
-            if original_count < 50:
-                return False  # Probably not bloated
-            
-            instruments_with_samples = []
-            empty_instruments = []
-            
-            for instrument in instruments:
-                has_samples = False
-                
-                # Check for layers with samples
-                layers = instrument.find("Layers")
-                if layers is not None:
-                    for layer in layers.findall("Layer"):
-                        sample_name_elem = layer.find("SampleName")
-                        sample_file_elem = layer.find("SampleFile")
-                        
-                        if ((sample_name_elem is not None and sample_name_elem.text and sample_name_elem.text.strip()) or
-                            (sample_file_elem is not None and sample_file_elem.text and sample_file_elem.text.strip())):
-                            has_samples = True
-                            break
-                
-                if has_samples:
-                    instruments_with_samples.append(instrument)
-                else:
-                    empty_instruments.append(instrument)
-            
-            # If we found significant bloat, remove empty instruments
-            if len(empty_instruments) > 10:  # Significant bloat detected
-                logging.info(f"🔧 STRUCTURAL BLOAT FIX: Removing {len(empty_instruments)} empty instruments from {os.path.basename(xpm_path)}")
-                
-                # Remove empty instruments from the container
-                for empty_instrument in empty_instruments:
-                    instruments_container.remove(empty_instrument)
-                
-                # Renumber remaining instruments to be sequential starting from 1
-                for i, instrument in enumerate(instruments_with_samples):
-                    instrument.set("number", str(i + 1))
-                
-                # Update KeygroupNumKeygroups to match actual instrument count
-                kg_count_elem = root.find(".//KeygroupNumKeygroups")
-                if kg_count_elem is not None:
-                    kg_count_elem.text = str(len(instruments_with_samples))
-                
-                # CRITICAL: Update file format to modern version for better MPC compatibility
-                # BUT avoid creating ProgramPads JSON that would collapse multi-sample structure
-                version_elem = root.find(".//File_Version")
-                if version_elem is not None:
-                    version_elem.text = "2.1"
-                
-                app_version_elem = root.find(".//Application_Version")
-                if app_version_elem is not None:
-                    app_version_elem.text = "3.5.0.54"
-                
-                platform_elem = root.find(".//Platform")
-                if platform_elem is not None:
-                    platform_elem.text = "Linux"
-                
-                # Save the optimized file (XML-only format, no ProgramPads JSON)
-                tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
-                
-                logging.info(f"✅ OPTIMIZED: {os.path.basename(xpm_path)} - {original_count} → {len(instruments_with_samples)} instruments")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            logging.error(f"Error fixing structural bloat in {xpm_path}: {e}")
-            return False
+        logging.warning(f"� STRUCTURAL BLOAT FIX DISABLED: {os.path.basename(xpm_path)} - preserving original mapping")
+        logging.warning("This fix was destroying essential MPC pad mappings and multi-layer structure")
+        logging.warning("Original MPC mapping preserved - file size optimization disabled")
+        return False  # Disabled to prevent mapping destruction
 
     def fix_empty_instruments(self, xpm_path):
         """
@@ -2644,6 +3216,136 @@ Expansion Doctor fixes:
                 return False
                 
             logging.info(f"🔧 EMPTY INSTRUMENTS FIX: Processing {len(instruments)} instruments in {os.path.basename(xpm_path)}")
+            return False  # Placeholder - function not yet implemented
+            
+        except Exception as e:
+            logging.error(f"Error fixing empty instruments in {xpm_path}: {e}")
+            return False
+
+    @log_function_entry_exit
+    def fix_structural_bloat_new(self, xpm_path):
+        """
+        CRITICAL FIX: Fix structural bloat in XPM files with completely empty instruments.
+        
+        This addresses the REAL problem shown in user's attached files:
+        - Files have 128 completely empty instruments: <Instrument number="X"></Instrument>
+        - Only 6-15 are declared as actual keygroups in KeygroupNumKeygroups
+        - All instruments have identical (empty) LowKey/HighKey ranges
+        - This causes "same values after conversion" issue user reported
+        
+        SOLUTION: Remove excess empty instruments while preserving declared keygroup count
+        and essential mapping structure (PadNoteMap/PadGroupMap).
+        """
+        try:
+            tree = ET.parse(xpm_path)
+            root = tree.getroot()
+            
+            # Validate structure
+            validate_xpm_structure(root)
+            log_xml_operation("structure_validated", xpm_path)
+            
+            instruments_container = root.find(".//Instruments")
+            if instruments_container is None:
+                return False
+            
+            instruments = instruments_container.findall("Instrument")
+            kg_count_elem = root.find(".//KeygroupNumKeygroups")
+            
+            if kg_count_elem is None or not kg_count_elem.text:
+                logging.warning(f"No KeygroupNumKeygroups found in {os.path.basename(xpm_path)}")
+                return False
+            
+            declared_keygroups = int(kg_count_elem.text)
+            total_instruments = len(instruments)
+            
+            # Analyze instrument content
+            completely_empty = 0
+            has_some_content = 0
+            has_proper_ranges = 0
+            
+            for instrument in instruments:
+                child_count = len(list(instrument))
+                if child_count == 0:
+                    completely_empty += 1
+                else:
+                    has_some_content += 1
+                    
+                    # Check if instrument has proper individual key ranges (NOT 0-127)
+                    low_note_elem = instrument.find("LowNote")
+                    high_note_elem = instrument.find("HighNote")
+                    
+                    if (low_note_elem is not None and high_note_elem is not None and 
+                        low_note_elem.text and high_note_elem.text):
+                        try:
+                            low_val = int(low_note_elem.text)
+                            high_val = int(high_note_elem.text)
+                            
+                            # Check for proper individual ranges (not full keyboard)
+                            if not (low_val == 0 and high_val == 127) and low_val < high_val:
+                                has_proper_ranges += 1
+                        except (ValueError, TypeError):
+                            pass
+            
+            logging.info(f"🔍 ANALYZING {os.path.basename(xpm_path)}: {total_instruments} instruments, {declared_keygroups} declared, {completely_empty} empty, {has_some_content} with content, {has_proper_ranges} with proper ranges")
+            
+            # CRITICAL: Don't fix files that already have proper individual ranges!
+            if has_proper_ranges >= declared_keygroups * 0.4 or has_proper_ranges >= 4:  # At least 40% OR at least 4 instruments have proper ranges
+                logging.info(f"✅ FILE ALREADY OPTIMIZED: {os.path.basename(xpm_path)} has {has_proper_ranges} instruments with individual key ranges - skipping structural bloat fix")
+                return False
+            
+            # Check for the exact problem pattern from user's files
+            if completely_empty >= 100 and has_some_content == 0 and declared_keygroups < 20:
+                logging.info(f"🔥 CLASSIC EMPTY BLOAT PATTERN: File has {completely_empty} empty instruments but declares {declared_keygroups} keygroups")
+                
+                # This is the exact issue from user's attached files - all instruments are empty
+                # Remove excess empty instruments, keep only what's declared plus small buffer
+                target_count = max(declared_keygroups, 16)  # Keep at least 16 for pad mapping
+                excess_count = total_instruments - target_count
+                
+                if excess_count > 0:
+                    logging.info(f"🔧 REMOVING {excess_count} EXCESS EMPTY INSTRUMENTS: Keeping {target_count} for proper structure")
+                    
+                    # Remove excess instruments from the end
+                    for i in range(excess_count):
+                        instrument_to_remove = instruments[-(i+1)]  # Remove from end
+                        instruments_container.remove(instrument_to_remove)
+                    
+                    # Save the optimized file
+                    tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                    
+                    logging.info(f"✅ STRUCTURAL BLOAT FIXED: {os.path.basename(xpm_path)} - {total_instruments} → {target_count} instruments")
+                    return True
+                else:
+                    logging.info(f"File already optimized: {total_instruments} instruments matches declared {declared_keygroups}")
+                    return False
+                    
+            elif total_instruments >= 50 and completely_empty > declared_keygroups * 3:
+                # Moderate bloat case
+                target_count = max(declared_keygroups * 2, 32)  # Keep 2x declared or minimum 32
+                excess_count = total_instruments - target_count
+                
+                if excess_count > 0:
+                    logging.info(f"🔧 MODERATE BLOAT FIX: Removing {excess_count} excess instruments")
+                    
+                    # Remove excess empty instruments only
+                    removed = 0
+                    for instrument in instruments[:]:  # Copy list for safe iteration
+                        if removed >= excess_count:
+                            break
+                        if len(list(instrument)) == 0:  # Completely empty
+                            instruments_container.remove(instrument)
+                            removed += 1
+                    
+                    tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
+                    logging.info(f"✅ MODERATE BLOAT FIXED: {os.path.basename(xpm_path)} - removed {removed} empty instruments")
+                    return True
+            
+            logging.info(f"No significant bloat detected in {os.path.basename(xpm_path)}")
+            return False
+            
+        except Exception as e:
+            logging.error(f"Error fixing structural bloat in {xpm_path}: {e}")
+            return False
             
             fixed_count = 0
             for i, instrument in enumerate(instruments):
@@ -2759,18 +3461,81 @@ Expansion Doctor fixes:
         self.status.set(f"Fixed velocity mapping in {fixed_count} XPM(s) ({total_fixes} total fixes). Rescanning...")
         self.scan_broken_links()
     
+    def fix_translator_issues(self):
+        """Fix common translator issues: keygroup count and root note offset patterns"""
+        folder = self.master.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            messagebox.showerror("Error", "No valid folder selected.", parent=self)
+            return
+        
+        confirm_msg = ("This will automatically fix common translator software issues:\n\n"
+                      "🔢 KEYGROUP COUNT BUGS:\n"
+                      "• Fix declared keygroups (e.g., 10 keygroups but shows as 1)\n"
+                      "• Count only instruments with actual samples\n\n"
+                      "🎵 ROOT NOTE OFFSET BUGS:\n"
+                      "• Detect consistent pitch offset patterns (+13, +12, etc.)\n"
+                      "• Fix samples that play wrong notes (C1 sample playing D#1)\n"
+                      "• Eliminate need for manual global transpose workarounds\n\n"
+                      "This fixes the core issues where C2 doesn't play as C2!\n\n"
+                      "Continue?")
+        
+        if not messagebox.askyesno("Fix Translator Issues", confirm_msg, parent=self):
+            return
+        
+        fixed_count = 0
+        total_keygroup_fixes = 0
+        total_root_note_fixes = 0
+        
+        for xpm_path, info in self.file_info.items():
+            try:
+                # Fix keygroup counts
+                if self.fix_single_keygroup_count(xpm_path):
+                    total_keygroup_fixes += 1
+                
+                # Fix root note mapping issues
+                root_fixes = self._fix_single_root_note_mapping(xpm_path)
+                if root_fixes > 0:
+                    total_root_note_fixes += root_fixes
+                    fixed_count += 1
+                
+            except Exception as e:
+                logging.error(f"Error fixing translator issues in {os.path.basename(xpm_path)}: {e}")
+        
+        # Show results
+        result_msg = "Translator Issues Fixed!\n\n"
+        result_msg += f"Files processed: {len(self.file_info)}\n"
+        if total_keygroup_fixes > 0:
+            result_msg += f"Keygroup count fixes: {total_keygroup_fixes}\n"
+        if total_root_note_fixes > 0:
+            result_msg += f"Root note fixes: {total_root_note_fixes} (in {fixed_count} files)\n"
+        
+        if total_keygroup_fixes == 0 and total_root_note_fixes == 0:
+            result_msg += "No translator issues detected.\n"
+            result_msg += "Your XPM files appear to have correct mapping!"
+        else:
+            result_msg += "\n✅ Your instruments should now play at correct pitches!\n"
+            result_msg += "No more need for global transpose workarounds."
+        
+        messagebox.showinfo("Translator Issues Fixed", result_msg, parent=self)
+        self.status.set(f"Fixed translator issues: {total_keygroup_fixes} keygroup + {total_root_note_fixes} root note fixes. Rescanning...")
+        self.scan_broken_links()
+    
     def _fix_single_root_note_mapping(self, xpm_path):
-        """Fix root note mapping for a single XPM file"""
+        """Fix root note mapping for a single XPM file - Enhanced for translator issues"""
         tree = ET.parse(xpm_path)
         root = tree.getroot()
         instruments = root.findall('.//Instrument')
         
         fixes_made = 0
         note_patterns = {
+            r'(\d+)_([A-G][#b]?\d+)': 'midi_note_combo',    # 36_c1, 60_c4, etc. - MIDI number first!
             r'.*[_\-\s]([A-G][#b]?\d+).*': 'note_octave',  # C4, F#3, etc.
             r'.*[_\-\s](\d+).*': 'midi_number',            # 60, 64, etc.
             r'.*[_\-\s]([A-G][#b]?).*': 'note_only',       # C, F#, etc. (assume octave 4)
         }
+        
+        # ENHANCED: Detect consistent offset patterns (common translator bug)
+        offset_analysis = []
         
         for instrument in instruments:
             layers = instrument.find('Layers')
@@ -2785,13 +3550,82 @@ Expansion Doctor fixes:
                         current_root = int(root_note_elem.text)
                         sample_name = sample_name_elem.text
                         
-                        # Only fix if current root is problematic (very low)
-                        if current_root <= 12:
-                            detected_note = self._detect_note_from_filename(sample_name, note_patterns)
-                            if detected_note and detected_note != current_root:
-                                root_note_elem.text = str(detected_note)
-                                fixes_made += 1
-                                print(f"Fixed root note: {sample_name} {current_root} → {detected_note}")
+                        # Detect note from filename
+                        detected_note = self._detect_note_from_filename(sample_name, note_patterns)
+                        
+                        if detected_note is not None:
+                            offset = current_root - detected_note
+                            offset_analysis.append({
+                                'sample': sample_name,
+                                'current': current_root,
+                                'expected': detected_note,
+                                'offset': offset,
+                                'element': root_note_elem
+                            })
+        
+        # Check for consistent offset pattern (translator bug detection)
+        if len(offset_analysis) >= 3:  # Need at least 3 samples to detect pattern
+            offsets = [item['offset'] for item in offset_analysis]
+            
+            # Check if most offsets are the same (allowing for 1 outlier)
+            from collections import Counter
+            offset_counts = Counter(offsets)
+            most_common_offset, count = offset_counts.most_common(1)[0]
+            
+            # If 75% or more samples have the same offset, it's likely a translator bug
+            if count >= len(offset_analysis) * 0.75 and abs(most_common_offset) > 0:
+                logging.info(f"🔥 TRANSLATOR OFFSET PATTERN DETECTED: {most_common_offset:+d} semitones across {count}/{len(offset_analysis)} samples")
+                
+                # Apply the offset correction to all samples
+                for item in offset_analysis:
+                    if item['offset'] == most_common_offset:
+                        corrected_root = item['expected']
+                        item['element'].text = str(corrected_root)
+                        fixes_made += 1
+                        logging.info(f"  Fixed: {item['sample']} {item['current']} → {corrected_root}")
+                
+                logging.info(f"✅ TRANSLATOR OFFSET BUG FIXED: Applied {most_common_offset:+d} semitone correction to {fixes_made} samples")
+                
+        # If no pattern detected, apply individual fixes for problematic notes
+        if fixes_made == 0:
+            for item in offset_analysis:
+                current_root = item['current']
+                detected_note = item['expected']
+                sample_name = item['sample']
+                
+                # Fix individual problematic cases
+                if current_root <= 12:  # C-1 to C0 range is usually wrong
+                    item['element'].text = str(detected_note)
+                    fixes_made += 1
+                    logging.info(f"🎵 INDIVIDUAL FIX: {sample_name} {current_root} → {detected_note}")
+                elif abs(current_root - detected_note) > 12:  # More than an octave off
+                    item['element'].text = str(detected_note)
+                    fixes_made += 1
+                    logging.info(f"🎵 OCTAVE FIX: {sample_name} {current_root} → {detected_note}")
+        
+        # Handle cases with no filename detection
+        for instrument in instruments:
+            layers = instrument.find('Layers')
+            if layers is not None:
+                for layer in layers.findall('Layer'):
+                    root_note_elem = layer.find('RootNote')
+                    sample_name_elem = layer.find('SampleName')
+                    
+                    if (root_note_elem is not None and sample_name_elem is not None and
+                        root_note_elem.text and sample_name_elem.text):
+                        
+                        current_root = int(root_note_elem.text)
+                        sample_name = sample_name_elem.text
+                        
+                        # Skip if already processed
+                        if any(item['sample'] == sample_name for item in offset_analysis):
+                            continue
+                        
+                        # Fix common problematic root notes without filename detection
+                        if current_root == 0:  # C-1 is almost always wrong
+                            root_note_elem.text = '60'  # Default to C3
+                            fixes_made += 1
+                            logging.info(f"🎵 C-1 FIX: {sample_name} changed from 0 to 60 (C3)")
         
         if fixes_made > 0:
             # Create backup
@@ -2801,6 +3635,7 @@ Expansion Doctor fixes:
                 shutil.copy2(xpm_path, backup_path)
             
             tree.write(xpm_path, encoding='utf-8', xml_declaration=True)
+            logging.info(f"✅ TRANSLATOR ROOT NOTES FIXED: {fixes_made} corrections in {os.path.basename(xpm_path)}")
         
         return fixes_made
     
@@ -2866,7 +3701,15 @@ Expansion Doctor fixes:
         for pattern, pattern_type in note_patterns.items():
             match = re.search(pattern, filename, re.IGNORECASE)
             if match:
-                if pattern_type == 'note_octave':
+                if pattern_type == 'midi_note_combo':
+                    # Extract MIDI number from "36_c1" format - use the MIDI number directly!
+                    try:
+                        midi_num = int(match.group(1))
+                        if 0 <= midi_num <= 127:
+                            return midi_num
+                    except ValueError:
+                        continue
+                elif pattern_type == 'note_octave':
                     # Extract note like "C4", "F#3"
                     note_str = match.group(1).upper()
                     return self._note_string_to_midi(note_str)
@@ -3502,6 +4345,719 @@ class CreativeModeConfigWindow(tk.Toplevel):
             messagebox.showerror("Save Error", f"Failed to save configuration: {e}", parent=self)
 
 
+class MultiFormatConverterWindow(tk.Toplevel):
+    """Multi-format to XPM converter window supporting various audio and sampler formats."""
+    
+    def __init__(self, master):
+        super().__init__(master.root)
+        self.title("Multi-Format to XPM Converter")
+        self.geometry("800x600")
+        self.resizable(True, True)
+        self.master = master
+        
+        self.supported_files = []
+        self.conversion_queue = []
+        
+        self.create_widgets()
+        self.scan_supported_files()
+    
+    def create_widgets(self):
+        main_frame = ttk.Frame(self, padding="10")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid_columnconfigure(0, weight=1)
+        
+        # Header
+        header_frame = ttk.Frame(main_frame)
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        
+        ttk.Label(
+            header_frame, 
+            text="Multi-Format to XPM Converter",
+            font=("TkDefaultFont", 12, "bold")
+        ).pack(side="left")
+        
+        # View options
+        view_frame = ttk.Frame(header_frame)
+        view_frame.pack(side="left", padx=(20, 0))
+        
+        ttk.Label(view_frame, text="View:").pack(side="left")
+        self.view_mode = tk.StringVar(value="grouped")
+        view_combo = ttk.Combobox(
+            view_frame,
+            textvariable=self.view_mode,
+            values=["grouped", "flat"],
+            width=8,
+            state="readonly"
+        )
+        view_combo.pack(side="left", padx=(5, 0))
+        view_combo.bind("<<ComboboxSelected>>", self.refresh_view)
+        
+        ttk.Button(
+            header_frame,
+            text="🔄 Rescan",
+            command=self.scan_supported_files
+        ).pack(side="right", padx=(5, 0))
+        
+        # File list
+        list_frame = ttk.Frame(main_frame)
+        list_frame.grid(row=1, column=0, sticky="nsew")
+        list_frame.grid_rowconfigure(0, weight=1)
+        list_frame.grid_columnconfigure(0, weight=1)
+        
+        # Create enhanced Treeview for hierarchical file list
+        columns = ("File", "Format", "Type", "Size", "Details", "Status")
+        self.tree = Treeview(list_frame, columns=columns, show="tree headings", selectmode="extended")
+        
+        self.tree.heading("#0", text="Instrument/Group")
+        self.tree.heading("File", text="File Name")
+        self.tree.heading("Format", text="Format")
+        self.tree.heading("Type", text="Type")
+        self.tree.heading("Size", text="Size")
+        self.tree.heading("Details", text="Details")
+        self.tree.heading("Status", text="Status")
+        
+        self.tree.column("#0", width=200)
+        self.tree.column("File", width=250)
+        self.tree.column("Format", width=80, anchor="center")
+        self.tree.column("Type", width=80, anchor="center")
+        self.tree.column("Size", width=80, anchor="center")
+        self.tree.column("Details", width=120, anchor="center")
+        self.tree.column("Status", width=100, anchor="center")
+        
+        # Scrollbars
+        v_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.tree.yview)
+        h_scrollbar = ttk.Scrollbar(list_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        v_scrollbar.grid(row=0, column=1, sticky="ns")
+        h_scrollbar.grid(row=1, column=0, sticky="ew")
+        
+        # Options frame
+        options_frame = ttk.LabelFrame(main_frame, text="Conversion Options", padding="10")
+        options_frame.grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        
+        # Firmware version
+        ttk.Label(options_frame, text="Target Firmware:").pack(side="left")
+        self.firmware_var = tk.StringVar(value=self.master.firmware_version.get())
+        firmware_combo = ttk.Combobox(
+            options_frame,
+            textvariable=self.firmware_var,
+            values=["2.3.0.0", "2.6.0.17", "3.4.0", "3.5.0"],
+            width=10,
+            state="readonly"
+        )
+        firmware_combo.pack(side="left", padx=(5, 20))
+        
+        # Conversion mode
+        ttk.Label(options_frame, text="Mode:").pack(side="left")
+        self.mode_var = tk.StringVar(value="multi-sample")
+        mode_combo = ttk.Combobox(
+            options_frame,
+            textvariable=self.mode_var,
+            values=["multi-sample", "drum-kit", "one-shot"],
+            width=12,
+            state="readonly"
+        )
+        mode_combo.pack(side="left", padx=(5, 20))
+        
+        # Auto-detect layers
+        self.auto_layers_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            options_frame,
+            text="Auto-detect velocity layers",
+            variable=self.auto_layers_var
+        ).pack(side="left", padx=(20, 0))
+        
+        # Buttons frame
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        
+        ttk.Button(
+            buttons_frame,
+            text="📂 Add Files...",
+            command=self.add_files
+        ).pack(side="left", padx=(0, 5))
+        
+        ttk.Button(
+            buttons_frame,
+            text="🗑️ Remove Selected",
+            command=self.remove_selected
+        ).pack(side="left", padx=(0, 5))
+        
+        ttk.Button(
+            buttons_frame,
+            text="🔄 Convert Selected",
+            command=self.convert_selected,
+            style="Accent.TButton"
+        ).pack(side="left", padx=(20, 5))
+        
+        ttk.Button(
+            buttons_frame,
+            text="🚀 Convert All",
+            command=self.convert_all,
+            style="Accent.TButton"
+        ).pack(side="left", padx=(0, 5))
+        
+        ttk.Button(
+            buttons_frame,
+            text="Close",
+            command=self.destroy
+        ).pack(side="right")
+        
+        # Status
+        self.status_var = tk.StringVar(value="Ready to convert supported formats to XPM")
+        status_label = ttk.Label(main_frame, textvariable=self.status_var, relief="sunken")
+        status_label.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+    
+    def scan_supported_files(self):
+        """Scan the current folder for supported audio and sampler formats."""
+        self.tree.delete(*self.tree.get_children())
+        self.supported_files.clear()
+        
+        folder = self.master.folder_path.get()
+        if not folder or not os.path.isdir(folder):
+            self.status_var.set("No folder selected")
+            return
+        
+        # Collect all supported files with detailed info
+        all_files = {}
+        format_counts = {}
+        
+        for root, dirs, files in os.walk(folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                format_info = detect_file_format(file_path)
+                
+                if format_info:
+                    # Get file size
+                    try:
+                        size = os.path.getsize(file_path)
+                        size_str = self._format_file_size(size)
+                    except:
+                        size_str = "Unknown"
+                    
+                    # Get detailed info based on format
+                    details = self._get_file_details(file_path, format_info)
+                    
+                    rel_path = os.path.relpath(file_path, folder)
+                    file_info = {
+                        'path': file_path,
+                        'relative_path': rel_path,
+                        'format_info': format_info,
+                        'size_str': size_str,
+                        'details': details,
+                        'folder': os.path.dirname(rel_path) or "Root"
+                    }
+                    
+                    self.supported_files.append(file_info)
+                    
+                    # Count formats
+                    fmt = format_info['format'].upper()
+                    format_counts[fmt] = format_counts.get(fmt, 0) + 1
+                    
+                    # Group files for display
+                    folder_key = file_info['folder']
+                    if folder_key not in all_files:
+                        all_files[folder_key] = []
+                    all_files[folder_key].append(file_info)
+        
+        # Display files based on view mode
+        self.refresh_view()
+        
+        # Update status with format breakdown
+        if format_counts:
+            format_summary = ", ".join([f"{count} {fmt}" for fmt, count in sorted(format_counts.items())])
+            self.status_var.set(f"Found {len(self.supported_files)} files: {format_summary}")
+        else:
+            self.status_var.set("No supported files found")
+    
+    def refresh_view(self, event=None):
+        """Refresh the tree view based on the selected view mode."""
+        self.tree.delete(*self.tree.get_children())
+        
+        if not self.supported_files:
+            return
+        
+        if self.view_mode.get() == "grouped":
+            self._populate_grouped_view()
+        else:
+            self._populate_flat_view()
+        
+        # Configure tags
+        self._configure_tags()
+    
+    def _populate_grouped_view(self):
+        """Populate tree with grouped/hierarchical view."""
+        # Group files by folder and format type
+        grouped_files = {}
+        
+        for file_info in self.supported_files:
+            folder = file_info['folder']
+            format_type = file_info['format_info']['type']
+            
+            if folder not in grouped_files:
+                grouped_files[folder] = {'audio': [], 'sampler': []}
+            
+            grouped_files[folder][format_type].append(file_info)
+        
+        # Create tree structure
+        for folder_name, types in sorted(grouped_files.items()):
+            # Create folder node
+            folder_item = self.tree.insert(
+                "",
+                "end",
+                text=f"📁 {folder_name}",
+                values=("", "", "", "", "", ""),
+                tags=("folder",)
+            )
+            
+            # Add sampler instruments first
+            if types['sampler']:
+                # Get file extensions for sampler instruments
+                sampler_extensions = list(set([f['format_info']['format'].upper() for f in types['sampler']]))
+                ext_display = f" ({', '.join(sorted(sampler_extensions))})" if sampler_extensions else ""
+                
+                sampler_node = self.tree.insert(
+                    folder_item,
+                    "end",
+                    text=f"🎹 Sampler Instruments{ext_display}",
+                    values=("", "", "", "", f"{len(types['sampler'])} files", ""),
+                    tags=("category",)
+                )
+                
+                for file_info in sorted(types['sampler'], key=lambda x: x['relative_path']):
+                    self._add_file_item(sampler_node, file_info)
+            
+            # Add audio samples
+            if types['audio']:
+                # Group audio files by potential instrument name
+                audio_groups = self._group_audio_files(types['audio'])
+                
+                if len(audio_groups) > 1:
+                    # Multiple instruments detected - show audio extensions
+                    audio_extensions = list(set([f['format_info']['format'].upper() for f in types['audio']]))
+                    ext_display = f" ({', '.join(sorted(audio_extensions))})" if audio_extensions else ""
+                    
+                    audio_node = self.tree.insert(
+                        folder_item,
+                        "end",
+                        text=f"🎵 Audio Samples{ext_display}",
+                        values=("", "", "", "", f"{len(types['audio'])} files", ""),
+                        tags=("category",)
+                    )
+                    
+                    for group_name, group_files in audio_groups.items():
+                        # Get predominant file extension for this group
+                        extensions = [f['format_info']['format'].upper() for f in group_files]
+                        most_common_ext = max(set(extensions), key=extensions.count) if extensions else ""
+                        ext_info = f" ({most_common_ext})" if most_common_ext else ""
+                        
+                        group_node = self.tree.insert(
+                            audio_node,
+                            "end",
+                            text=f"🎺 {group_name}{ext_info}",
+                            values=("", "", "", "", f"{len(group_files)} samples", ""),
+                            tags=("instrument",)
+                        )
+                        
+                        for file_info in sorted(group_files, key=lambda x: x['relative_path']):
+                            self._add_file_item(group_node, file_info)
+                else:
+                    # Single instrument - add directly to folder
+                    for file_info in sorted(types['audio'], key=lambda x: x['relative_path']):
+                        self._add_file_item(folder_item, file_info)
+            
+            # Expand folder by default
+            self.tree.item(folder_item, open=True)
+    
+    def _populate_flat_view(self):
+        """Populate tree with flat list view."""
+        for file_info in sorted(self.supported_files, key=lambda x: x['relative_path']):
+            self._add_file_item("", file_info)
+    
+    def _add_file_item(self, parent, file_info):
+        """Add a file item to the tree."""
+        format_info = file_info['format_info']
+        filename = os.path.basename(file_info['relative_path'])
+        
+        # Create appropriate icon based on format
+        if format_info['type'] == 'sampler':
+            icon = "🎹"
+        elif format_info['format'] == '.wav':
+            icon = "🔊"
+        else:
+            icon = "🎵"
+        
+        item = self.tree.insert(
+            parent,
+            "end",
+            text=f"{icon} {filename}",
+            values=(
+                file_info['relative_path'],
+                format_info['format'].upper(),
+                format_info['type'].title(),
+                file_info['size_str'],
+                file_info['details'],
+                "Ready"
+            ),
+            tags=(format_info['type'], format_info['format'])
+        )
+        
+        return item
+    
+    def _group_audio_files(self, audio_files):
+        """Group audio files by potential instrument name."""
+        groups = {}
+        
+        for file_info in audio_files:
+            filename = os.path.basename(file_info['relative_path'])
+            base_name = os.path.splitext(filename)[0]
+            
+            # Extract instrument name using pattern matching
+            instrument_name = self._extract_instrument_name(base_name)
+            
+            if instrument_name not in groups:
+                groups[instrument_name] = []
+            groups[instrument_name].append(file_info)
+        
+        return groups
+    
+    def _extract_instrument_name(self, filename):
+        """Extract likely instrument name from filename."""
+        import re
+        
+        # Remove common suffixes and patterns
+        clean_name = filename.lower()
+        
+        # Remove note indicators (C4, D#3, etc.)
+        clean_name = re.sub(r'[_\s-]*[a-g][#b]?[0-9]?[_\s-]*', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove velocity indicators (v1, vel1, velocity_01, etc.)
+        clean_name = re.sub(r'[_\s-]*v(el)?(ocity)?[_\s-]?[0-9]+[_\s-]*', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove round-robin indicators (rr1, round1, etc.)
+        clean_name = re.sub(r'[_\s-]*(rr|round)[_\s-]?[0-9]+[_\s-]*', '', clean_name, flags=re.IGNORECASE)
+        
+        # Remove generic numbered suffixes (01, 001, _1, etc.)
+        clean_name = re.sub(r'[_\s-]*[0-9]+$', '', clean_name)
+        
+        # Clean up and return
+        clean_name = re.sub(r'[_\s-]+', ' ', clean_name).strip()
+        return clean_name if clean_name else "Unknown Instrument"
+    
+    def _get_file_details(self, file_path, format_info):
+        """Get detailed information about the file."""
+        try:
+            if format_info['type'] == 'sampler':
+                if format_info['format'] == '.sfz':
+                    # Parse SFZ for sample count and key range
+                    try:
+                        mappings = parse_sfz_file(file_path)
+                        if mappings:
+                            notes = [m.get('root_note', 60) for m in mappings]
+                            note_range = max(notes) - min(notes) if len(notes) > 1 else 0
+                            return f"{len(mappings)} samples, {note_range}ST range"
+                        return "Empty SFZ"
+                    except:
+                        return "SFZ file"
+                elif format_info['format'] == '.sf2':
+                    return "SoundFont"
+                elif format_info['format'] in ['.nki', '.nkm']:
+                    return "Kontakt"
+                elif format_info['format'] in ['.rex', '.rx2']:
+                    # Parse REX for slice count and tempo
+                    try:
+                        mappings = parse_rex_file(file_path)
+                        if mappings:
+                            # Look for tempo info
+                            tempo = next((m.get('tempo') for m in mappings if 'tempo' in m), None)
+                            if tempo:
+                                return f"{len(mappings)} slices @ {tempo:.0f}BPM"
+                            else:
+                                return f"{len(mappings)} slices"
+                        return "Empty REX"
+                    except:
+                        return "REX Loop"
+                elif format_info['format'] in ['.sxt', '.nnxt']:
+                    # Parse NN-XT for zone count and range
+                    try:
+                        mappings = parse_reason_nnxt_file(file_path)
+                        if mappings:
+                            notes = [m.get('root_note', 60) for m in mappings]
+                            note_range = max(notes) - min(notes) if len(notes) > 1 else 0
+                            return f"{len(mappings)} zones, {note_range}ST range"
+                        return "Empty NN-XT"
+                    except:
+                        return "Reason NN-XT"
+                elif format_info['format'] == '.rns':
+                    # Try to analyze Reason song for instruments
+                    try:
+                        mappings = parse_reason_song_file(file_path)
+                        return f"{len(mappings)} instruments" if mappings else "Reason Song"
+                    except:
+                        return "Reason Song"
+                elif format_info['format'] == '.rfl':
+                    # Try to analyze ReFill contents
+                    try:
+                        mappings = parse_reason_refill(file_path)
+                        return f"{len(mappings)} items" if mappings else "Reason ReFill"
+                    except:
+                        return "Reason ReFill"
+                else:
+                    return format_info['description']
+            else:
+                # Audio file - try to get duration and sample rate
+                try:
+                    if SOUNDFILE_AVAILABLE:
+                        import soundfile as sf
+                        info = sf.info(file_path)
+                        duration = info.frames / info.samplerate
+                        # Try to detect note from filename for additional info
+                        filename = os.path.basename(file_path)
+                        try:
+                            detected_note = infer_note_from_filename(filename)
+                            note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+                            note_name = note_names[detected_note % 12] + str(detected_note // 12 - 1)
+                            return f"{duration:.1f}s @ {info.samplerate}Hz ({note_name})"
+                        except:
+                            return f"{duration:.1f}s @ {info.samplerate}Hz"
+                    else:
+                        return "Audio file"
+                except:
+                    return "Audio file"
+        except:
+            return "Unknown"
+    
+    def _format_file_size(self, size_bytes):
+        """Format file size in human readable format."""
+        if size_bytes < 1024:
+            return f"{size_bytes}B"
+        elif size_bytes < 1024**2:
+            return f"{size_bytes/1024:.1f}KB"
+        elif size_bytes < 1024**3:
+            return f"{size_bytes/(1024**2):.1f}MB"
+        else:
+            return f"{size_bytes/(1024**3):.1f}GB"
+    
+    def _configure_tags(self):
+        """Configure tree tags for different file types."""
+        self.tree.tag_configure("folder", foreground="black", font=("TkDefaultFont", 9, "bold"))
+        self.tree.tag_configure("category", foreground="gray", font=("TkDefaultFont", 9, "italic"))
+        self.tree.tag_configure("instrument", foreground="darkblue", font=("TkDefaultFont", 9, "bold"))
+        self.tree.tag_configure("audio", foreground="blue")
+        self.tree.tag_configure("sampler", foreground="green")
+        self.tree.tag_configure(".wav", foreground="darkblue")
+        self.tree.tag_configure(".sfz", foreground="darkgreen")
+        self.tree.tag_configure(".sf2", foreground="purple")
+    
+    def add_files(self):
+        """Add files manually via file dialog."""
+        all_extensions = list(SUPPORTED_AUDIO_FORMATS.keys()) + list(SUPPORTED_SAMPLER_FORMATS.keys())
+        filetypes = [
+            ("All Supported", " ".join(f"*{ext}" for ext in all_extensions)),
+            ("Audio Files", " ".join(f"*{ext}" for ext in SUPPORTED_AUDIO_FORMATS.keys())),
+            ("Sampler Files", " ".join(f"*{ext}" for ext in SUPPORTED_SAMPLER_FORMATS.keys())),
+            ("All Files", "*.*")
+        ]
+        
+        files = filedialog.askopenfilenames(
+            parent=self,
+            title="Select files to convert",
+            filetypes=filetypes
+        )
+        
+        if files:
+            added_count = 0
+            for file_path in files:
+                format_info = detect_file_format(file_path)
+                if format_info:
+                    # Check if already in list
+                    if not any(f['path'] == file_path for f in self.supported_files):
+                        # Get file size and details
+                        try:
+                            size = os.path.getsize(file_path)
+                            size_str = self._format_file_size(size)
+                        except:
+                            size_str = "Unknown"
+                        
+                        details = self._get_file_details(file_path, format_info)
+                        
+                        rel_path = os.path.basename(file_path)  # Just filename for manually added
+                        file_info = {
+                            'path': file_path,
+                            'relative_path': rel_path,
+                            'format_info': format_info,
+                            'size_str': size_str,
+                            'details': details,
+                            'folder': "Manual"
+                        }
+                        
+                        self.supported_files.append(file_info)
+                        added_count += 1
+            
+            if added_count > 0:
+                self.refresh_view()
+                self.status_var.set(f"Added {added_count} files. Total: {len(self.supported_files)} files")
+            else:
+                messagebox.showinfo("No New Files", "All selected files were already in the list.", parent=self)
+    
+    def remove_selected(self):
+        """Remove selected files from the list."""
+        selected = self.tree.selection()
+        if not selected:
+            return
+        
+        # Get file paths to remove
+        files_to_remove = []
+        for item in selected:
+            item_values = self.tree.item(item)['values']
+            if len(item_values) >= 6 and item_values[0]:  # This is a file item
+                relative_path = item_values[0]
+                files_to_remove.append(relative_path)
+        
+        if not files_to_remove:
+            messagebox.showinfo("No Files Selected", "Please select individual files to remove.", parent=self)
+            return
+        
+        # Remove from supported_files list
+        self.supported_files = [f for f in self.supported_files if f['relative_path'] not in files_to_remove]
+        
+        # Refresh the view
+        self.refresh_view()
+        self.status_var.set(f"Removed {len(files_to_remove)} files. Total: {len(self.supported_files)} files")
+    
+    def convert_selected(self):
+        """Convert only selected files."""
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("No Selection", "Please select files to convert.", parent=self)
+            return
+        
+        # Get selected file info
+        selected_files = []
+        for item in selected:
+            item_values = self.tree.item(item)['values']
+            if len(item_values) >= 6 and item_values[0]:  # This is a file item
+                relative_path = item_values[0]
+                # Find the corresponding file info
+                for file_info in self.supported_files:
+                    if file_info['relative_path'] == relative_path:
+                        selected_files.append(file_info)
+                        break
+        
+        if not selected_files:
+            messagebox.showwarning("No Files Selected", "Please select individual files to convert.", parent=self)
+            return
+        
+        self._perform_conversion(selected_files)
+    
+    def convert_all(self):
+        """Convert all files in the list."""
+        if not self.supported_files:
+            messagebox.showwarning("No Files", "No files to convert.", parent=self)
+            return
+        
+        confirm = messagebox.askyesno(
+            "Convert All",
+            f"Convert all {len(self.supported_files)} files to XPM?",
+            parent=self
+        )
+        
+        if confirm:
+            self._perform_conversion(self.supported_files)
+    
+    def _perform_conversion(self, files_to_convert):
+        """Perform the actual conversion."""
+        if not files_to_convert:
+            return
+        
+        # Create options
+        options = InstrumentOptions(
+            firmware_version=self.firmware_var.get(),
+            analyze_scw=False,
+            creative_mode="off"
+        )
+        
+        folder = self.master.folder_path.get() or os.path.dirname(files_to_convert[0]['path'])
+        builder = InstrumentBuilder(folder, self.master, options)
+        
+        success_count = 0
+        error_count = 0
+        
+        for i, file_info in enumerate(files_to_convert):
+            file_path = file_info['path']
+            format_info = file_info['format_info']
+            
+            # Update status
+            filename = os.path.basename(file_path)
+            self.status_var.set(f"Converting {i+1}/{len(files_to_convert)}: {filename}")
+            self.update()
+            
+            # Find and update tree item status
+            tree_item = self._find_tree_item_by_path(file_info['relative_path'])
+            
+            if tree_item:
+                self.tree.set(tree_item, "Status", "Converting...")
+                self.update()
+            
+            try:
+                if format_info['type'] == 'sampler':
+                    # Convert sampler format
+                    success = builder.create_xpm_from_sampler_file(file_path, folder)
+                else:
+                    # Convert single audio file
+                    base_name = os.path.splitext(os.path.basename(file_path))[0]
+                    success = builder._create_xpm(
+                        base_name,
+                        [file_path],
+                        folder,
+                        self.mode_var.get()
+                    )
+                
+                if success:
+                    success_count += 1
+                    if tree_item:
+                        self.tree.set(tree_item, "Status", "✅ Success")
+                else:
+                    error_count += 1
+                    if tree_item:
+                        self.tree.set(tree_item, "Status", "❌ Failed")
+                        
+            except Exception as e:
+                error_count += 1
+                logging.error(f"Error converting {file_path}: {e}")
+                if tree_item:
+                    self.tree.set(tree_item, "Status", "❌ Error")
+        
+        # Show results
+        result_msg = f"Conversion Complete!\n\n"
+        result_msg += f"✅ Successful: {success_count}\n"
+        result_msg += f"❌ Failed: {error_count}\n"
+        result_msg += f"📁 Output folder: {folder}"
+        
+        messagebox.showinfo("Conversion Results", result_msg, parent=self)
+        self.status_var.set(f"Conversion complete: {success_count} success, {error_count} failed")
+    
+    def _find_tree_item_by_path(self, relative_path):
+        """Find tree item by relative path (works with hierarchical structure)."""
+        def search_tree(item=""):
+            if item:
+                item_values = self.tree.item(item)['values']
+                if len(item_values) >= 6 and item_values[0] == relative_path:
+                    return item
+            
+            # Search children
+            for child in self.tree.get_children(item):
+                result = search_tree(child)
+                if result:
+                    return result
+            return None
+        
+        return search_tree()
+
+
 class SCWToolWindow(tk.Toplevel):
     def __init__(self, master):
         super().__init__(master.root)
@@ -3785,7 +5341,7 @@ class BatchTransposeWindow(tk.Toplevel):
                         pads = pads_data["pads"]
                         for pad_key, pad_data in pads.items():
                             if isinstance(pad_data, dict):
-                                root_note = pad_data.get("rootNote")
+                                root_note = pad_data + 1  # ConvertWithMoss standard offset.get("rootNote")
                                 if root_note is not None:
                                     sample_notes.append(int(root_note))
                 except:
@@ -6119,27 +7675,210 @@ class InstrumentBuilder:
 
     # NEW: Dedicated function to create a playable keymap
     def _calculate_key_ranges(self, sample_infos):
-        """Assigns key ranges for multi-sample instruments based on root notes."""
+        """
+        Enhanced key range calculation for whole instruments.
+        Uses intelligent range mapping based on instrument type and note distribution.
+        """
+        if not sample_infos:
+            return []
+        
         # Sort samples by root_note
         sorted_samples = sorted(sample_infos, key=lambda x: x.get("root_note", 60))
         n = len(sorted_samples)
-        if n == 0:
-            return []
-        # Assign key ranges so each sample covers halfway to the next
+        
+        if n == 1:
+            # Single sample - full range
+            sorted_samples[0]["low_note"] = 0
+            sorted_samples[0]["high_note"] = 127
+            logging.info("Single sample instrument: full keyboard range (0-127)")
+            return sorted_samples
+        
+        # Analyze the instrument type and note distribution
+        root_notes = [s.get("root_note", 60) for s in sorted_samples]
+        note_range = max(root_notes) - min(root_notes)
+        avg_interval = note_range / max(1, n - 1) if n > 1 else 12
+        
+        # Determine the instrument type based on note distribution
+        instrument_type = self._analyze_instrument_type(sorted_samples, note_range, avg_interval)
+        
+        logging.info(f"Instrument analysis: {n} samples, {note_range} semitone range, "
+                    f"avg interval: {avg_interval:.1f}, type: {instrument_type}")
+        
+        # Apply intelligent key range mapping based on instrument type
+        if instrument_type == "chromatic_scale":
+            # Chromatic instruments (like pianos) - tight ranges around each note
+            return self._calculate_chromatic_ranges(sorted_samples)
+        elif instrument_type == "modal_scale":
+            # Modal instruments (like ethnic scales) - extended ranges
+            return self._calculate_modal_ranges(sorted_samples)
+        elif instrument_type == "sparse_instrument":
+            # Sparse sampling (like orchestral instruments) - wide ranges
+            return self._calculate_sparse_ranges(sorted_samples)
+        elif instrument_type == "drum_kit":
+            # Detected as drum kit - individual note mapping
+            return self._calculate_drum_ranges(sorted_samples)
+        else:
+            # Default/balanced approach
+            return self._calculate_balanced_ranges(sorted_samples)
+    
+    def _analyze_instrument_type(self, sorted_samples, note_range, avg_interval):
+        """Analyze instrument type based on sample distribution and filenames."""
+        n = len(sorted_samples)
+        
+        # Check filenames for instrument type hints
+        all_filenames = " ".join([os.path.basename(s.get("sample_path", "")).lower() 
+                                 for s in sorted_samples])
+        
+        # Drum kit detection
+        drum_keywords = ["kick", "snare", "hihat", "cymbal", "tom", "clap", "rim", "crash", "ride"]
+        if any(keyword in all_filenames for keyword in drum_keywords):
+            return "drum_kit"
+        
+        # Piano/keyboard detection
+        piano_keywords = ["piano", "key", "chord", "note"]
+        if any(keyword in all_filenames for keyword in piano_keywords):
+            if avg_interval <= 2.0:  # Close intervals suggest chromatic
+                return "chromatic_scale"
+        
+        # Analysis based on note distribution
+        if note_range <= 12 and avg_interval <= 2.0:
+            # Close intervals in small range - chromatic scale
+            return "chromatic_scale"
+        elif note_range <= 24 and avg_interval <= 4.0:
+            # Medium range with moderate intervals - modal scale
+            return "modal_scale"
+        elif note_range > 36 or avg_interval > 8.0:
+            # Wide range or large intervals - sparse instrument
+            return "sparse_instrument"
+        else:
+            # Balanced instrument
+            return "balanced_instrument"
+    
+    def _calculate_chromatic_ranges(self, sorted_samples):
+        """Calculate ranges for chromatic instruments (tight ranges around each note)."""
         for i, sample in enumerate(sorted_samples):
             root = sample.get("root_note", 60)
+            
+            if i == 0:
+                # First sample starts from beginning
+                low = max(0, root - 1)
+            else:
+                # Start just after previous sample's root
+                prev_root = sorted_samples[i - 1].get("root_note", 60)
+                low = max(0, (prev_root + root) // 2)
+            
+            if i == len(sorted_samples) - 1:
+                # Last sample goes to end
+                high = min(127, root + 6)  # But not too far for chromatic
+            else:
+                # End just before next sample
+                next_root = sorted_samples[i + 1].get("root_note", 60)
+                high = min(127, (root + next_root) // 2)
+            
+            # Ensure minimum range of 1 semitone
+            if high <= low:
+                high = min(127, low + 1)
+            
+            sample["low_note"] = low
+            sample["high_note"] = high
+            
+        logging.info("Applied chromatic scale ranges (tight around each note)")
+        return sorted_samples
+    
+    def _calculate_modal_ranges(self, sorted_samples):
+        """Calculate ranges for modal instruments (extended ranges for each sample)."""
+        for i, sample in enumerate(sorted_samples):
+            root = sample.get("root_note", 60)
+            
             if i == 0:
                 low = 0
             else:
                 prev_root = sorted_samples[i - 1].get("root_note", 60)
-                low = (prev_root + root) // 2 + 1
-            if i == n - 1:
+                # Extend range more generously
+                low = max(0, root - max(3, (root - prev_root) // 2))
+            
+            if i == len(sorted_samples) - 1:
                 high = 127
             else:
                 next_root = sorted_samples[i + 1].get("root_note", 60)
-                high = (root + next_root) // 2
+                # Extend range more generously
+                high = min(127, root + max(3, (next_root - root) // 2))
+            
             sample["low_note"] = low
             sample["high_note"] = high
+            
+        logging.info("Applied modal scale ranges (extended around each note)")
+        return sorted_samples
+    
+    def _calculate_sparse_ranges(self, sorted_samples):
+        """Calculate ranges for sparsely sampled instruments (wide ranges)."""
+        for i, sample in enumerate(sorted_samples):
+            root = sample.get("root_note", 60)
+            
+            if i == 0:
+                low = 0
+            else:
+                prev_root = sorted_samples[i - 1].get("root_note", 60)
+                # For sparse instruments, extend ranges significantly
+                gap = root - prev_root
+                low = max(0, prev_root + gap // 3)
+            
+            if i == len(sorted_samples) - 1:
+                high = 127
+            else:
+                next_root = sorted_samples[i + 1].get("root_note", 60)
+                # Extend generously toward next sample
+                gap = next_root - root
+                high = min(127, root + (gap * 2) // 3)
+            
+            # Ensure reasonable minimum range for sparse instruments
+            if high - low < 6:
+                high = min(127, low + 12)
+            
+            sample["low_note"] = low
+            sample["high_note"] = high
+            
+        logging.info("Applied sparse instrument ranges (wide coverage)")
+        return sorted_samples
+    
+    def _calculate_drum_ranges(self, sorted_samples):
+        """Calculate ranges for drum kits (individual note mapping)."""
+        for sample in sorted_samples:
+            root = sample.get("root_note", 60)
+            # Drums typically map to individual notes
+            sample["low_note"] = root
+            sample["high_note"] = root
+            
+        logging.info("Applied drum kit ranges (individual notes)")
+        return sorted_samples
+    
+    def _calculate_balanced_ranges(self, sorted_samples):
+        """Calculate balanced ranges for general multi-sample instruments."""
+        for i, sample in enumerate(sorted_samples):
+            root = sample.get("root_note", 60)
+            
+            if i == 0:
+                low = 0
+            else:
+                prev_root = sorted_samples[i - 1].get("root_note", 60)
+                # Balanced approach - split the difference
+                low = (prev_root + root) // 2 + 1
+            
+            if i == len(sorted_samples) - 1:
+                high = 127
+            else:
+                next_root = sorted_samples[i + 1].get("root_note", 60)
+                # Balanced approach
+                high = (root + next_root) // 2
+            
+            # Ensure reasonable minimum range
+            if high - low < 2:
+                high = min(127, low + 3)
+            
+            sample["low_note"] = low
+            sample["high_note"] = high
+            
+        logging.info("Applied balanced ranges (general multi-sample)")
         return sorted_samples
 
     def create_instruments(self, mode="multi-sample", files=None):
@@ -6405,12 +8144,18 @@ class InstrumentBuilder:
                 layers_for_note = sorted(
                     note_layers[key], key=lambda x: x.get("velocity_low", 0)
                 )
-                num_layers = min(len(layers_for_note), 8)  # Max 8 layers for 3.4+ firmware
-                if len(layers_for_note) > 8:
-                    logging.warning(f"Instrument {i+1} has {len(layers_for_note)} samples, limiting to 8 layers for firmware compatibility")
+                
+                # Use firmware-specific layer limit
+                firmware_version = self.options.firmware_version
+                max_layers = MAX_LAYERS_BY_FIRMWARE.get(firmware_version, 4)
+                num_layers = min(len(layers_for_note), max_layers)
+                
+                if len(layers_for_note) > max_layers:
+                    logging.warning(f"Instrument {i+1} has {len(layers_for_note)} samples, limiting to {max_layers} layers for firmware {firmware_version}")
+                    logging.info(f"Consider upgrading to firmware 3.4+ for 8-layer support")
                 
                 vel_split = 128 // num_layers
-                logging.debug(f"Instrument {i+1}: Creating {num_layers} layers with velocity split {vel_split}")
+                logging.debug(f"Instrument {i+1}: Creating {num_layers} layers with velocity split {vel_split} (firmware {firmware_version})")
 
                 for lidx, sample_info in enumerate(layers_for_note[:num_layers]):
                     layer = ET.SubElement(
@@ -6568,13 +8313,15 @@ class InstrumentBuilder:
             ET.SubElement(instrument, key).text = val
         return instrument
 
-    # REVISED: This function now preserves all layer parameters
+    # ENHANCED: Support for advanced 3.4+ firmware features
     def add_layer_parameters(self, layer_element, sample_info, vel_start, vel_end):
         sample_name, _ = os.path.splitext(os.path.basename(sample_info["sample_path"]))
         frames = sample_info.get("frames", 0)
+        firmware_version = self.options.firmware_version
 
-        # Start with defaults, then override with preserved values
+        # Enhanced parameter set for firmware 3.4+
         params = {
+            "Active": "True",
             "SampleName": sample_name,
             "SampleFile": sample_info["sample_path"],
             "VelStart": str(vel_start),
@@ -6582,14 +8329,50 @@ class InstrumentBuilder:
             "RootNote": str(sample_info["root_note"]),
             "SampleStart": "0",
             "SampleEnd": str(frames),
-            "Loop": "Off",
-            "Direction": "0",
+            "Loop": "False",
+            "LoopStart": "0",
+            "LoopEnd": str(frames),
+            "LoopTune": "0",
+            "Direction": "Forward",
             "Offset": "0",
-            "Volume": "1.0",
-            "Pan": "0.5",
-            "Tune": "0.0",
-            "MuteGroup": "0",
+            "Volume": "1.000000",
+            "Pan": "0.500000",
+            "Pitch": "0.000000",
+            "TuneCoarse": "0",
+            "TuneFine": "0",
+            "Mute": "False",
+            "KeyTrack": "True",
         }
+
+        # Add advanced parameters for firmware 3.4+
+        if firmware_version in ['3.4.0', '3.5.0']:
+            advanced_params = {
+                "Solo": "False",
+                "Reverse": "False",
+                "NormalizeOn": "False",
+                "Level": "1.000000",
+                "Attack": "0.000000",
+                "Decay": "0.000000",
+                "Release": "0.000000",
+                "FilterType": "0",
+                "FilterFreq": "1.000000",
+                "FilterRes": "0.000000",
+                "FilterKeytrack": "0.000000",
+                "FilterVeltrack": "0.000000",
+                "FilterAttack": "0.000000",
+                "FilterDecay": "0.000000",
+                "FilterSustain": "1.000000",
+                "FilterRelease": "0.000000",
+                "LFOSpeed": "0.500000",
+                "LFODepth": "0.000000",
+                "LFOPhase": "0.000000",
+                "ModWheelDepth": "0.000000",
+                "AftertouchDepth": "0.000000",
+                "VelocityToVolume": "1.000000",
+                "VelocityToFilter": "0.000000",
+                "VelocityToPitch": "0.000000"
+            }
+            params.update(advanced_params)
 
         # Override defaults with any parameters preserved from the original file
         if "layer_params" in sample_info:
@@ -6597,8 +8380,23 @@ class InstrumentBuilder:
                 if key in params:
                     params[key] = value
 
+        # Apply SFZ-sourced parameters if available
+        if sample_info.get('volume') is not None:
+            # Convert dB to linear (approximate)
+            db_volume = sample_info['volume']
+            linear_volume = max(0.0, min(2.0, pow(10, db_volume / 20)))
+            params["Volume"] = f"{linear_volume:.6f}"
+        
+        if sample_info.get('pan') is not None:
+            params["Pan"] = f"{sample_info['pan']:.6f}"
+        
+        if sample_info.get('tune_cents') is not None:
+            cents = sample_info['tune_cents']
+            params["TuneCoarse"] = str(cents // 100)
+            params["TuneFine"] = str(cents % 100)
+
         # Special handling for loop points if loop is on
-        if params.get("Loop") == "On":
+        if params.get("Loop") in ["On", "True"]:
             params["LoopStart"] = sample_info.get("layer_params", {}).get(
                 "LoopStart", "0"
             )
@@ -6606,8 +8404,77 @@ class InstrumentBuilder:
                 "LoopEnd", str(max(frames - 1, 0))
             )
 
+        # Create XML elements
         for key, value in params.items():
             ET.SubElement(layer_element, key).text = str(value)
+
+        logging.debug(f"Added {len(params)} layer parameters for firmware {firmware_version}")
+
+    def create_xpm_from_sampler_file(self, sampler_path, output_folder):
+        """Create XPM from sampler formats like SFZ, SF2, etc."""
+        try:
+            # Parse the sampler file
+            mappings = parse_sampler_file(sampler_path)
+            if not mappings:
+                logging.error(f"No mappings found in sampler file: {sampler_path}")
+                return False
+            
+            # Get base name for XPM
+            base_name = os.path.splitext(os.path.basename(sampler_path))[0]
+            
+            # Convert any non-WAV audio files to WAV
+            converted_mappings = []
+            temp_files = []
+            
+            for mapping in mappings:
+                sample_path = mapping['sample_path']
+                if not os.path.exists(sample_path):
+                    logging.warning(f"Sample not found: {sample_path}")
+                    continue
+                
+                # Convert to WAV if needed
+                format_info = detect_file_format(sample_path)
+                if format_info and format_info['type'] == 'audio' and format_info['format'] != '.wav':
+                    temp_wav = convert_audio_format_to_wav(sample_path)
+                    if temp_wav:
+                        mapping['sample_path'] = temp_wav
+                        temp_files.append(temp_wav)
+                    else:
+                        logging.warning(f"Failed to convert {sample_path}")
+                        continue
+                
+                converted_mappings.append(mapping)
+            
+            if not converted_mappings:
+                logging.error(f"No valid samples found in {sampler_path}")
+                return False
+            
+            # Create XPM using the mappings
+            success = self._create_xpm(
+                base_name, 
+                [], 
+                output_folder, 
+                mode="multi-sample",
+                mappings=converted_mappings
+            )
+            
+            # Clean up temporary files
+            for temp_file in temp_files:
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
+            
+            if success:
+                logging.info(f"Successfully created XPM from {os.path.basename(sampler_path)}")
+                return True
+            else:
+                logging.error(f"Failed to create XPM from {sampler_path}")
+                return False
+                
+        except Exception as e:
+            logging.error(f"Error creating XPM from sampler file {sampler_path}: {e}")
+            return False
 
     def apply_creative_mode(
         self, instrument_element, layer_element, layer_index, total_layers
@@ -7168,33 +9035,89 @@ class InstrumentBuilder:
         return f"{note}{octave}"
 
     def validate_sample_info(self, sample_path):
-        """Validates a WAV file and extracts info. Detects SCWs if enabled."""
+        """Validates an audio file and extracts info. Supports multiple formats."""
         try:
-            if not os.path.exists(sample_path) or not sample_path.lower().endswith(
-                ".wav"
-            ):
-                return {"is_valid": False, "reason": "File not found or not a WAV"}
-
+            # Check if file exists
+            if not os.path.exists(sample_path):
+                return {"is_valid": False, "reason": "File not found"}
+            
+            # Detect file format
+            format_info = detect_file_format(sample_path)
+            if not format_info:
+                return {"is_valid": False, "reason": "Unsupported file format"}
+            
+            original_path = sample_path
+            
+            # Convert non-WAV audio formats to WAV if needed
+            if format_info['type'] == 'audio' and format_info['format'] != '.wav':
+                temp_wav = convert_audio_format_to_wav(sample_path)
+                if temp_wav:
+                    sample_path = temp_wav
+                else:
+                    return {"is_valid": False, "reason": f"Failed to convert {format_info['format']} to WAV"}
+            
+            # Get audio file info
             frames = get_wav_frames(sample_path)
             is_scw = False
             if self.options.analyze_scw and 0 < frames < SCW_FRAME_THRESHOLD:
                 is_scw = True
 
-            # REVISED: Prioritize filename, then pitch detection
-            root_note = infer_note_from_filename(sample_path)
-            if root_note is None:
-                root_note = detect_fundamental_pitch(sample_path)
+            # Detect root note with enhanced methods
+            root_note = self._detect_root_note_multi_method(original_path)
 
-            return {
+            result = {
                 "is_valid": True,
                 "path": sample_path,
+                "original_path": original_path,
                 "frames": frames,
                 "root_note": root_note,
                 "is_scw": is_scw,
+                "format": format_info['format'],
+                "format_description": format_info['description']
             }
+            
+            # Clean up temporary WAV if created
+            if sample_path != original_path and os.path.exists(sample_path):
+                # Mark for cleanup after XPM creation
+                result["temp_wav"] = sample_path
+            
+            return result
+            
         except Exception as e:
             logging.error(f"Could not validate sample {sample_path}: {e}")
             return {"is_valid": False, "reason": str(e)}
+    
+    def _detect_root_note_multi_method(self, sample_path):
+        """Enhanced root note detection using multiple methods."""
+        # Method 1: Filename inference (most reliable for user-named files)
+        try:
+            if infer_note_from_filename:
+                root_note = infer_note_from_filename(sample_path)
+                if root_note is not None:
+                    return root_note + 1  # MPC standard offset
+        except Exception as e:
+            logging.debug(f"Filename inference failed for {sample_path}: {e}")
+        
+        # Method 2: WAV metadata
+        try:
+            if extract_root_note_from_wav:
+                root_note = extract_root_note_from_wav(sample_path)
+                if root_note is not None:
+                    return root_note + 1  # MPC standard offset
+        except Exception as e:
+            logging.debug(f"WAV metadata extraction failed for {sample_path}: {e}")
+        
+        # Method 3: Audio analysis
+        try:
+            if detect_fundamental_pitch:
+                root_note = detect_fundamental_pitch(sample_path)
+                if root_note is not None:
+                    return root_note + 1  # MPC standard offset
+        except Exception as e:
+            logging.debug(f"Pitch detection failed for {sample_path}: {e}")
+        
+        # Default fallback
+        return 61  # C4 + 1 (MPC standard)
 
 
 # </editor-fold>
@@ -7256,44 +9179,6 @@ class App(tk.Tk):
         except Exception as e:
             print(f"File dialog error: {e}")
             return ""
-
-    def __init__(self):
-        super().__init__()
-        self.root = self
-        
-        if not IMPORTS_SUCCESSFUL:
-            self.withdraw()
-            messagebox.showerror(
-                "Missing Dependencies",
-                f"A required file could not be found:\n\n{MISSING_MODULE}\n\nPlease make sure all script files are in the same directory.",
-            )
-            sys.exit(1)
-
-        self.firmware_version = tk.StringVar(value="3.5.0")
-        self.title(f"Wav to XPM Converter v{APP_VERSION}")
-        self.geometry("850x750")
-        self.minsize(700, 600)
-
-        self.creative_config = {}
-        self.last_browse_path = os.path.expanduser("~")  # Remember last path
-
-        self.setup_retro_theme()
-
-        main_frame = ttk.Frame(self, padding="10", style="Retro.TFrame")
-        main_frame.pack(fill="both", expand=True)
-        main_frame.grid_rowconfigure(6, weight=1)  # Adjusted for new row
-        main_frame.grid_columnconfigure(0, weight=1)
-
-        self.create_browser_bar(main_frame)
-        self.create_advanced_options_frame(main_frame)
-        self.create_action_buttons(main_frame)
-        self.create_advanced_tools(main_frame)
-        self.create_quick_edits_frame(main_frame)  # New frame
-        self.create_batch_tools(main_frame)
-        self.create_log_viewer(main_frame)
-        self.create_status_bar(main_frame)
-
-        self.setup_logging()
 
     def setup_logging(self):
         log_format = logging.Formatter(
@@ -7527,7 +9412,12 @@ class App(tk.Tk):
             frame,
             text="Sample Mapping Checker...",
             command=lambda: self.open_window(SampleMappingCheckerWindow),
-        ).grid(row=2, column=0, columnspan=2, sticky="ew", padx=2, pady=2)
+        ).grid(row=2, column=0, sticky="ew", padx=2, pady=2)
+        ttk.Button(
+            frame,
+            text="Multi-Format Converter...",
+            command=lambda: self.open_window(MultiFormatConverterWindow),
+        ).grid(row=2, column=1, sticky="ew", padx=2, pady=2)
 
     def create_quick_edits_frame(self, parent):
         frame = ttk.LabelFrame(parent, text="Quick Edits", padding="10")
@@ -7632,6 +9522,10 @@ class App(tk.Tk):
                 self.folder_path.set(folder)
                 self.last_browse_path = folder
                 logging.info(f"Selected folder: {folder}")
+                
+                # Update status with format information
+                self._update_folder_status(folder)
+                
         except Exception as e:
             logging.error(f"Error in folder browse dialog: {e}")
             # Fallback to basic dialog if the advanced one fails
@@ -7644,10 +9538,55 @@ class App(tk.Tk):
                 if folder and os.path.exists(folder):
                     self.folder_path.set(folder)
                     self.last_browse_path = folder
-                    logging.info(f"Selected folder (fallback): {folder}")
+                    self._update_folder_status(folder)
             except Exception as e2:
-                logging.error(f"Both folder dialog methods failed: {e2}")
-                messagebox.showerror("Error", f"Failed to open folder selection dialog: {e2}", parent=self)
+                logging.error(f"Error in fallback dialog: {e2}")
+    
+    def _update_folder_status(self, folder_path):
+        """Update status message with supported format information."""
+        try:
+            # Count supported files
+            audio_count = 0
+            sampler_count = 0
+            wav_count = 0
+            
+            for root, dirs, files in os.walk(folder_path):
+                for file in files:
+                    ext = os.path.splitext(file)[1].lower()
+                    if ext == '.wav':
+                        wav_count += 1
+                    elif ext in SUPPORTED_AUDIO_FORMATS:
+                        audio_count += 1
+                    elif ext in SUPPORTED_SAMPLER_FORMATS:
+                        sampler_count += 1
+            
+            # Update status message
+            total_audio = wav_count + audio_count
+            status_parts = []
+            
+            if wav_count > 0:
+                status_parts.append(f"{wav_count} WAV")
+            if audio_count > 0:
+                status_parts.append(f"{audio_count} other audio")
+            if sampler_count > 0:
+                status_parts.append(f"{sampler_count} sampler")
+                
+            if status_parts:
+                if len(status_parts) == 1:
+                    format_msg = f"Found {status_parts[0]} files"
+                else:
+                    format_msg = f"Found {', '.join(status_parts[:-1])} and {status_parts[-1]} files"
+                
+                if total_audio + sampler_count > wav_count:
+                    format_msg += " → Use Multi-Format Converter for non-WAV files"
+            else:
+                format_msg = "No supported audio files found"
+            
+            self.status_text.set(f"📁 {os.path.basename(folder_path)} | {format_msg}")
+            
+        except Exception as e:
+            logging.error(f"Error updating folder status: {e}")
+            self.status_text.set(f"📁 {os.path.basename(folder_path)} | Status check failed")
 
     def on_creative_mode_change(self, event=None):
         """Enable config button only for configurable modes."""

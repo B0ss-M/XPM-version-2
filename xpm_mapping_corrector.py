@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# Professional XPM Standards (based on ConvertWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 4 layers per keygroup (MPC hardware limit)
+# 5. Use consecutive key ranges for better playability
+
 """
 Enhanced XPM Mapping Corrector - Fixes root note, velocity, and range issues
 """
@@ -247,7 +254,7 @@ class XPMappingCorrector:
                     if current_root <= 12:
                         detected_note = self.detect_note_from_filename(sample_name)
                         if detected_note and detected_note != current_root:
-                            root_note_elem.text = str(detected_note)
+                            root_note_elem.text = str(detected_note + 1)  # ConvertWithMoss +1 offset
                             changed = True
                             logging.info(f"Fixed root note: {sample_name} {current_root} → {detected_note} ({self.midi_to_note_name(detected_note)})")
         

@@ -5,6 +5,13 @@ import logging
 import traceback
 
 
+# Professional XPM Standards (based on ConvertWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 4 layers per keygroup (MPC hardware limit)
+# 5. Use consecutive key ranges for better playability
+
 def package_expansion(folder: str, output_zip: str):
     """Create a ZIP archive from the given expansion folder."""
     logging.info("Packaging '%s' to '%s'", folder, output_zip)

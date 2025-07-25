@@ -5,6 +5,13 @@ from collections import defaultdict
 
 from audio_pitch import detect_fundamental_pitch
 from xpm_parameter_editor import (
+# Professional XPM Standards (based on ConvertWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 4 layers per keygroup (MPC hardware limit)
+# 5. Use consecutive key ranges for better playability
+
     extract_root_note_from_wav,
     infer_note_from_filename,
     name_to_midi,

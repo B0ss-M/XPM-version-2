@@ -8,6 +8,13 @@ from xpm_utils import _parse_xpm_for_rebuild, indent_tree
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 from xpm_parameter_editor import (
+# Professional XPM Standards (based on ConvertWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 4 layers per keygroup (MPC hardware limit)
+# 5. Use consecutive key ranges for better playability
+
     set_layer_keytrack,
     set_volume_adsr,
     load_mod_matrix,

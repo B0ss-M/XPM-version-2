@@ -7,6 +7,13 @@ from tkinter import ttk, messagebox, simpledialog
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from xpm_parameter_editor import name_to_midi, extract_root_note_from_wav
 
+# Professional XPM Standards (based on ConvertWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 4 layers per keygroup (MPC hardware limit)
+# 5. Use consecutive key ranges for better playability
+
 NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 def midi_to_name(num: int) -> str:

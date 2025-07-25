@@ -6,6 +6,13 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 
+# Professional XPM Standards (based on ConvertWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 4 layers per keygroup (MPC hardware limit)
+# 5. Use consecutive key ranges for better playability
+
 def indent_tree(tree: ET.ElementTree, space: str = "  ") -> None:
     """Indent an ElementTree for pretty printing on all Python versions."""
     if hasattr(ET, "indent"):
@@ -52,25 +59,115 @@ LAYER_PARAMS_TO_PRESERVE = [
 
 
 def calculate_key_ranges(mappings):
-    """Calculate low/high note ranges based on root notes."""
+    """
+    Enhanced key range calculation for whole instruments.
+    Analyzes instrument type and applies appropriate range mapping.
+    """
     if not mappings:
         return []
 
     sorted_maps = sorted(mappings, key=lambda m: m.get("root_note", 60))
-    for i, current in enumerate(sorted_maps):
-        if i == 0:
-            current["low_note"] = 0
-        else:
-            prev = sorted_maps[i - 1]
-            midpoint = (prev["root_note"] + current["root_note"]) // 2
-            current["low_note"] = midpoint + 1
-
-        if i == len(sorted_maps) - 1:
-            current["high_note"] = 127
-        else:
-            nxt = sorted_maps[i + 1]
-            midpoint = (current["root_note"] + nxt["root_note"]) // 2
-            current["high_note"] = midpoint
+    n = len(sorted_maps)
+    
+    if n == 1:
+        # Single sample - full range
+        sorted_maps[0]["low_note"] = 0
+        sorted_maps[0]["high_note"] = 127
+        return sorted_maps
+    
+    # Analyze the instrument type
+    root_notes = [m.get("root_note", 60) for m in sorted_maps]
+    note_range = max(root_notes) - min(root_notes)
+    avg_interval = note_range / max(1, n - 1) if n > 1 else 12
+    
+    # Check filenames for instrument type hints
+    all_filenames = " ".join([os.path.basename(m.get("sample_path", "")).lower() 
+                             for m in sorted_maps])
+    
+    # Determine instrument type
+    if any(keyword in all_filenames for keyword in ["kick", "snare", "hihat", "cymbal", "tom", "clap"]):
+        instrument_type = "drum_kit"
+    elif note_range <= 12 and avg_interval <= 2.0:
+        instrument_type = "chromatic_scale"
+    elif note_range <= 24 and avg_interval <= 4.0:
+        instrument_type = "modal_scale"
+    elif note_range > 36 or avg_interval > 8.0:
+        instrument_type = "sparse_instrument"
+    else:
+        instrument_type = "balanced_instrument"
+    
+    # Apply appropriate range calculation
+    if instrument_type == "drum_kit":
+        # Drums map to individual notes
+        for m in sorted_maps:
+            root = m.get("root_note", 60)
+            m["low_note"] = root
+            m["high_note"] = root
+    elif instrument_type == "chromatic_scale":
+        # Tight ranges around each note
+        for i, m in enumerate(sorted_maps):
+            root = m.get("root_note", 60)
+            if i == 0:
+                low = max(0, root - 1)
+            else:
+                prev_root = sorted_maps[i - 1].get("root_note", 60)
+                low = max(0, (prev_root + root) // 2)
+            
+            if i == n - 1:
+                high = min(127, root + 6)
+            else:
+                next_root = sorted_maps[i + 1].get("root_note", 60)
+                high = min(127, (root + next_root) // 2)
+            
+            if high <= low:
+                high = min(127, low + 1)
+            
+            m["low_note"] = low
+            m["high_note"] = high
+    elif instrument_type == "sparse_instrument":
+        # Wide ranges for sparse sampling
+        for i, m in enumerate(sorted_maps):
+            root = m.get("root_note", 60)
+            if i == 0:
+                low = 0
+            else:
+                prev_root = sorted_maps[i - 1].get("root_note", 60)
+                gap = root - prev_root
+                low = max(0, prev_root + gap // 3)
+            
+            if i == n - 1:
+                high = 127
+            else:
+                next_root = sorted_maps[i + 1].get("root_note", 60)
+                gap = next_root - root
+                high = min(127, root + (gap * 2) // 3)
+            
+            if high - low < 6:
+                high = min(127, low + 12)
+            
+            m["low_note"] = low
+            m["high_note"] = high
+    else:
+        # Balanced/modal approach
+        for i, m in enumerate(sorted_maps):
+            root = m.get("root_note", 60)
+            if i == 0:
+                low = 0
+            else:
+                prev_root = sorted_maps[i - 1].get("root_note", 60)
+                low = (prev_root + root) // 2 + 1
+            
+            if i == n - 1:
+                high = 127
+            else:
+                next_root = sorted_maps[i + 1].get("root_note", 60)
+                high = (root + next_root) // 2
+            
+            if high - low < 2:
+                high = min(127, low + 3)
+            
+            m["low_note"] = low
+            m["high_note"] = high
 
     return sorted_maps
 
