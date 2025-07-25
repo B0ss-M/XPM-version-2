@@ -1,2 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<MPC><Program type="Keygroup"><Application_Version>3.5.0</Application_Version><KeygroupNumKeygroups>5</KeygroupNumKeygroups><Instruments><Instrument><LowNote>60</LowNote><HighNote>60</HighNote><Layer><RootNote>60</RootNote><SampleFile>sample1.wav</SampleFile></Layer></Instrument><Instrument><LowNote>61</LowNote><HighNote>61</HighNote><Layer><RootNote>61</RootNote><SampleFile>sample2.wav</SampleFile></Layer></Instrument></Instruments></Program></MPC>

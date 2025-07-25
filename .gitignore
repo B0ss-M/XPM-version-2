@@ -1,5 +1,148 @@
-*.pyc
-/__pycache__
+# =============================================================================
+# XPM Converter - Enhanced .gitignore
+# Only include essential files for the XPM conversion toolkit
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Operating System
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Development Tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and Debug Files
 *.log
-.venv/
+debug.log
+converter.log
+xpm_output.log
+error.log
+
+# Temporary Files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*~
+
+# Test Files and Sample Data
+test_*.py
+test_*.xpm
+*test*.wav
+*test*.xpm
+*.xpm.broken.backup
+sample_data/
+test_samples/
+
+# Generated/Output Files
+[Previews]/
+*.xpm.wav
+output/
+generated/
+converted/
+
+# Documentation Backup Files
+*.md.backup
+*.txt.backup
+*.py.backup*
+*.py.bak*
+*.py.new
+
+# Large Media Files (exclude audio samples from repo)
+*.wav
+*.aiff
+*.aif
+*.flac
+*.mp3
+*.m4a
+*.ogg
+*.rex
+*.rx2
+
+# Sampler Files (too large for git)
+*.sf2
+*.sfz
+*.nki
+*.nkm
+*.rns
+*.rfl
+*.sxt
+*.nnxt
+
+# Java Files (ConvertWithMoss)
+convertwithmoss-*.jar
+
+# PDF Files (documentation can be linked instead)
+*.pdf
+*.epub
+
+# Analysis/Debug Files
+analyze_*.py
+fix_*.py
+restore_*.py
+test_*.py
+
+# Issue Tracking Folders
+"XPM issues"/
+components/
+tools/
+
+# Jupyter Notebooks (can contain large outputs)
+*.ipynb
+.ipynb_checkpoints/
+
+# Cache directories
+cache/
+.cache/
+
+# =============================================================================
+# KEEP THESE ESSENTIAL FILES:
+# - Main converter script: Gemini wav_TO_XpmV2.py
+# - Core modules: xpm_utils.py, audio_pitch.py, firmware_profiles.py
+# - UI modules: *_window.py, sample_mapping_*.py, multi_sample_builder.py
+# - Utility scripts: drumkit_grouping.py, batch_*.py
+# - Documentation: README.md, *.md guides
+# - Setup files: requirements.txt, setup.sh
+# =============================================================================
