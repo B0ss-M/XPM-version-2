@@ -4,6 +4,7 @@ numpy>=1.19.0        # Numerical computing
 scipy>=1.6.0         # Scientific computing
 librosa>=0.8.0       # Audio analysis and pitch detection
 soundfile>=0.10.0    # Audio file I/O
+tkinterdnd2>=0.4.0   # Multi-sample builder drag and drop
 
 # Optional Dependencies for Enhanced Sample Extraction
 # (Application will work without these, but with reduced functionality)

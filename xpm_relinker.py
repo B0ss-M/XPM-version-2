@@ -21,6 +21,7 @@ import contextlib
 import time
 import csv
 import logging
+from xpm_utils import load_program_pads, write_program_pads
 from typing import List, Dict, Any, Optional, Tuple
 
 try:
@@ -296,19 +297,16 @@ def repair_keygroups(xpm_path: str, dry_run: bool = True) -> Dict[str, Any]:
                 kg_elem.text = str(actual_kg_count)
 
     # Try to find ProgramPads and adjust padToInstrument if present
-    pads_elem = root.find('.//ProgramPads')
+    pads_elem = next((elem for elem in root.iter() if isinstance(elem.tag, str)
+                      and (elem.tag == 'ProgramPads' or elem.tag.startswith('ProgramPads-v'))), None)
     if pads_elem is not None and pads_elem.text:
-        try:
-            pads_json = json.loads(xml_unescape(pads_elem.text))
-            pti = pads_json.get('padToInstrument')
-            if isinstance(pti, dict):
-                if len(pti) != actual_kg_count:
-                    changes['padToInstrument_changed'] = True
-                    if not dry_run:
-                        pads_json['padToInstrument'] = {str(i): i for i in range(actual_kg_count)}
-                        pads_elem.text = xml_escape(json.dumps(pads_json, indent=4))
-        except Exception as e:
-            LOG.debug('Could not parse ProgramPads JSON: %s', e)
+        data, payload = load_program_pads(pads_elem)
+        pti = payload.get('padToInstrument') if payload else None
+        if isinstance(pti, dict) and len(pti) != actual_kg_count:
+            changes['padToInstrument_changed'] = True
+            if not dry_run:
+                payload['padToInstrument'] = {str(i): i for i in range(actual_kg_count)}
+                write_program_pads(pads_elem, data)
 
     if not dry_run and (changes['kg_changed'] or changes['padToInstrument_changed']):
         # create backup

@@ -33,6 +33,7 @@ import glob
 import xml.etree.ElementTree as ET
 from typing import List, Tuple
 import logging
+from xpm_utils import load_program_pads, write_program_pads
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
@@ -120,6 +121,36 @@ def update_sample_mappings(tree: ET.ElementTree, transpose_semitones: float) -> 
                         logger.debug(f"Updated layer RootNote: {old_value} → {new_value}")
                     except ValueError:
                         continue
+
+    # Modern programs can carry a second copy of the mapping in ProgramPads.
+    # Keep it in sync with the Instrument/Layer XML without changing its shape.
+    pads_elem = next((elem for elem in root.iter() if isinstance(elem.tag, str)
+                      and (elem.tag == 'ProgramPads' or elem.tag.startswith('ProgramPads-v'))), None)
+    data, payload = load_program_pads(pads_elem)
+    if payload is not None:
+        changed = False
+        pads = payload.get('pads', {})
+        if isinstance(pads, dict):
+            for pad in pads.values():
+                if not isinstance(pad, dict):
+                    continue
+                for field in ('lowNote', 'highNote', 'rootNote'):
+                    value = pad.get(field)
+                    if value is None:
+                        continue
+                    try:
+                        old = int(float(value))
+                    except (TypeError, ValueError):
+                        continue
+                    if field == 'rootNote' and old == 0:
+                        continue
+                    new = max(0, min(127, old + int(transpose_semitones)))
+                    if new != old:
+                        pad[field] = new
+                        updated_count += 1
+                        changed = True
+        if changed:
+            write_program_pads(pads_elem, data)
     
     return updated_count
 
