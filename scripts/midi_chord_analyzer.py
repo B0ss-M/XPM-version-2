@@ -33,6 +33,10 @@ from collections import defaultdict, Counter
 import json
 from datetime import datetime
 import math
+try:
+    from scripts.midi_harmony import timed_notes, chord_groups
+except ImportError:
+    from midi_harmony import timed_notes, chord_groups
 
 # Required dependencies check
 try:
@@ -110,8 +114,9 @@ class ChordInstance:
     def chord_symbol(self) -> str:
         """Generate a standard chord symbol."""
         root_name = NOTE_NAMES[self.root % 12]
-        bass_suffix = f"/{NOTE_NAMES[self.bass_note % 12]}" if self.bass_note is not None and self.bass_note != self.root else ""
-        return f"{root_name}{self.chord_type}{bass_suffix}"
+        bass_suffix = f"/{NOTE_NAMES[self.bass_note % 12]}" if self.bass_note is not None and self.bass_note % 12 != self.root % 12 else ""
+        quality = '' if self.chord_type == 'maj' else self.chord_type
+        return f"{root_name}{quality}{bass_suffix}"
 
 @dataclass
 class ProgressionAnalysis:
@@ -208,7 +213,7 @@ class MIDIChordAnalyzer:
         self.track_filters = {
             'ignore_percussion': True,
             'ignore_channel_10': True,  # Standard MIDI percussion channel
-            'min_note_count': 5,
+            'min_note_count': 3,
             'prefer_piano_tracks': True,
         }
         
@@ -293,37 +298,9 @@ class MIDIChordAnalyzer:
     
     def _extract_notes_from_midi(self, mid: 'mido.MidiFile') -> List[MIDINote]:
         """Extract all note events from MIDI file."""
-        notes = []
-        
-        for track_idx, track in enumerate(mid.tracks):
-            current_time = 0
-            active_notes = {}  # note_number -> (start_time, velocity)
-            
-            for msg in track:
-                current_time += msg.time
-                
-                if msg.type == 'note_on' and msg.velocity > 0:
-                    active_notes[msg.note] = (
-                        mido.tick2second(current_time, mid.ticks_per_beat, 500000),  # Default tempo
-                        msg.velocity
-                    )
-                elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
-                    if msg.note in active_notes:
-                        start_time, velocity = active_notes.pop(msg.note)
-                        end_time = mido.tick2second(current_time, mid.ticks_per_beat, 500000)
-                        
-                        note = MIDINote(
-                            pitch=msg.note,
-                            velocity=velocity,
-                            start_time=start_time,
-                            end_time=end_time,
-                            track=track_idx,
-                            channel=getattr(msg, 'channel', 0)
-                        )
-                        notes.append(note)
-        
-        return sorted(notes, key=lambda n: n.start_time)
-    
+        return [MIDINote(pitch, velocity, start, end, track, channel)
+                for start, end, pitch, velocity, track, channel in timed_notes(mid, mido)]
+
     def _filter_and_select_tracks(self, notes: List[MIDINote], tracks: List) -> List[MIDINote]:
         """Filter notes and select the best tracks for chord analysis."""
         # Group notes by track
@@ -338,8 +315,9 @@ class MIDIChordAnalyzer:
             if score > 0:
                 track_scores[track_idx] = score
         
-        # Select best tracks (up to 3 tracks for polyphonic analysis)
-        best_tracks = sorted(track_scores.items(), key=lambda x: x[1], reverse=True)[:3]
+        # Prefer the strongest chordal track; mixing melody and accompaniment
+        # produces false pitch collections at chord boundaries.
+        best_tracks = sorted(track_scores.items(), key=lambda x: x[1], reverse=True)[:1]
         selected_track_ids = [track_id for track_id, _ in best_tracks]
         
         # Return notes from selected tracks
@@ -400,21 +378,19 @@ class MIDIChordAnalyzer:
         if not notes:
             return []
         
-        # Create time slices for chord detection
-        time_slices = self._create_time_slices(notes, slice_duration=0.5)
-        
         chords = []
-        for slice_start, slice_notes in time_slices:
-            if len(slice_notes) >= self.chord_detection_threshold:
-                chord = self._analyze_chord_slice(slice_notes, slice_start)
-                if chord:
-                    chords.append(chord)
-        
-        # Post-process chords (merge similar adjacent chords, etc.)
-        chords = self._post_process_chords(chords)
-        
-        return chords
-    
+        for group, pitches, (root, suffix, bass) in chord_groups(
+                [(n.start_time, n.end_time, n.pitch, n.velocity, n.track, n.channel)
+                 for n in notes]):
+            if len(pitches) < self.chord_detection_threshold:
+                continue
+            chords.append(ChordInstance(
+                notes=pitches, root=root, chord_type=suffix or 'maj',
+                start_time=min(n[0] for n in group), end_time=max(n[1] for n in group),
+                bass_note=min(pitches), confidence=1.0,
+                track_sources=sorted({n[4] for n in group})))
+        return self._post_process_chords(chords)
+
     def _create_time_slices(self, notes: List[MIDINote], slice_duration: float = 0.5) -> List[Tuple[float, List[MIDINote]]]:
         """Create time slices for chord analysis."""
         if not notes:

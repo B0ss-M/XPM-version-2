@@ -4,6 +4,7 @@ numpy>=1.19.0        # Numerical computing
 scipy>=1.6.0         # Scientific computing
 librosa>=0.8.0       # Audio analysis and pitch detection
 soundfile>=0.10.0    # Audio file I/O
+mido>=1.2.10         # MIDI chord and progression import
 tkinterdnd2>=0.4.0   # Multi-sample builder drag and drop
 
 # Optional Dependencies for Enhanced Sample Extraction

@@ -15,6 +15,7 @@ import os
 import json
 import traceback
 from typing import List, Dict, Optional, TYPE_CHECKING
+from scripts.midi_harmony import NOTE_NAMES, recognize, timed_notes, chord_groups
 
 try:
     # Allow static type checkers to see mido types while avoiding hard import errors at analysis time.
@@ -43,62 +44,14 @@ def detect_chord_name(notes: List[int], root: int) -> str:
     """Detect chord name from MIDI notes and root.
     Returns chord symbol like 'Cm', 'F7', 'Bb', etc.
     """
+    match = recognize(notes)
+    if match:
+        detected_root, suffix, bass = match
+        return NOTE_NAMES[detected_root] + suffix + (f'/{NOTE_NAMES[bass]}' if bass != detected_root else '')
     if not notes or root is None:
         return ""
+    return ""  # Unknown note sets must not be mislabeled as a chord.
     
-    # Note names for display
-    note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    
-    # Get root note name
-    root_name = note_names[root % 12]
-    
-    # Calculate intervals from root
-    intervals = set()
-    for note in notes:
-        interval = (note - root) % 12
-        if interval != 0:  # Skip root
-            intervals.add(interval)
-    
-    # Detect chord types based on intervals
-    if not intervals:
-        return root_name  # Just root note
-    elif intervals == {4, 7}:
-        return root_name  # Major triad
-    elif intervals == {3, 7}:
-        return root_name + 'm'  # Minor triad
-    elif intervals == {4, 7, 10}:
-        return root_name + '7'  # Dominant 7th
-    elif intervals == {4, 7, 11}:
-        return root_name + 'maj7'  # Major 7th
-    elif intervals == {3, 7, 10}:
-        return root_name + 'm7'  # Minor 7th
-    elif intervals == {3, 6, 10}:
-        return root_name + 'm7b5'  # Half-diminished
-    elif intervals == {3, 6}:
-        return root_name + 'dim'  # Diminished
-    elif intervals == {4, 8}:
-        return root_name + 'aug'  # Augmented
-    elif intervals == {5, 7}:
-        return root_name + 'sus4'  # Suspended 4th
-    elif intervals == {2, 7}:
-        return root_name + 'sus2'  # Suspended 2nd
-    elif 4 in intervals and 7 in intervals:
-        # Major-based extended chords
-        if 9 in intervals:
-            return root_name + 'add9'
-        elif 2 in intervals:
-            return root_name + 'add2'
-        return root_name
-    elif 3 in intervals and 7 in intervals:
-        # Minor-based extended chords
-        if 9 in intervals:
-            return root_name + 'm(add9)'
-        elif 2 in intervals:
-            return root_name + 'm(add2)'
-        return root_name + 'm'
-    else:
-        # Complex or unrecognized chord
-        return root_name + f'({len(notes)})'
 
 
 def parse_midi_file(path: str, time_window: float = 0.06) -> List[Dict]:
@@ -107,77 +60,20 @@ def parse_midi_file(path: str, time_window: float = 0.06) -> List[Dict]:
     time_window: seconds within which simultaneous note-ons are grouped into the same chord.
     """
     if not MIDO_AVAILABLE:
-        raise ImportError("mido is required to parse MIDI files. Install with: pip install mido python-rtmidi")
+        raise ImportError("mido is required to parse MIDI files. Install with: pip install mido")
 
     try:
         mid = mido.MidiFile(path)
     except Exception as e:
         raise RuntimeError(f'Could not read MIDI file {path}: {e}')
 
-    # Build list of (time_seconds, note) note_on events (note on with velocity>0)
-    events = []
-    tempo = 500000  # default microseconds per beat
-    ticks_per_beat = getattr(mid, 'ticks_per_beat', 480) or 480
-
-    # Merge tracks to get proper chronological ordering and tempo events
-    try:
-        merged = mido.merge_tracks(mid.tracks)
-    except Exception:
-        # fallback: iterate tracks individually (less accurate)
-        merged = None
-
-    if merged is not None:
-        t = 0
-        for msg in merged:
-            t += getattr(msg, 'time', 0)
-            if getattr(msg, 'type', None) == 'set_tempo':
-                tempo = msg.tempo
-            if getattr(msg, 'type', None) == 'note_on' and getattr(msg, 'velocity', 0) > 0:
-                seconds = mido.tick2second(t, ticks_per_beat, tempo)
-                events.append((seconds, msg.note))
-    else:
-        # less accurate: scan each track and collect events with per-track ticks
-        for track in mid.tracks:
-            t = 0
-            local_tempo = tempo
-            for msg in track:
-                t += getattr(msg, 'time', 0)
-                if getattr(msg, 'type', None) == 'set_tempo':
-                    local_tempo = msg.tempo
-                if getattr(msg, 'type', None) == 'note_on' and getattr(msg, 'velocity', 0) > 0:
-                    seconds = mido.tick2second(t, ticks_per_beat, local_tempo)
-                    events.append((seconds, msg.note))
-
-    if not events:
-        return []
-
-    # Sort events by time
-    events.sort(key=lambda x: x[0])
-
-    # Group events into chords by time_window
     chords = []
-    bucket = [events[0][1]]
-    bucket_time = events[0][0]
-
-    for ev_time, note in events[1:]:
-        if ev_time - bucket_time <= time_window:
-            bucket.append(note)
-        else:
-            notes_sorted = sorted(set(bucket))
-            root = min(notes_sorted) if notes_sorted else None
-            chord_name = detect_chord_name(notes_sorted, root) if root is not None else ""
-            chords.append({'root': root, 'name': chord_name, 'notes': ';'.join(str(n) for n in notes_sorted)})
-            bucket = [note]
-            bucket_time = ev_time
-
-    # flush last bucket
-    if bucket:
-        notes_sorted = sorted(set(bucket))
-        root = min(notes_sorted) if notes_sorted else None
-        chord_name = detect_chord_name(notes_sorted, root) if root is not None else ""
-        chords.append({'root': root, 'name': chord_name, 'notes': ';'.join(str(n) for n in notes_sorted)})
-
+    for group, notes, (root, suffix, bass) in chord_groups(timed_notes(mid, mido), time_window):
+        name = NOTE_NAMES[root] + suffix + (f'/{NOTE_NAMES[bass]}' if bass != root else '')
+        chords.append({'root': root, 'name': name,
+                       'notes': ';'.join(str(n) for n in notes)})
     return chords
+
 
 
 def parse_midi_folder(folder: str, time_window: float = 0.06, recursive: bool = True) -> List[Dict]:
