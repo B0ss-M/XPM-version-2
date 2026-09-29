@@ -21,4 +21,5 @@ echo "✅ Packages installed."
 
 echo ""
 echo "--- 🎉 Setup Complete! ---"
-echo "The environment is ready. The documented GUI entry point is not present in this checkout."
+echo "The environment is ready. Run the GUI with:"
+echo "python \"Gemini wav_TO_XpmV2.py\""
