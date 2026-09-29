@@ -1,0 +1,7 @@
+Starting Ripchord Batch Conversion (XML Mode)
+Input Folder: C:\Users\Mr H\Desktop\Ripchord
+Output Folder: C:\Users\Mr H\Desktop\Ripchord/Progressions
+--------------------------------------------------
+--------------------------------------------------
+Conversion complete: 0 files succeeded, 0 files failed.
+Log file saved at: C:\Users\Mr H\Desktop\Ripchord/Logs/log_2026-02-07_13-31-21.txt

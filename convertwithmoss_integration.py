@@ -1,194 +1,268 @@
 #!/usr/bin/env python3
-# Professional XPM Standards (based on ConvertWithMoss analysis):
-# 1. Root notes should have +1 offset (MPC hardware convention)
-# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
-# 3. Group samples by key ranges instead of single notes
-# 4. Maximum 4 layers per keygroup (MPC hardware limit)
-# 5. Use consecutive key ranges for better playability
+"""ConvertWithMoss Integration for XPM Tool
 
-"""
-ConvertWithMoss Integration for XPM Tool
-=========================            }
-        }
-    
-    def _run_command(self, args: List[str], timeout: int = 30) -> Dict:
-        """
-        Run a ConvertWithMoss command with the given arguments
-        
-        Args:
-            args: Command line arguments to pass to the JAR
-            timeout: Command timeout in seconds
-            
-        Returns:
-            Dictionary with success, output, and error information
-        """
-        if not self.java_available:
-            return {'success': False, 'output': '', 'error': 'Java not available'}
-            
-        try:
-            cmd = ['java', '-jar', self.jar_path] + args
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-            
-            return {
-                'success': result.returncode == 0,
-                'output': result.stdout,
-                'error': result.stderr,
-                'returncode': result.returncode
-            }
-            
-        except subprocess.TimeoutExpired:
-            return {'success': False, 'output': '', 'error': 'Command timed out'}
-        except Exception as e:
-            return {'success': False, 'output': '', 'error': str(e)}
-    
-    def convert_to_xpm(self, input_file: str, output_dir: str,===========
-
-This module integrates the ConvertWithMoss Java library (convertwithmoss-14.0.0.jar) 
-into our Python XPM processing workflow to enable multi-format conversion.
-
-ConvertWithMoss supports:
-- Akai MPC (XPM) ↔ Many other formats
-- SF2, SFZ, NKI/Kontakt, EXS24, Ableton, etc.
-- Intelligent sample mapping and range detection
-- Cross-platform format conversion
-
-Integration Benefits:
-1. Import samples from other formats into XPM
-2. Export XPM to other popular sampler formats  
-3. Learn from ConvertWithMoss's mapping algorithms
-4. Batch convert between formats
-5. Cross-reference format-specific optimizations
+This module provides a small wrapper around the ConvertWithMoss Java
+application (convertwithmoss-*.jar). It focuses on robust JAR detection,
+Java availability checks, and safe subprocess execution with logging.
 """
 
-import subprocess
+from __future__ import annotations
+
 import json
-import os
 import logging
-import tempfile
-from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+import os
+import subprocess
+from typing import Dict, List, Tuple, Optional
+
 
 class ConvertWithMossIntegration:
-    """Integration wrapper for ConvertWithMoss Java application"""
-    
-    def __init__(self, jar_path: str = None):
-        """
-        Initialize ConvertWithMoss integration
-        
-        Args:
-            jar_path: Path to convertwithmoss-14.0.0.jar (ConvertWithMoss)
-        """
-        self.jar_path = jar_path or self._find_jar_path()
+    """Integration wrapper for ConvertWithMoss Java application."""
+
+    def __init__(self, jar_path: Optional[str] = None):
+        # Respect an explicit argument first, then env var, then repository discovery.
+        if jar_path:
+            self.jar_path = os.path.abspath(jar_path)
+        else:
+            try:
+                self.jar_path = self._find_jar_path()
+            except FileNotFoundError:
+                logging.warning('ConvertWithMoss JAR not found during initialization; some features will be disabled until a JAR is provided or placed in the repo.')
+                self.jar_path = None
+
         self.java_available = self._check_java_availability()
         self.supported_formats = self._get_supported_formats()
-        
+
     def _find_jar_path(self) -> str:
-        """Find the convertwithmoss JAR file in the workspace"""
-        possible_paths = [
-            "./convertwithmoss-14.0.0.jar",
-            "../convertwithmoss-14.0.0.jar", 
-            "/Users/marlsz/Documents/GitHub/XPM-version-2/convertwithmoss-14.0.0.jar"
+        """Discover a ConvertWithMoss JAR to use.
+
+        Preference order:
+        1) Environment variable CONVERTWITHMOSS_JAR (if it points to an existing file)
+        2) Known repository locations (repo root, ConvertWithMoss/target/lib)
+        3) Shallow walk under the package directory to find any convertwithmoss-*.jar
+
+        Raises FileNotFoundError if none found.
+        """
+        # 1) Environment override
+        env = os.getenv('CONVERTWITHMOSS_JAR')
+        if env:
+            if os.path.exists(env):
+                logging.info('Using ConvertWithMoss JAR from CONVERTWITHMOSS_JAR: %s', env)
+                return os.path.abspath(env)
+            raise FileNotFoundError(f"CONVERTWITHMOSS_JAR is set but file does not exist: {env}")
+
+        # Helper: normalize a candidate path and check existence
+        def _ok(p):
+            try:
+                if p and os.path.exists(p):
+                    return os.path.abspath(p)
+            except Exception:
+                return None
+            return None
+
+        base = os.path.abspath(os.path.dirname(__file__))
+
+        # 2) Try common repository placements, prefer top-level jars first
+        common_candidates = [
+            os.path.join(base, '..', 'convertwithmoss-14.0.0.jar'),
+            os.path.join(base, 'convertwithmoss-14.0.0.jar'),
+            os.path.join(base, '..', 'ConvertWithMoss', 'target', 'lib', 'convertwithmoss-14.0.0.jar'),
+            os.path.join(base, 'ConvertWithMoss', 'target', 'lib', 'convertwithmoss-14.0.0.jar'),
         ]
-        
-        for path in possible_paths:
-            if os.path.exists(path):
-                return os.path.abspath(path)
-                
-        raise FileNotFoundError("convertwithmoss-14.0.0.jar not found. Please ensure it's in the workspace.")
-    
-    def _check_java_availability(self) -> bool:
-        """Check if Java runtime is available"""
+
+        for cand in common_candidates:
+            found = _ok(cand)
+            if found:
+                logging.info('Found ConvertWithMoss JAR at: %s', found)
+                return found
+
+        # 3) Do a shallow repository search under base (limit depth to avoid long scans)
+        max_depth = 3
+        base_depth = base.count(os.sep)
+        for root, dirs, files in os.walk(base):
+            # limit depth
+            if root.count(os.sep) - base_depth > max_depth:
+                # prune deeper dirs
+                dirs[:] = []
+                continue
+            for f in files:
+                if f.lower().startswith('convertwithmoss') and f.lower().endswith('.jar'):
+                    candidate = os.path.join(root, f)
+                    logging.info('Discovered ConvertWithMoss JAR at: %s', candidate)
+                    return os.path.abspath(candidate)
+
+        # As a last-ditch, try a repository-wide glob from the parent directory
         try:
-            result = subprocess.run(['java', '-version'], 
-                                  capture_output=True, text=True, timeout=10)
+            import glob
+
+            parent = os.path.abspath(os.path.join(base, '..'))
+            pattern = os.path.join(parent, '**', 'convertwithmoss-*.jar')
+            matches = glob.glob(pattern, recursive=True)
+            if matches:
+                logging.info('Found ConvertWithMoss JAR via glob: %s', matches[0])
+                return os.path.abspath(matches[0])
+        except Exception:
+            pass
+
+        raise FileNotFoundError('convertwithmoss JAR not found. Set CONVERTWITHMOSS_JAR or place the JAR in the repository.')
+
+    def _check_java_availability(self) -> bool:
+        """Check if Java runtime is available."""
+        try:
+            import shutil
+
+            java = shutil.which('java')
+            if not java:
+                return False
+
+            result = subprocess.run([java, '-version'], capture_output=True, text=True, timeout=8)
             return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except Exception:
             return False
-    
+
     def _get_supported_formats(self) -> Dict[str, Dict]:
-        """Get list of formats supported by ConvertWithMoss"""
+        """Return a lightweight list of supported input/output formats."""
         return {
             'input_formats': {
                 'akai_mpc': {'extensions': ['.xpm'], 'description': 'Akai MPC Keygroup'},
                 'sf2': {'extensions': ['.sf2'], 'description': 'SoundFont 2'},
                 'sfz': {'extensions': ['.sfz'], 'description': 'SFZ Format'},
-                'nki': {'extensions': ['.nki'], 'description': 'Native Instruments Kontakt'},
-                'exs24': {'extensions': ['.exs'], 'description': 'Logic EXS24'},
-                'ableton': {'extensions': ['.adg'], 'description': 'Ableton Drum Rack'},
-                'bitwig': {'extensions': ['.bwpreset'], 'description': 'Bitwig Multisample'},
-                'yamaha': {'extensions': ['.ysfc'], 'description': 'Yamaha YSFC'},
-                'tal_sampler': {'extensions': ['.talsmpl'], 'description': 'TAL Sampler'},
-                'tx16wx': {'extensions': ['.txprog'], 'description': 'TX16Wx'},
-                'decentsampler': {'extensions': ['.dspreset'], 'description': 'DecentSampler'},
-                'korg': {'extensions': ['.multisample'], 'description': 'Korg Multisample'},
+                'nki': {'extensions': ['.nki'], 'description': 'Kontakt'},
+                'exs24': {'extensions': ['.exs'], 'description': 'EXS24'},
             },
             'output_formats': {
                 'akai_mpc': 'MPC Keygroup (XPM)',
-                'sf2': 'SoundFont 2', 
+                'sf2': 'SoundFont 2',
                 'sfz': 'SFZ',
-                'nki': 'Kontakt (limited)',
-                'ableton': 'Ableton Drum Rack',
-                'bitwig': 'Bitwig Multisample',
-                'decentsampler': 'DecentSampler',
-                'wav': 'Individual WAV files'
+                'wav': 'WAV files',
             }
         }
-    
-    def convert_to_xpm(self, input_file: str, output_dir: str, 
-                       format_hint: str = None) -> Tuple[bool, str, List[str]]:
-        """
-        Convert other formats to XPM using ConvertWithMoss
-        
-        Args:
-            input_file: Path to input file (SF2, SFZ, NKI, etc.)
-            output_dir: Directory to save converted XPM files
-            format_hint: Hint about input format if auto-detection fails
-            
-        Returns:
-            (success, message, list_of_created_files)
+
+    def _run_command(self, args: List[str], timeout: int = 30) -> Dict:
+        """Run the ConvertWithMoss JAR with the provided args.
+
+        Returns a dict with keys: success (bool), output (stdout), error (stderr), returncode (int).
         """
         if not self.java_available:
-            return False, "Java runtime not available. Please install Java.", []
-            
-        if not os.path.exists(input_file):
-            return False, f"Input file not found: {input_file}", []
-            
-        # Create output directory
-        os.makedirs(output_dir, exist_ok=True)
-        
+            return {'success': False, 'output': '', 'error': 'Java runtime is not available', 'returncode': 127}
+
+        if not self.jar_path or not os.path.exists(self.jar_path):
+            return {
+                'success': False,
+                'output': '',
+                'error': 'ConvertWithMoss JAR not found. Provide CONVERTWITHMOSS_JAR or place the JAR in the repository.',
+                'returncode': 127,
+            }
+
+        cmd = ['java', '-jar', self.jar_path] + args
+        logging.debug('Running ConvertWithMoss command: %s', ' '.join(cmd))
+
         try:
-            # ConvertWithMoss command structure (example - need to verify actual syntax)
-            cmd = [
-                'java', '-jar', self.jar_path,
-                '--input', input_file,
-                '--output-format', 'akai_mpc',
-                '--output-dir', output_dir,
-                '--preserve-names'
-            ]
-            
-            if format_hint:
-                cmd.extend(['--input-format', format_hint])
-            
-            logging.info(f"🔄 Converting {os.path.basename(input_file)} to XPM format...")
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-            
-            if result.returncode == 0:
-                # Find created XPM files
-                created_files = []
-                for file in os.listdir(output_dir):
-                    if file.endswith('.xpm'):
-                        created_files.append(os.path.join(output_dir, file))
-                
-                return True, f"Successfully converted to {len(created_files)} XPM file(s)", created_files
-            else:
-                error_msg = result.stderr or result.stdout or "Unknown conversion error"
-                return False, f"Conversion failed: {error_msg}", []
-                
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+            if result.stdout:
+                logging.debug('ConvertWithMoss stdout: %s', result.stdout)
+            if result.stderr:
+                logging.debug('ConvertWithMoss stderr: %s', result.stderr)
+
+            return {
+                'success': result.returncode == 0,
+                'output': result.stdout,
+                'error': result.stderr,
+                'returncode': result.returncode,
+            }
         except subprocess.TimeoutExpired:
-            return False, "Conversion timed out (>5 minutes)", []
+            logging.error('ConvertWithMoss command timed out after %s seconds', timeout)
+            return {'success': False, 'output': '', 'error': 'timeout', 'returncode': -1}
         except Exception as e:
-            return False, f"Conversion error: {str(e)}", []
+            logging.exception('Error running ConvertWithMoss JAR: %s', e)
+            return {'success': False, 'output': '', 'error': str(e), 'returncode': -2}
+
+    def convert_to_xpm(self, input_file: str, output_dir: str, format_hint: Optional[str] = None) -> Tuple[bool, str, List[str]]:
+        """Convert an input file to XPM using the JAR.
+
+        Returns (success, message, created_files).
+        """
+        if not os.path.exists(input_file):
+            return False, f'Input file not found: {input_file}', []
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        cmd = [
+            '--input', input_file,
+            '--output-format', 'akai_mpc',
+            '--output-dir', output_dir,
+            '--preserve-names',
+        ]
+        if format_hint:
+            cmd.extend(['--input-format', format_hint])
+
+        res = self._run_command(cmd, timeout=300)
+        if res['success']:
+            created = [os.path.join(output_dir, f) for f in os.listdir(output_dir) if f.endswith('.xpm')]
+            return True, f'Successfully converted to {len(created)} XPM file(s)', created
+        return False, f"Conversion failed: {res['error']}", []
+
+    def convert_from_xpm(self, xpm_file: str, output_format: str, output_dir: str) -> Tuple[bool, str, List[str]]:
+        if output_format not in self.supported_formats['output_formats']:
+            return False, f'Unsupported output format: {output_format}', []
+
+        os.makedirs(output_dir, exist_ok=True)
+        cmd = [
+            '--input', xpm_file,
+            '--output-format', output_format,
+            '--output-dir', output_dir,
+        ]
+        res = self._run_command(cmd, timeout=300)
+        if res['success']:
+            created = [os.path.join(output_dir, f) for f in os.listdir(output_dir)
+                       if any(f.endswith(ext) for ext in ['.sf2', '.sfz', '.adg', '.dspreset', '.wav'])]
+            return True, f'Successfully converted to {output_format}', created
+        return False, f"Conversion failed: {res['error']}", []
+
+    def analyze_format_structure(self, input_file: str) -> Dict:
+        if not os.path.exists(input_file):
+            return {'error': 'input not found'}
+
+        cmd = ['--analyze', input_file, '--output-format', 'json']
+        res = self._run_command(cmd, timeout=60)
+        if not res['success']:
+            return {'error': res['error']}
+
+        try:
+            return json.loads(res['output']) if res['output'] else {'raw': res['error']}
+        except Exception:
+            return {'raw': res['output'] or res['error']}
+
+    def batch_convert_to_xpm(self, input_dir: str, output_dir: str, input_formats: Optional[List[str]] = None) -> Dict:
+        if input_formats is None:
+            input_formats = list(self.supported_formats['input_formats'].keys())
+
+        results = {'converted': [], 'failed': [], 'skipped': [], 'total_files': 0}
+
+        for root, dirs, files in os.walk(input_dir):
+            for file in files:
+                path = os.path.join(root, file)
+                ext = os.path.splitext(file)[1].lower()
+                # Map extension to known formats
+                format_found = None
+                for fmt, info in self.supported_formats['input_formats'].items():
+                    if ext in info['extensions']:
+                        format_found = fmt
+                        break
+
+                if not format_found or format_found not in input_formats:
+                    results['skipped'].append(path)
+                    continue
+
+                results['total_files'] += 1
+                rel = os.path.relpath(os.path.dirname(path), input_dir)
+                out_sub = os.path.join(output_dir, rel)
+                success, msg, created = self.convert_to_xpm(path, out_sub, format_found)
+                if success:
+                    results['converted'].append({'input': path, 'files': created})
+                else:
+                    results['failed'].append({'input': path, 'error': msg})
+
+                return results
     
     def convert_from_xmp(self, xpm_file: str, output_format: str, 
                         output_dir: str) -> Tuple[bool, str, List[str]]:
@@ -397,15 +471,26 @@ def create_conversion_gui_integration():
     
     def convert_to_xpm_dialog(self, source_format):
         """Dialog for converting other formats to XPM"""
-        input_file = filedialog.askopenfilename(
-            title=f"Select {source_format.upper()} file to convert",
-            filetypes=[(f"{source_format.upper()} files", f"*.{source_format}"), ("All files", "*.*")]
-        )
+        try:
+            # Use safe wrapper to normalize filetypes on macOS
+            from tk_file_utils import askopenfilename as safe_askopenfilename, askdirectory as safe_askdirectory
+            input_file = safe_askopenfilename(
+                title=f"Select {source_format.upper()} file to convert",
+                filetypes=[(f"{source_format.upper()} files", f"*.{source_format}"), ("All files", "*.*")]
+            )
+        except Exception:
+            input_file = filedialog.askopenfilename(
+                title=f"Select {source_format.upper()} file to convert",
+                filetypes=[(f"{source_format.upper()} files", f"*.{source_format}"), ("All files", "*.*")]
+            )
         
         if not input_file:
             return
             
-        output_dir = filedialog.askdirectory(title="Select output directory for XPM files")
+        try:
+            output_dir = safe_askdirectory(title="Select output directory for XPM files")
+        except Exception:
+            output_dir = filedialog.askdirectory(title="Select output directory for XPM files")
         if not output_dir:
             return
             

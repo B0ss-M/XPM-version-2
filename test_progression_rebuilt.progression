@@ -1,0 +1,166 @@
+{
+  "progression": {
+    "name": "Test Progression",
+    "rootNote": "C",
+    "scale": "C Major",
+    "recordingOctave": 4,
+    "chords": [
+      {
+        "name": "C",
+        "role": "Normal",
+        "notes": [
+          60,
+          64,
+          67
+        ],
+        "function": "normal",
+        "romanNumeral": "I"
+      },
+      {
+        "name": "Am",
+        "role": "Subdominant",
+        "notes": [
+          69,
+          72,
+          76
+        ],
+        "function": "subdominant",
+        "romanNumeral": "v"
+      },
+      {
+        "name": "F",
+        "role": "Dominant",
+        "notes": [
+          65,
+          69,
+          72
+        ],
+        "function": "dominant",
+        "romanNumeral": "III"
+      },
+      {
+        "name": "G",
+        "role": "Tonic",
+        "notes": [
+          67,
+          71,
+          74
+        ],
+        "function": "tonic",
+        "romanNumeral": "IV"
+      },
+      {
+        "name": "Am",
+        "role": "Substitution",
+        "notes": [
+          60,
+          63,
+          67
+        ],
+        "originalChord": "C",
+        "type": "HarmonicSubstitution"
+      },
+      {
+        "name": "Cmaj7",
+        "role": "Substitution",
+        "notes": [
+          60,
+          64,
+          67,
+          71
+        ],
+        "originalChord": "C",
+        "type": "HarmonicSubstitution"
+      },
+      {
+        "name": "C",
+        "role": "Substitution",
+        "notes": [
+          69,
+          73,
+          76
+        ],
+        "originalChord": "Am",
+        "type": "HarmonicSubstitution"
+      },
+      {
+        "name": "Am7",
+        "role": "Substitution",
+        "notes": [
+          69,
+          72,
+          76,
+          79
+        ],
+        "originalChord": "Am",
+        "type": "HarmonicSubstitution"
+      },
+      {
+        "name": "Dm",
+        "role": "Substitution",
+        "notes": [
+          65,
+          68,
+          72
+        ],
+        "originalChord": "F",
+        "type": "HarmonicSubstitution"
+      },
+      {
+        "name": "Fmaj7",
+        "role": "Substitution",
+        "notes": [
+          65,
+          69,
+          72,
+          76
+        ],
+        "originalChord": "F",
+        "type": "HarmonicSubstitution"
+      },
+      {
+        "name": "Em",
+        "role": "Substitution",
+        "notes": [
+          67,
+          70,
+          74
+        ],
+        "originalChord": "G",
+        "type": "HarmonicSubstitution"
+      },
+      {
+        "name": "Gmaj7",
+        "role": "Substitution",
+        "notes": [
+          67,
+          71,
+          74,
+          78
+        ],
+        "originalChord": "G",
+        "type": "HarmonicSubstitution"
+      }
+    ],
+    "analysis": {
+      "keySignature": "C",
+      "scale": "major",
+      "complexity": 0.1,
+      "moodTags": [
+        "bright",
+        "folk",
+        "uplifting",
+        "simple",
+        "happy",
+        "accessible"
+      ],
+      "romanNumerals": [
+        "I",
+        "v",
+        "III",
+        "IV"
+      ],
+      "modulations": []
+    }
+  }
+}

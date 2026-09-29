@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<root>
+  <preset>
+    <input note="60">
+      <chord name="Em" notes="52;59;64;67"/>
+      <chord name="C" notes="48;60;64;67"/>
+    </input>
+  </preset>
+</root>

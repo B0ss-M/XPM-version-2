@@ -1,0 +1,32 @@
+# Deluge Synth Manager Requirements
+# 
+# Core dependencies for the Deluge synth file manager
+# Built on the foundation of the XPM converter
+
+# Required dependencies (minimal functionality)
+# These are usually included with Python or are standard library
+
+# Optional dependencies for enhanced functionality
+# Install with: pip install -r deluge_requirements.txt
+
+# Audio processing and conversion
+soundfile>=0.10.3.post1  # High-quality audio I/O for multiple formats
+librosa>=0.8.1  # Advanced audio analysis and conversion
+numpy>=1.19.0  # Required by librosa, numerical processing
+
+# GUI enhancements (optional)
+# tkinter is included with most Python installations
+# Pillow>=8.0.0  # Advanced image processing for GUI icons (optional)
+
+# Development and testing (optional)
+# pytest>=6.0.0  # For running unit tests
+# black>=21.0.0  # Code formatting
+# flake8>=3.9.0  # Code linting
+
+# Audio format support extensions (optional)
+# pyaudio>=0.2.11  # Real-time audio I/O (if needed for monitoring)
+# pydub>=0.25.1  # Alternative audio processing library
+
+# Additional format support (optional)
+# mutagen>=1.45.1  # Audio metadata reading/writing
+# tinytag>=1.6.0  # Lightweight audio metadata extraction

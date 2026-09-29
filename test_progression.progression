@@ -1,0 +1,30 @@
+{
+  "progression": {
+    "name": "Test Progression",
+    "rootNote": "C",
+    "scale": "Chromatic",
+    "recordingOctave": 4,
+    "chords": [
+      {
+        "name": "C",
+        "role": "Root",
+        "notes": [60, 64, 67]
+      },
+      {
+        "name": "Am",
+        "role": "Normal",
+        "notes": [57, 60, 64]
+      },
+      {
+        "name": "F",
+        "role": "Normal",
+        "notes": [65, 69, 72]
+      },
+      {
+        "name": "G",
+        "role": "Normal",
+        "notes": [67, 71, 74]
+      }
+    ]
+  }
+}

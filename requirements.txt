@@ -1,4 +1,27 @@
-Pillow
-numpy
-scipy
-librosa
+# Core Dependencies (Required for full functionality)
+Pillow>=8.0.0        # Image processing for GUI
+numpy>=1.19.0        # Numerical computing
+scipy>=1.6.0         # Scientific computing
+librosa>=0.8.0       # Audio analysis and pitch detection
+soundfile>=0.10.0    # Audio file I/O
+
+# Optional Dependencies for Enhanced Sample Extraction
+# (Application will work without these, but with reduced functionality)
+
+# Archive Format Support
+rarfile>=4.0         # RAR archive extraction (optional)
+py7zr>=0.16.0        # 7-Zip archive extraction (optional)
+
+# Advanced Format Support  
+sf2utils>=0.9.0      # SoundFont (SF2) parsing and sample extraction (optional)
+
+# Installation Notes:
+# 
+# For basic functionality:
+#   pip install Pillow numpy scipy librosa soundfile
+#
+# For full functionality including archive support:
+#   pip install -r requirements.txt
+#
+# Note: The intelligent sample extraction system gracefully handles
+# missing optional dependencies and provides informative fallbacks.

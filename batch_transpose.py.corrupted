@@ -1,68 +1,8 @@
 #!/usr/bin/env python3
-# Professional XPM Standards (based on ConvertWithMoss analysis):
-# 1. Root notes should have +1 offset (MPC hardware convention)
-# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
-# 3. Group samples by key ranges instead of single notes
-# 4. Maximum 4 layers per keygroup (MPC hardware limit)
-# 5. Use consecutive key ranges for better playability
-
-"""
-Enhanced Batch Transpose Tool for XPM Files
-
-This tool allows you to batch transpose hundreds of XPM files by adjusting
-both the KeygroupMasterTranspose parameter and all individual sample mappings.
-Useful when instruments are playing at the wrong octave and need global transposition.
-
-NEW FEATURES:
-- Updates all sample mappings (LowNote, HighNote, RootNote) in addition to master transpose
-- Preserves MIDI note boundaries (0-127)
-- Skips invalid RootNote values (0)
-- Detailed logging of all changes
-
-Usage:
-    python batch_transpose.py -f /path/to/folder -t -24 --fix-mappings
-
-Example use case:
-    If you press C2 on MPC and it plays C4 (24 semitones too high),
-    use -24 to transpose down 2 octaves and fix all sample mappings.
-"""
-
-import argparse
-import os
-import glob
-import xml.etree.ElementTree as ET
-from typing import List, Tuple
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-logger = logging.getLogger(__name__)
-
-
-def indent_tree(tree: ET.ElementTree) -> None:
-    """Add indentation to XML tree for better formatting."""
-    def _indent(elem, level=0):
-        i = "\n" + level * "    "
-        if len(elem):
-            if not elem.text or not elem.text.strip():
-                elem.text = i + "    "
-            if not elem.tail or not elem.tail.strip():
-                elem.tail = i
-            for child in elem:
-                _indent(child, level + 1)
-            if not child.tail or not child.tail.strip():
-                child.tail = i
-        else:
-            if level and (not elem.tail or not elem.tail.strip()):
-                elem.tail = i
-    
-    _indent(tree.getroot())
-
-
-def get_current_transpose(xpm_path: str) -> float:
+# Professional XPM Standards (badef get_current_transpose(xmp_path: str) -> float:
     """Get the current KeygroupMasterTranspose value from an XPM file."""
     try:
-        tree = ET.parse(xpm_path)
+        tree = ET.parse(xmp_path)
         root = tree.getroot()
         
         transpose_elem = root.find(".//KeygroupMasterTranspose")
@@ -70,7 +10,7 @@ def get_current_transpose(xpm_path: str) -> float:
             return float(transpose_elem.text)
         return 0.0
     except Exception as e:
-        logger.error(f"Error reading transpose from {xpm_path}: {e}")
+        logger.error(f"Error reading transpose from {xmp_path}: {e}")
         return 0.0
 
 
@@ -121,20 +61,77 @@ def update_sample_mappings(tree: ET.ElementTree, transpose_semitones: float) -> 
                     except ValueError:
                         continue
     
-    return updated_count
+    return updated_counttWithMoss analysis):
+# 1. Root notes should have +1 offset (MPC hardware convention)
+# 2. Use File_Version 2.1 and Application_Version v2.11.6.6
+# 3. Group samples by key ranges instead of single notes
+# 4. Maximum 4 layers per keygroup (MPC hardware limit)
+# 5. Use consecutive key ranges for better playability
+
+"""
+Batch Transpose Tool for XPM Files
+
+This tool allows you to batch transpose hundreds of XPM files by adjusting
+the KeygroupMasterTranspose parameter. Useful when instruments are playing
+at the wrong octave and need global transposition.
+
+Usage:
+    python batch_transpose.py -f /path/to/folder -t -24
+
+Example use case:
+    If you press C2 on MPC and it plays C4 (24 semitones too high),
+    use -24 to transpose down 2 octaves.
+"""
+
+import argparse
+import os
+import glob
+import xml.etree.ElementTree as ET
+from typing import List, Tuple
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 
-def set_transpose(xpm_path: str, transpose_value: float, backup: bool = True, 
-                 fix_mappings: bool = False) -> bool:
-    """
-    Set the KeygroupMasterTranspose value in an XPM file and optionally fix sample mappings.
+def indent_tree(tree: ET.ElementTree) -> None:
+    """Add indentation to XML tree for better formatting."""
+    def _indent(elem, level=0):
+        i = "\n" + level * "    "
+        if len(elem):
+            if not elem.text or not elem.text.strip():
+                elem.text = i + "    "
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+            for child in elem:
+                _indent(child, level + 1)
+            if not child.tail or not child.tail.strip():
+                child.tail = i
+        else:
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
     
-    Args:
-        xpm_path: Path to XPM file
-        transpose_value: New transpose value
-        backup: Create backup file
-        fix_mappings: Also update all sample mappings
-    """
+    _indent(tree.getroot())
+
+
+def get_current_transpose(xpm_path: str) -> float:
+    """Get the current KeygroupMasterTranspose value from an XPM file."""
+    try:
+        tree = ET.parse(xpm_path)
+        root = tree.getroot()
+        
+        transpose_elem = root.find(".//KeygroupMasterTranspose")
+        if transpose_elem is not None and transpose_elem.text:
+            return float(transpose_elem.text)
+        return 0.0
+    except Exception as e:
+        logger.error(f"Error reading transpose from {xpm_path}: {e}")
+        return 0.0
+
+
+def set_transpose(xpm_path: str, transpose_value: float, backup: bool = True) -> bool:
+    """Set the KeygroupMasterTranspose value in an XPM file."""
     try:
         # Create backup if requested
         if backup:
@@ -161,24 +158,14 @@ def set_transpose(xpm_path: str, transpose_value: float, backup: bool = True,
                 return False
         
         # Set the new transpose value
-        old_master_transpose = float(transpose_elem.text) if transpose_elem.text else 0.0
+        old_value = float(transpose_elem.text) if transpose_elem.text else 0.0
         transpose_elem.text = f"{transpose_value:.6f}"
-        
-        mapping_updates = 0
-        if fix_mappings:
-            # Calculate the difference for sample mapping updates
-            transpose_diff = transpose_value - old_master_transpose
-            mapping_updates = update_sample_mappings(tree, transpose_diff)
         
         # Save the modified file
         indent_tree(tree)
         tree.write(xpm_path, encoding="utf-8", xml_declaration=True)
         
-        if fix_mappings and mapping_updates > 0:
-            logger.info(f"Updated {os.path.basename(xpm_path)}: Master transpose {old_master_transpose:.1f} → {transpose_value:.1f}, "
-                       f"Fixed {mapping_updates} sample mappings")
-        else:
-            logger.info(f"Updated {os.path.basename(xpm_path)}: {old_master_transpose:.1f} → {transpose_value:.1f} semitones")
+        logger.info(f"Updated {os.path.basename(xpm_path)}: {old_value:.1f} → {transpose_value:.1f} semitones")
         return True
         
     except Exception as e:
@@ -198,8 +185,7 @@ def find_xpm_files(folder_path: str, recursive: bool = True) -> List[str]:
 
 def batch_transpose(folder_path: str, transpose_amount: float, 
                    relative: bool = False, recursive: bool = True, 
-                   backup: bool = True, dry_run: bool = False,
-                   fix_mappings: bool = False) -> Tuple[int, int]:
+                   backup: bool = True, dry_run: bool = False) -> Tuple[int, int]:
     """
     Batch transpose all XPM files in a folder.
     
@@ -210,7 +196,6 @@ def batch_transpose(folder_path: str, transpose_amount: float,
         recursive: Search subfolders for XPM files
         backup: Create .backup files before modifying
         dry_run: Show what would be done without making changes
-        fix_mappings: Also update all sample mappings (LowNote, HighNote, RootNote)
     
     Returns:
         Tuple of (successful_count, total_count)
@@ -226,9 +211,6 @@ def batch_transpose(folder_path: str, transpose_amount: float,
     if dry_run:
         logger.info("DRY RUN - No files will be modified")
     
-    if fix_mappings:
-        logger.info("Sample mapping fix enabled - will update LowNote, HighNote, and RootNote values")
-    
     successful = 0
     
     for xpm_path in xpm_files:
@@ -241,12 +223,10 @@ def batch_transpose(folder_path: str, transpose_amount: float,
                 new_transpose = transpose_amount
             
             if dry_run:
-                action_desc = f"transpose {current_transpose:.1f} → {new_transpose:.1f} semitones"
-                if fix_mappings:
-                    action_desc += " + fix sample mappings"
-                logger.info(f"Would update {os.path.basename(xpm_path)}: {action_desc}")
+                logger.info(f"Would update {os.path.basename(xpm_path)}: "
+                           f"{current_transpose:.1f} → {new_transpose:.1f} semitones")
             else:
-                if set_transpose(xpm_path, new_transpose, backup, fix_mappings):
+                if set_transpose(xpm_path, new_transpose, backup):
                     successful += 1
         
         except Exception as e:
@@ -256,15 +236,13 @@ def batch_transpose(folder_path: str, transpose_amount: float,
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Enhanced Batch Transpose Tool for XPM Files")
+    parser = argparse.ArgumentParser(description="Batch transpose XPM files")
     parser.add_argument("-f", "--folder", required=True,
                        help="Folder containing XPM files")
     parser.add_argument("-t", "--transpose", type=float, required=True,
                        help="Transpose amount in semitones (e.g., -24 for down 2 octaves)")
     parser.add_argument("-r", "--relative", action="store_true",
                        help="Add to existing transpose instead of setting absolute value")
-    parser.add_argument("--fix-mappings", action="store_true",
-                       help="Also update all sample mappings (LowNote, HighNote, RootNote)")
     parser.add_argument("--no-recursive", action="store_true",
                        help="Don't search subfolders")
     parser.add_argument("--no-backup", action="store_true",
@@ -293,8 +271,7 @@ def main():
         relative=args.relative,
         recursive=not args.no_recursive,
         backup=not args.no_backup,
-        dry_run=args.dry_run,
-        fix_mappings=args.fix_mappings
+        dry_run=args.dry_run
     )
     
     if args.dry_run:
