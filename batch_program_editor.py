@@ -4,7 +4,7 @@ import logging
 import xml.etree.ElementTree as ET
 import json
 from collections import defaultdict
-from xpm_utils import _parse_xpm_for_rebuild, indent_tree
+from xpm_utils import _parse_xpm_for_rebuild, indent_tree, load_program_pads, write_program_pads
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 from xpm_parameter_editor import (
@@ -49,11 +49,11 @@ def build_program_pads_json(
     if mappings:
         for m in mappings:
             try:
-                pad_index = int(m.get('pad', m.get('midi_note', 0)))
+                pad_index = int(m.get('pad', m.get('midi_note', m.get('root_note', 0))))
                 if 0 <= pad_index < 128:
                     pads[f"value{pad_index}"] = {
                         'samplePath': m.get('sample_path', ''),
-                        'rootNote': int(m.get('midi_note', 60)),
+                        'rootNote': int(m.get('root_note', m.get('midi_note', 60))),
                         'lowNote': int(m.get('low_note', 0)),
                         'highNote': int(m.get('high_note', 127)),
                         'velocityLow': int(m.get('velocity_low', 0)),
@@ -79,7 +79,9 @@ def build_program_pads_json(
         # Create a mapping from pad index to instrument index
         # Each instrument (keygroup) needs a corresponding entry
         pads_obj['padToInstrument'] = {str(i): i for i in range(num_instruments)}
-    return xml_escape(json.dumps(pads_obj, indent=4))
+    if firmware in {'3.4.0', '3.5.0'}:
+        pads_obj = {'ProgramPads-v2.10': pads_obj}
+    return json.dumps(pads_obj, indent=4)
 
 
 
@@ -111,7 +113,7 @@ def create_simple_xpm(program_name: str, mappings: list[dict], output_folder: st
     ET.SubElement(version, 'Platform').text = 'Linux'
 
     program = ET.SubElement(root, 'Program', {'type': 'Keygroup'})
-    ET.SubElement(program, 'ProgramName').text = xml_escape(program_name)
+    ET.SubElement(program, 'ProgramName').text = program_name
 
     pads_tag = 'ProgramPads-v2.10' if firmware in {'3.4.0', '3.5.0'} else 'ProgramPads'
     pads_json = build_program_pads_json(
@@ -286,13 +288,13 @@ def fix_keygroup_counts(folder: str) -> int:
                     
                 if pads_elem is not None and pads_elem.text:
                     try:
-                        json_text = xml_unescape(pads_elem.text)
-                        data = json.loads(json_text)
-                        
-                        if 'padToInstrument' in data and len(data['padToInstrument']) != actual_count:
+                        data, payload = load_program_pads(pads_elem)
+                        if payload is None:
+                            continue
+                        if 'padToInstrument' in payload and len(payload['padToInstrument']) != actual_count:
                             # Update padToInstrument mapping
-                            data['padToInstrument'] = {str(i): i for i in range(actual_count)}
-                            pads_elem.text = xml_escape(json.dumps(data, indent=4))
+                            payload['padToInstrument'] = {str(i): i for i in range(actual_count)}
+                            write_program_pads(pads_elem, data)
                             fixed_json = True
                     except Exception as e:
                         logging.error(f"Error fixing JSON in {file}: {e}")

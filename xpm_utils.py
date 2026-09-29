@@ -58,6 +58,34 @@ LAYER_PARAMS_TO_PRESERVE = [
 ]
 
 
+def load_program_pads(pads_elem):
+    """Return (document, payload) for either flat or version-wrapped pads JSON.
+
+    ElementTree has already decoded XML entities. The fallback accepts older
+    files whose writers escaped the JSON before assigning element text.
+    """
+    if pads_elem is None or not pads_elem.text:
+        return None, None
+    try:
+        data = json.loads(pads_elem.text)
+    except json.JSONDecodeError:
+        try:
+            data = json.loads(xml_unescape(pads_elem.text))
+        except json.JSONDecodeError:
+            return None, None
+    if not isinstance(data, dict):
+        return None, None
+    payload = data.get(pads_elem.tag)
+    if isinstance(payload, dict):
+        return data, payload
+    return data, data
+
+
+def write_program_pads(pads_elem, data):
+    """Write JSON as element text; ElementTree handles XML escaping."""
+    pads_elem.text = json.dumps(data, indent=4)
+
+
 def calculate_key_ranges(mappings):
     """
     Enhanced key range calculation for whole instruments.
@@ -213,8 +241,8 @@ def _parse_xpm_for_rebuild(xpm_path):
 
     if pads_elem is not None and pads_elem.text:
         try:
-            data = json.loads(xml_unescape(pads_elem.text))
-            pads = data.get("pads", {})
+            _data, payload = load_program_pads(pads_elem)
+            pads = payload.get("pads", {}) if payload else {}
             for pad_data in pads.values():
                 if isinstance(pad_data, dict) and pad_data.get("samplePath"):
                     sample_path = pad_data["samplePath"]

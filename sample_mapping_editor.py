@@ -318,7 +318,7 @@ class SampleMappingEditorWindow(tk.Toplevel):
         ET.SubElement(version, 'Application_Version').text = firmware
         ET.SubElement(version, 'Platform').text = 'Linux'
         program = ET.SubElement(root, 'Program', {'type': 'Keygroup'})
-        ET.SubElement(program, 'ProgramName').text = xml_escape(program_name)
+        ET.SubElement(program, 'ProgramName').text = program_name
         note_layers = defaultdict(list)
         for m in self.mappings:
             note_layers[(m['low_note'], m['high_note'])].append(m)

@@ -20,6 +20,7 @@ from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
 
 from audio_pitch import detect_fundamental_pitch
 from collections import Counter
+from xpm_utils import load_program_pads, write_program_pads
 
 
 def _update_text(elem: Optional[ET.Element], value: Optional[str]) -> bool:
@@ -151,15 +152,10 @@ def set_engine_mode(root: ET.Element, mode: str) -> bool:
 
     pads_elem = find_program_pads(root)
     if pads_elem is not None and pads_elem.text:
-        try:
-            data = json.loads(xml_unescape(pads_elem.text))
-        except json.JSONDecodeError:
-            data = {}
-        if not isinstance(data, dict):
-            data = {}
-        if data.get("engine") != mode:
-            data["engine"] = mode
-            pads_elem.text = xml_escape(json.dumps(data, indent=4))
+        data, payload = load_program_pads(pads_elem)
+        if payload is not None and payload.get("engine") != mode:
+            payload["engine"] = mode
+            write_program_pads(pads_elem, data)
             changed = True
 
     legacy_elem = root.find(".//KeygroupLegacyMode")
@@ -510,15 +506,12 @@ def update_wav_root_notes(root: ET.Element, folder: str) -> bool:
 
     pads_elem = find_program_pads(root)
     if pads_elem is not None and pads_elem.text:
-        try:
-            data = json.loads(xml_unescape(pads_elem.text))
-        except json.JSONDecodeError:
-            data = {}
-        pads = data.get("pads", {}) if isinstance(data, dict) else {}
+        _data, payload = load_program_pads(pads_elem)
+        pads = payload.get("pads", {}) if payload else {}
         for pad in pads.values():
             if isinstance(pad, dict):
                 sample = pad.get("samplePath")
-                root_note = pad + 1  # ConvertWithMoss standard offset.get("rootNote")
+                root_note = pad.get("rootNote")
                 if sample and root_note is not None:
                     abs_path = sample if os.path.isabs(sample) else os.path.join(folder, sample)
                     if write_root_note_to_wav(abs_path, int(root_note)):
@@ -547,13 +540,8 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
 
     pads_elem = find_program_pads(root)
     if pads_elem is not None and pads_elem.text:
-        try:
-            data = json.loads(xml_unescape(pads_elem.text))
-        except json.JSONDecodeError:
-            data = {}
-        if not isinstance(data, dict):
-            data = {}
-        pads = data.get("pads", {})
+        data, payload = load_program_pads(pads_elem)
+        pads = payload.get("pads", {}) if payload else {}
         for pad in pads.values():
             if isinstance(pad, dict) and pad.get("samplePath"):
                 sample_path = pad["samplePath"]
@@ -569,15 +557,16 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
                 )
                 if midi is None:
                     continue
-                if pad.get("rootNote") != midi:
+                old_root = pad.get("rootNote")
+                if old_root != midi:
                     pad["rootNote"] = midi
                     changed = True
                 # Preserve existing note ranges when present
-                if pad.get("lowNote") in (None, pad.get("rootNote")):
+                if pad.get("lowNote") in (None, old_root):
                     if pad.get("lowNote") != midi:
                         pad["lowNote"] = midi
                         changed = True
-                if pad.get("highNote") in (None, pad.get("rootNote")):
+                if pad.get("highNote") in (None, old_root):
                     if pad.get("highNote") != midi:
                         pad["highNote"] = midi
                         changed = True
@@ -592,15 +581,15 @@ def fix_sample_notes(root: ET.Element, folder: str) -> bool:
                 pad_to_inst[str(idx)] = inst_idx
                 inst_idx += 1
         if inst_idx > 0:
-            if data.get("padToInstrument") != pad_to_inst:
-                data["padToInstrument"] = pad_to_inst
+            if payload.get("padToInstrument") != pad_to_inst:
+                payload["padToInstrument"] = pad_to_inst
                 changed = True
-        elif "padToInstrument" in data:
-            data.pop("padToInstrument")
+        elif payload is not None and "padToInstrument" in payload:
+            payload.pop("padToInstrument")
             changed = True
 
         if changed:
-            pads_elem.text = xml_escape(json.dumps(data, indent=4))
+            write_program_pads(pads_elem, data)
 
     for inst in root.findall(".//Instrument"):
         low_elem = inst.find("LowNote")
@@ -661,16 +650,13 @@ def fix_master_transpose(root: ET.Element, folder: str) -> bool:
 
     pads_elem = find_program_pads(root)
     if pads_elem is not None and pads_elem.text:
-        try:
-            data = json.loads(xml_unescape(pads_elem.text))
-        except json.JSONDecodeError:
-            data = {}
-        pads = data.get("pads", {}) if isinstance(data, dict) else {}
+        _data, payload = load_program_pads(pads_elem)
+        pads = payload.get("pads", {}) if payload else {}
         for pad in pads.values():
             if not isinstance(pad, dict):
                 continue
             sample_path = pad.get("samplePath")
-            root_note = pad + 1  # ConvertWithMoss standard offset.get("rootNote")
+            root_note = pad.get("rootNote")
             if sample_path and root_note is not None:
                 abs_path = (
                     sample_path
