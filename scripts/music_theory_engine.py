@@ -1618,12 +1618,10 @@ class MusicTheoryEngine:
             'indie_pop': [0, 4, 5, 3],  # I-V-vi-IV
         }
         
-        template = style_templates.get(style, style_templates['pop'])
+        template = list(style_templates.get(style, style_templates['pop']))
         
         # Extend or truncate template to desired length
-        while len(template) < length:
-            template.extend(template)
-        template = template[:length]
+        template = (template * ((length + len(template) - 1) // len(template)))[:length] if length > 0 else []
         
         # Generate chords with style-specific characteristics
         progression = []
@@ -1632,11 +1630,20 @@ class MusicTheoryEngine:
                 chord_root = scale_degrees[degree]
                 
                 # Choose chord type based on degree, style, and era
-                chord_type = self._choose_chord_type_with_style(degree, scale, style, complexity)
-                
-                # Add style-specific extensions and alterations
-                if complexity > 0.6:
-                    chord_type = self._add_style_specific_extension(chord_type, style, complexity)
+                # Stack thirds from the selected scale so every generated chord
+                # belongs to its degree. A harmonic-minor V is the exception.
+                scale_size = len(scale_intervals)
+                third = (scale_intervals[(degree + 2) % scale_size] - scale_intervals[degree]) % 12
+                fifth = (scale_intervals[(degree + 4) % scale_size] - scale_intervals[degree]) % 12
+                quality = {(4, 7): 'maj', (3, 7): 'min', (3, 6): 'dim', (4, 8): 'aug'}.get((third, fifth))
+                if quality is None:
+                    continue
+                chord_type = quality
+                if complexity >= 0.6:
+                    seventh = (scale_intervals[(degree + 6) % scale_size] - scale_intervals[degree]) % 12
+                    chord_type = {('maj', 11): 'maj7', ('maj', 10): '7',
+                                  ('min', 10): 'min7', ('dim', 10): 'min7b5',
+                                  ('dim', 9): 'dim7'}.get((quality, seventh), quality)
                 
                 intervals = self.CHORD_INTERVALS.get(chord_type, [0, 4, 7])
                 notes = self.generate_chord_notes(chord_root, intervals)
@@ -1952,6 +1959,8 @@ class MusicTheoryEngine:
             '7': '7',
             'maj7': 'maj7',
             'min7': 'm7',
+            'min7b5': 'm7b5',
+            'dim7': 'dim7',
             'dim': 'dim',
             'aug': 'aug',
             '9': '9',
